@@ -77,7 +77,7 @@ async def ingest(kb_dir: Path, *, dry_run: bool, use_fake: bool) -> int:
                     values = {
                         "chunk_id": chunk.chunk_id,
                         "title": chunk.title,
-                        "categoria": chunk.categoria.value,
+                        "category": chunk.category.value,
                         "source": chunk.source,
                         "content": chunk.content,
                         "content_hash": chunk.content_hash,

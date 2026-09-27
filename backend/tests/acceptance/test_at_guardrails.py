@@ -99,7 +99,7 @@ async def test_at16_fallo_de_tool_no_rompe_el_turno(
 ) -> None:
     fake_llm.rules = {
         "familia": [
-            FakeTurn(tool_name="guardar_lead", tool_args={"uso_principal": "FAMILIA"}),
+            FakeTurn(tool_name="save_lead", tool_args={"primary_use": "FAMILY"}),
             FakeTurn(text="No pude guardar tus datos ahora, pero sigo contigo."),
         ]
     }

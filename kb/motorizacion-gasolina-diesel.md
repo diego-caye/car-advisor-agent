@@ -1,6 +1,6 @@
 ---
 title: "Gasolina y diésel: cómo elegir entre los dos"
-categoria: MOTORIZACION
+categoria: POWERTRAIN
 ---
 
 ## Cómo funcionan, en corto

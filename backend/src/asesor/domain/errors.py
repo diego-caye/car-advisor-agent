@@ -12,7 +12,7 @@ class ConsentRequiredError(DomainError):
 
     def __init__(self) -> None:
         super().__init__(
-            "Contact data (phone or email) requires consentimiento_contacto=true in the same call"
+            "Contact data (phone or email) requires contact_consent=true in the same call"
         )
 
 

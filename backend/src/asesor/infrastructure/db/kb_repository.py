@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import select
 
-from asesor.domain.enums import CategoriaKb
+from asesor.domain.enums import KbCategory
 from asesor.domain.knowledge import RetrievedChunk
 from asesor.infrastructure.db.engine import SessionFactory
 from asesor.infrastructure.db.models import KbChunkRow
@@ -16,14 +16,14 @@ class PgVectorRetriever:
         self,
         embedding: Sequence[float],
         *,
-        categoria: CategoriaKb | None,
+        category: KbCategory | None,
         top_k: int,
     ) -> list[RetrievedChunk]:
         distance = KbChunkRow.embedding.cosine_distance(list(embedding))
         statement = select(KbChunkRow, distance.label("distance")).order_by(distance).limit(top_k)
 
-        if categoria is not None:
-            statement = statement.where(KbChunkRow.categoria == categoria.value)
+        if category is not None:
+            statement = statement.where(KbChunkRow.category == category.value)
 
         async with self._session_factory() as session:
             rows = (await session.execute(statement)).all()
@@ -32,7 +32,7 @@ class PgVectorRetriever:
             RetrievedChunk(
                 chunk_id=row.chunk_id,
                 title=row.title,
-                categoria=CategoriaKb(row.categoria),
+                category=KbCategory(row.category),
                 source=row.source,
                 content=row.content,
                 # pgvector devuelve distancia coseno en [0, 2]; el score es la similitud.

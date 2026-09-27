@@ -1,6 +1,6 @@
 ---
 title: "Eléctricos: autonomía, carga y vida real"
-categoria: MOTORIZACION
+categoria: POWERTRAIN
 ---
 
 ## Cómo se comportan

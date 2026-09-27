@@ -6,11 +6,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from asesor.domain.entities import Lead, LeadUpdate
 from asesor.domain.enums import (
-    CanalPreferido,
-    Motorizacion,
-    NivelInteres,
-    TipoVehiculo,
-    UsoPrincipal,
+    InterestLevel,
+    Powertrain,
+    PreferredChannel,
+    PrimaryUse,
+    VehicleType,
 )
 from asesor.infrastructure.db.engine import SessionFactory
 from asesor.infrastructure.db.models import LeadRow
@@ -19,19 +19,21 @@ from asesor.infrastructure.db.models import LeadRow
 def _to_domain(row: LeadRow) -> Lead:
     return Lead(
         user_id=row.user_id,
-        nombre=row.nombre,
-        telefono=row.telefono,
+        name=row.name,
+        phone=row.phone,
         email=row.email,
-        canal_preferido=CanalPreferido(row.canal_preferido) if row.canal_preferido else None,
-        consentimiento_contacto=row.consentimiento_contacto,
-        uso_principal=UsoPrincipal(row.uso_principal) if row.uso_principal else None,
-        tipo_vehiculo_interes=(
-            TipoVehiculo(row.tipo_vehiculo_interes) if row.tipo_vehiculo_interes else None
+        preferred_channel=PreferredChannel(row.preferred_channel)
+        if row.preferred_channel
+        else None,
+        contact_consent=row.contact_consent,
+        primary_use=PrimaryUse(row.primary_use) if row.primary_use else None,
+        vehicle_type_interest=(
+            VehicleType(row.vehicle_type_interest) if row.vehicle_type_interest else None
         ),
-        motorizacion_interes=(
-            Motorizacion(row.motorizacion_interes) if row.motorizacion_interes else None
+        powertrain_interest=(
+            Powertrain(row.powertrain_interest) if row.powertrain_interest else None
         ),
-        nivel_interes=NivelInteres(row.nivel_interes) if row.nivel_interes else None,
+        interest_level=InterestLevel(row.interest_level) if row.interest_level else None,
     )
 
 

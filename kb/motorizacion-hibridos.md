@@ -1,6 +1,6 @@
 ---
 title: "Híbridos: MHEV, HEV y PHEV explicados"
-categoria: MOTORIZACION
+categoria: POWERTRAIN
 ---
 
 ## Los tres tipos, de menor a mayor electrificación

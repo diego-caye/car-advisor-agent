@@ -1,6 +1,6 @@
 ---
 title: "Van y minivan: máximo espacio por metro de vehículo"
-categoria: CARROCERIAS
+categoria: BODY_TYPES
 ---
 
 ## El principio de diseño

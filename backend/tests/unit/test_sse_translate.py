@@ -45,7 +45,7 @@ async def test_un_turno_solo_de_razonamiento_no_deja_burbuja_vacia() -> None:
 async def test_un_turno_que_pide_confirmacion_no_recibe_relleno() -> None:
     call = types.Part.from_function_call(
         name="adk_request_confirmation",
-        args={"toolConfirmation": {"payload": {"motivo": "TEST_DRIVE", "resumen": "x"}}},
+        args={"toolConfirmation": {"payload": {"reason": "TEST_DRIVE", "resumen": "x"}}},
     )
 
     events = await collect(model_event(call))
@@ -63,7 +63,7 @@ async def test_un_turno_con_confirmacion_ignora_todo_lo_que_llegue_despues() -> 
     """
     call = types.Part.from_function_call(
         name="adk_request_confirmation",
-        args={"toolConfirmation": {"payload": {"motivo": "TEST_DRIVE", "resumen": "x"}}},
+        args={"toolConfirmation": {"payload": {"reason": "TEST_DRIVE", "resumen": "x"}}},
     )
     response_after = Event(
         author="user",

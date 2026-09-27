@@ -1,6 +1,6 @@
 ---
 title: "GLP y GNV en el contexto peruano"
-categoria: MOTORIZACION
+categoria: POWERTRAIN
 ---
 
 ## Qué son

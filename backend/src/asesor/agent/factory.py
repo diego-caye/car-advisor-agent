@@ -13,9 +13,9 @@ from asesor.agent.guardrails.faults import FaultInjectionPlugin
 from asesor.agent.guardrails.plugin import GuardrailPlugin
 from asesor.agent.instruction import render_instruction
 from asesor.agent.state import read_dialog_state
-from asesor.agent.tools.handoff_tools import make_solicitar_contacto_humano
+from asesor.agent.tools.handoff_tools import make_request_human_handoff
 from asesor.agent.tools.knowledge_tools import make_search_knowledge_base
-from asesor.agent.tools.lead_tools import make_guardar_lead
+from asesor.agent.tools.lead_tools import make_save_lead
 from asesor.application.handoff_service import HandoffService
 from asesor.application.knowledge_service import KnowledgeService
 from asesor.application.lead_service import LeadService
@@ -43,8 +43,8 @@ def create_agent(
         description="Asesor automotriz virtual que orienta sin presionar.",
         instruction=instruction_provider,
         tools=[
-            make_guardar_lead(lead_service),
-            make_solicitar_contacto_humano(handoff_service),
+            make_save_lead(lead_service),
+            make_request_human_handoff(handoff_service),
             make_search_knowledge_base(knowledge_service),
         ],
     )

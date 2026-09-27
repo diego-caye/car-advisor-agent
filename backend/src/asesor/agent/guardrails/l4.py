@@ -21,7 +21,7 @@ _PRICING_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 
-TOOL_NAMES = ("guardar_lead", "solicitar_contacto_humano", "search_knowledge_base")
+TOOL_NAMES = ("save_lead", "request_human_handoff", "search_knowledge_base")
 
 # Los modelos pequeños a veces "escriben" la llamada en vez de emitirla como
 # function call. El texto queda en pantalla y la tool nunca se ejecuta. Visto

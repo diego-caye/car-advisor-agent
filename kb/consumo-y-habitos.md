@@ -1,6 +1,6 @@
 ---
 title: "Consumo de combustible y hábitos que lo cambian"
-categoria: CONSUMO
+categoria: FUEL_ECONOMY
 ---
 
 ## Por qué el consumo real nunca coincide con el homologado

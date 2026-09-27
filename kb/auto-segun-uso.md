@@ -1,6 +1,6 @@
 ---
 title: "Qué auto según el uso: ciudad, trabajo, familia, viajes y altura"
-categoria: USO
+categoria: USAGE
 ---
 
 ## Ciudad

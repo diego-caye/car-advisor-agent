@@ -13,8 +13,8 @@ from asesor.domain.enums import ToolStatus
 
 logger = logging.getLogger(__name__)
 
-LEAD_TOOL_NAME = "guardar_lead"
-HANDOFF_TOOL_NAME = "solicitar_contacto_humano"
+LEAD_TOOL_NAME = "save_lead"
+HANDOFF_TOOL_NAME = "request_human_handoff"
 CONFIRMATION_CALL_NAME = "adk_request_confirmation"
 UPSTREAM_ERROR_MESSAGE = "No pudimos generar la respuesta. Reintenta en unos segundos."
 EMPTY_REPLY_FALLBACK = "Disculpa, se me fue la idea 😅 ¿Me lo repites?"
@@ -58,10 +58,10 @@ def _confirmation_event(call: Any) -> SseEvent:
         "hitl.confirmation_required",
         {
             "confirmation_id": call.id,
-            "motivo": payload.get("motivo"),
+            "reason": payload.get("reason"),
             "resumen": payload.get("resumen"),
-            "canal_preferido": payload.get("canal_preferido"),
-            "urgencia": payload.get("urgencia"),
+            "preferred_channel": payload.get("preferred_channel"),
+            "urgency": payload.get("urgency"),
         },
     )
 
@@ -154,7 +154,7 @@ async def translate(events: AsyncIterator[Event], trace_id: str) -> AsyncIterato
             if name == LEAD_TOOL_NAME and status == ToolStatus.OK.value:
                 yield SseEvent(
                     "lead.updated",
-                    {"lead": data.get("lead"), "etapa": data.get("etapa")},
+                    {"lead": data.get("lead"), "stage": data.get("stage")},
                 )
 
             if name == HANDOFF_TOOL_NAME and data.get("handoff_id"):
@@ -163,7 +163,7 @@ async def translate(events: AsyncIterator[Event], trace_id: str) -> AsyncIterato
                     {
                         "handoff_id": data.get("handoff_id"),
                         "ticket": data.get("ticket"),
-                        "motivo": data.get("motivo"),
+                        "reason": data.get("reason"),
                         "status": data.get("status"),
                         "ya_existia": data.get("ya_existia", False),
                     },
