@@ -14,7 +14,6 @@ Migración de un workflow de n8n a un backend propio con **Google ADK 2.x + Fast
 - [Comandos](#comandos)
 - [Tests y evaluación](#tests-y-evaluación)
 - [Documentación](#documentación)
-- [Demo](#demo)
 - [Estado del proyecto](#estado-del-proyecto)
 - [Licencia](#licencia)
 
@@ -213,13 +212,9 @@ docker compose up -d                                                # levanta to
 | Checklist de fases y hallazgos de cada ronda | [`PROGRESS.md`](PROGRESS.md) |
 | Guion de pruebas manuales | [`docs/pruebas-manuales.md`](docs/pruebas-manuales.md) |
 
-## Demo
-
-Video (5-7 min): _pendiente de grabar y enlazar._
-
 ## Estado del proyecto
 
-Fases F0–F9 del plan de construcción — detalle y hallazgos de cada una en [`PROGRESS.md`](PROGRESS.md). Reto técnico (AI Engineer) con entrega viernes 18-sep-2026.
+Proyecto personal construido con desarrollo dirigido por especificaciones (Spec-Driven Development): 10 fases (F0–F9), cada una en su propia rama con su propio merge commit — detalle y hallazgos de cada una en [`PROGRESS.md`](PROGRESS.md).
 
 ## Licencia
 
