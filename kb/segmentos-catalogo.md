@@ -1,6 +1,6 @@
 ---
 title: "Catálogo genérico por segmento: plazas, maletero y uso ideal"
-categoria: SEGMENTOS
+categoria: SEGMENTS
 ---
 
 ## Cómo leer esta tabla

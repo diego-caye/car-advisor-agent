@@ -66,7 +66,7 @@ async def test_at06_los_resultados_llevan_titulo_fuente_y_score(
 
     container: Container = app.state.container
     chunks = await container.knowledge_service.search(
-        "diferencia entre SUV y crossover monocasco", categoria=None, top_k=4
+        "diferencia entre SUV y crossover monocasco", category=None, top_k=4
     )
 
     assert chunks, "la búsqueda debería encontrar contenido de carrocerías"

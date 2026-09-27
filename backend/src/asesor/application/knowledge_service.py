@@ -1,6 +1,6 @@
 import logging
 
-from asesor.domain.enums import CategoriaKb
+from asesor.domain.enums import KbCategory
 from asesor.domain.knowledge import EmbeddingsPort, KnowledgeRetriever, RetrievedChunk
 
 logger = logging.getLogger(__name__)
@@ -22,19 +22,19 @@ class KnowledgeService:
         self._min_score = min_score
 
     async def search(
-        self, query: str, *, categoria: CategoriaKb | None, top_k: int
+        self, query: str, *, category: KbCategory | None, top_k: int
     ) -> list[RetrievedChunk]:
         """Return chunks above the score floor, or an empty list (no_results)."""
         embedding = await self._embeddings.embed_query(query)
-        chunks = await self._retriever.search(embedding, categoria=categoria, top_k=top_k)
+        chunks = await self._retriever.search(embedding, category=category, top_k=top_k)
         accepted = self._above_floor(chunks)
 
-        if not accepted and categoria is not None:
+        if not accepted and category is not None:
             # El LLM elige la categoría y a veces se equivoca: pedir CARROCERIAS
             # como SEGMENTOS deja fuera justo los fragmentos buenos. El filtro es
             # una optimización, no una condición: si no da nada, se reintenta sin él.
-            logger.info("sin resultados en %s, reintentando sin filtro", categoria.value)
-            chunks = await self._retriever.search(embedding, categoria=None, top_k=top_k)
+            logger.info("sin resultados en %s, reintentando sin filtro", category.value)
+            chunks = await self._retriever.search(embedding, category=None, top_k=top_k)
             accepted = self._above_floor(chunks)
 
         return accepted

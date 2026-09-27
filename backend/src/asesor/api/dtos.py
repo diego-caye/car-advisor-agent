@@ -13,7 +13,7 @@ class SessionSummary(BaseModel):
     titulo: str | None = None
     session_id: str
     last_update_time: datetime
-    etapa: str
+    stage: str
 
 
 class HandoffDecision(BaseModel):
@@ -24,7 +24,7 @@ class HandoffDecision(BaseModel):
 
 class DeclinedDecision(BaseModel):
     kind: Literal["declined"] = "declined"
-    motivo: str
+    reason: str
 
 
 MessageDecision = Annotated[HandoffDecision | DeclinedDecision, Field(discriminator="kind")]
@@ -42,21 +42,21 @@ class MessageDto(BaseModel):
 
 
 class LeadDto(BaseModel):
-    nombre: str | None = None
-    telefono: str | None = None
+    name: str | None = None
+    phone: str | None = None
     email: str | None = None
-    canal_preferido: str | None = None
-    consentimiento_contacto: bool = False
-    uso_principal: str | None = None
-    tipo_vehiculo_interes: str | None = None
-    motorizacion_interes: str | None = None
-    nivel_interes: str | None = None
+    preferred_channel: str | None = None
+    contact_consent: bool = False
+    primary_use: str | None = None
+    vehicle_type_interest: str | None = None
+    powertrain_interest: str | None = None
+    interest_level: str | None = None
 
 
 class LeadResponse(BaseModel):
     lead: LeadDto | None
-    etapa: str
-    solo_mirando: bool
+    stage: str
+    just_browsing: bool
 
 
 class ChatRequest(BaseModel):
@@ -113,10 +113,10 @@ class HandoffDto(BaseModel):
     ticket: str
     session_id: str
     user_id: UUID
-    motivo: str
-    resumen_requerimiento: str
-    canal_preferido: str | None = None
-    urgencia: str | None = None
+    reason: str
+    requirement_summary: str
+    preferred_channel: str | None = None
+    urgency: str | None = None
     status: str
     created_at: datetime
 

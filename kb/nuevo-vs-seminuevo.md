@@ -1,6 +1,6 @@
 ---
 title: "Nuevo o seminuevo: cómo decidir"
-categoria: USO
+categoria: USAGE
 ---
 
 ## La depreciación manda

@@ -50,7 +50,7 @@ async def test_streaming_emits_partials_then_a_final_response() -> None:
 
 
 async def test_tool_turn_yields_a_function_call() -> None:
-    llm = FakeAdkLlm(turns=[FakeTurn(tool_name="guardar_lead", tool_args={"nombre": "Diego"})])
+    llm = FakeAdkLlm(turns=[FakeTurn(tool_name="save_lead", tool_args={"name": "Diego"})])
 
     responses = await collect(llm)
 
@@ -59,8 +59,8 @@ async def test_tool_turn_yields_a_function_call() -> None:
     assert content is not None and content.parts is not None
     call = content.parts[0].function_call
     assert call is not None
-    assert call.name == "guardar_lead"
-    assert call.args == {"nombre": "Diego"}
+    assert call.name == "save_lead"
+    assert call.args == {"name": "Diego"}
 
 
 async def test_falls_back_when_the_script_runs_out() -> None:

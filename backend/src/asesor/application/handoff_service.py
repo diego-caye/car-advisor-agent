@@ -2,7 +2,7 @@ from typing import Protocol
 from uuid import UUID
 
 from asesor.domain.entities import Handoff, can_transition
-from asesor.domain.enums import CanalPreferido, HandoffStatus, MotivoHandoff, Urgencia
+from asesor.domain.enums import HandoffReason, HandoffStatus, PreferredChannel, Urgency
 from asesor.domain.errors import DomainError
 
 
@@ -24,10 +24,10 @@ class HandoffRepository(Protocol):
         *,
         session_id: str,
         user_id: UUID,
-        motivo: MotivoHandoff,
-        resumen_requerimiento: str,
-        canal_preferido: CanalPreferido | None,
-        urgencia: Urgencia | None,
+        reason: HandoffReason,
+        requirement_summary: str,
+        preferred_channel: PreferredChannel | None,
+        urgency: Urgency | None,
     ) -> Handoff: ...
 
     async def list(self, status: HandoffStatus | None = None) -> list[Handoff]: ...
@@ -44,10 +44,10 @@ class HandoffService:
         *,
         session_id: str,
         user_id: UUID,
-        motivo: MotivoHandoff,
-        resumen_requerimiento: str,
-        canal_preferido: CanalPreferido | None = None,
-        urgencia: Urgencia | None = None,
+        reason: HandoffReason,
+        requirement_summary: str,
+        preferred_channel: PreferredChannel | None = None,
+        urgency: Urgency | None = None,
     ) -> tuple[Handoff, bool]:
         """Return the handoff and whether it was created now (spec 03: idempotent)."""
         existing = await self._repository.find_open(session_id)
@@ -57,10 +57,10 @@ class HandoffService:
         created = await self._repository.create(
             session_id=session_id,
             user_id=user_id,
-            motivo=motivo,
-            resumen_requerimiento=resumen_requerimiento,
-            canal_preferido=canal_preferido,
-            urgencia=urgencia,
+            reason=reason,
+            requirement_summary=requirement_summary,
+            preferred_channel=preferred_channel,
+            urgency=urgency,
         )
         return created, True
 

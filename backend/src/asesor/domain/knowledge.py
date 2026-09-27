@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from asesor.domain.enums import CategoriaKb
+from asesor.domain.enums import KbCategory
 
 EMBEDDING_DIMENSIONS = 768
 
@@ -11,7 +11,7 @@ EMBEDDING_DIMENSIONS = 768
 class KbChunk:
     chunk_id: str
     title: str
-    categoria: CategoriaKb
+    category: KbCategory
     source: str
     content: str
 
@@ -20,7 +20,7 @@ class KbChunk:
 class RetrievedChunk:
     chunk_id: str
     title: str
-    categoria: CategoriaKb
+    category: KbCategory
     source: str
     content: str
     score: float
@@ -40,7 +40,7 @@ class KnowledgeRetriever(Protocol):
         self,
         embedding: Sequence[float],
         *,
-        categoria: CategoriaKb | None,
+        category: KbCategory | None,
         top_k: int,
     ) -> list[RetrievedChunk]: ...
 

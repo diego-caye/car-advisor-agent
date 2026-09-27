@@ -31,19 +31,19 @@ async def test_at01_saludo_sin_nombre(
     lead = await client.get(
         f"/api/v1/sessions/{session_id}/lead", headers={"X-User-Id": str(user_id)}
     )
-    assert lead.json()["etapa"] == "NUEVO"
-    assert lead.json()["lead"]["nombre"] is None
+    assert lead.json()["stage"] == "NEW"
+    assert lead.json()["lead"]["name"] is None
 
     instruction = fake_llm.instructions[0]
     assert "Nombre conocido: ninguno" in instruction
-    assert "Etapa del diálogo: NUEVO" in instruction
+    assert "Etapa del diálogo: NEW" in instruction
 
 
 async def test_at02_usuario_que_vuelve_es_saludado_por_nombre(
     client: AsyncClient, fake_llm: FakeAdkLlm, user_id: UUID
 ) -> None:
     fake_llm.turns = [
-        FakeTurn(tool_name="guardar_lead", tool_args={"nombre": "Diego"}),
+        FakeTurn(tool_name="save_lead", tool_args={"name": "Diego"}),
         FakeTurn(text="¡Un gusto, Diego!"),
     ]
     first_session = await new_session(client, user_id)
@@ -55,12 +55,12 @@ async def test_at02_usuario_que_vuelve_es_saludado_por_nombre(
 
     instruction = fake_llm.instructions[-1]
     assert "Nombre conocido: Diego" in instruction
-    assert "Etapa del diálogo: DESCUBRIMIENTO" in instruction
+    assert "Etapa del diálogo: DISCOVERY" in instruction
 
     lead = await client.get(
         f"/api/v1/sessions/{second_session}/lead", headers={"X-User-Id": str(user_id)}
     )
-    assert lead.json()["lead"]["nombre"] == "Diego"
+    assert lead.json()["lead"]["name"] == "Diego"
 
 
 async def test_at03_no_repregunta_datos_que_ya_estan_en_la_ficha(
@@ -68,8 +68,8 @@ async def test_at03_no_repregunta_datos_que_ya_estan_en_la_ficha(
 ) -> None:
     fake_llm.turns = [
         FakeTurn(
-            tool_name="guardar_lead",
-            tool_args={"nombre": "Diego", "uso_principal": "FAMILIA"},
+            tool_name="save_lead",
+            tool_args={"name": "Diego", "primary_use": "FAMILY"},
         ),
         FakeTurn(text="Anotado, Diego."),
         FakeTurn(text="Claro, te cuento."),
@@ -77,17 +77,17 @@ async def test_at03_no_repregunta_datos_que_ya_estan_en_la_ficha(
     session_id = await new_session(client, user_id)
 
     first = await send_message(client, user_id, session_id, "soy Diego, lo quiero para la familia")
-    assert tool_names(first) == ["guardar_lead"]
+    assert tool_names(first) == ["save_lead"]
 
     lead_events = [e for e in first if e.event == "lead.updated"]
-    assert lead_events[0].data["lead"]["uso_principal"] == "FAMILIA"
-    assert lead_events[0].data["etapa"] == "DESCUBRIMIENTO"
+    assert lead_events[0].data["lead"]["primary_use"] == "FAMILY"
+    assert lead_events[0].data["stage"] == "DISCOVERY"
 
     await send_message(client, user_id, session_id, "y qué tal los híbridos")
 
     instruction = fake_llm.instructions[-1]
-    assert '"uso_principal": "FAMILIA"' in instruction
-    assert '"nombre": "Diego"' in instruction
+    assert '"primary_use": "FAMILY"' in instruction
+    assert '"name": "Diego"' in instruction
     assert "Nunca vuelvas a preguntar un dato que ya aparece en la ficha" in instruction
 
 
@@ -95,23 +95,23 @@ async def test_at05_solo_estoy_mirando_activa_el_modo_y_persiste(
     client: AsyncClient, fake_llm: FakeAdkLlm, user_id: UUID
 ) -> None:
     fake_llm.turns = [
-        FakeTurn(tool_name="guardar_lead", tool_args={"solo_mirando": True}),
+        FakeTurn(tool_name="save_lead", tool_args={"just_browsing": True}),
         FakeTurn(text=CANNED_SOLO_MIRANDO),
     ]
     session_id = await new_session(client, user_id)
 
     events = await send_message(client, user_id, session_id, "por ahora solo estoy mirando")
 
-    assert tool_names(events) == ["guardar_lead"]
+    assert tool_names(events) == ["save_lead"]
     assert reply_text(events) == CANNED_SOLO_MIRANDO
     assert not any(e.event == "error" for e in events)
 
     lead = await client.get(
         f"/api/v1/sessions/{session_id}/lead", headers={"X-User-Id": str(user_id)}
     )
-    assert lead.json()["solo_mirando"] is True
+    assert lead.json()["just_browsing"] is True
     # No mandó ningún dato del lead: la ficha sigue vacía, solo cambió la intención.
-    assert lead.json()["lead"]["nombre"] is None
+    assert lead.json()["lead"]["name"] is None
 
     fake_llm.turns = [FakeTurn(text="Claro, aquí estoy si tienes dudas.")]
     await send_message(client, user_id, session_id, "ok")
@@ -125,11 +125,11 @@ async def test_at19_dos_sesiones_concurrentes_sin_fuga(
     ana, beto = uuid4(), uuid4()
     fake_llm.rules = {
         "soy Ana": [
-            FakeTurn(tool_name="guardar_lead", tool_args={"nombre": "Ana"}),
+            FakeTurn(tool_name="save_lead", tool_args={"name": "Ana"}),
             FakeTurn(text="Un gusto, Ana."),
         ],
         "soy Beto": [
-            FakeTurn(tool_name="guardar_lead", tool_args={"nombre": "Beto"}),
+            FakeTurn(tool_name="save_lead", tool_args={"name": "Beto"}),
             FakeTurn(text="Un gusto, Beto."),
         ],
     }
@@ -148,8 +148,8 @@ async def test_at19_dos_sesiones_concurrentes_sin_fuga(
         client.get(f"/api/v1/sessions/{beto_session}/lead", headers={"X-User-Id": str(beto)}),
     )
 
-    assert ana_lead.json()["lead"]["nombre"] == "Ana"
-    assert beto_lead.json()["lead"]["nombre"] == "Beto"
+    assert ana_lead.json()["lead"]["name"] == "Ana"
+    assert beto_lead.json()["lead"]["name"] == "Beto"
 
     ana_msgs, beto_msgs = await asyncio.gather(
         client.get(f"/api/v1/sessions/{ana_session}/messages", headers={"X-User-Id": str(ana)}),

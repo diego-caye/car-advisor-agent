@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
 
-from asesor.domain.enums import CategoriaKb
+from asesor.domain.enums import KbCategory
 
 _FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _HEADING = re.compile(r"^##\s+(.+)$", re.MULTILINE)
@@ -18,7 +18,7 @@ OVERLAP_CHARS = 200
 @dataclass(frozen=True, slots=True)
 class ParsedDocument:
     title: str
-    categoria: CategoriaKb
+    category: KbCategory
     source: str
     body: str
 
@@ -27,7 +27,7 @@ class ParsedDocument:
 class LoadedChunk:
     chunk_id: str
     title: str
-    categoria: CategoriaKb
+    category: KbCategory
     source: str
     content: str
     content_hash: str
@@ -51,18 +51,18 @@ def parse_document(path: Path) -> ParsedDocument:
         fields[key.strip()] = value.strip().strip('"')
 
     title = fields.get("title")
-    categoria = fields.get("categoria")
-    if not title or not categoria:
+    category = fields.get("categoria")
+    if not title or not category:
         raise KbFormatError(f"{path.name}: el frontmatter necesita title y categoria")
 
     try:
-        parsed_categoria = CategoriaKb(categoria)
+        parsed_category = KbCategory(category)
     except ValueError as exc:
-        raise KbFormatError(f"{path.name}: categoria '{categoria}' no es válida") from exc
+        raise KbFormatError(f"{path.name}: categoria '{category}' no es válida") from exc
 
     return ParsedDocument(
         title=title,
-        categoria=parsed_categoria,
+        category=parsed_category,
         source=path.name,
         body=raw[match.end() :].strip(),
     )
@@ -121,7 +121,7 @@ def load_chunks(kb_dir: Path) -> list[LoadedChunk]:
                 LoadedChunk(
                     chunk_id=f"{path.stem}#{index:02d}",
                     title=document.title,
-                    categoria=document.categoria,
+                    category=document.category,
                     source=document.source,
                     content=content,
                     content_hash=hashlib.sha256(content.encode("utf-8")).hexdigest(),

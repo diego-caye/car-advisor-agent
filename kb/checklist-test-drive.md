@@ -1,6 +1,6 @@
 ---
 title: "Checklist para aprovechar un test drive"
-categoria: USO
+categoria: USAGE
 ---
 
 ## Antes de salir

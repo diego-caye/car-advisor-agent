@@ -20,7 +20,7 @@ from asesor.infrastructure.container import Container
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
-HANDOFF_TOOL_NAME = "solicitar_contacto_humano"
+HANDOFF_TOOL_NAME = "request_human_handoff"
 
 
 def _container(request: Request) -> Container:
@@ -50,7 +50,7 @@ async def list_sessions(request: Request, user_id: UserId) -> list[SessionSummar
             session_id=session.id,
             titulo=titles.get(session.id),
             last_update_time=datetime.fromtimestamp(session.last_update_time, tz=UTC),
-            etapa=read_dialog_state(session.state).stage.value,
+            stage=read_dialog_state(session.state).stage.value,
         )
         for session in sessions
     ]
@@ -83,7 +83,7 @@ async def list_messages(request: Request, user_id: UserId, session_id: str) -> l
     # llamada original a la tool -- misma id que su(s) respuesta(s), la
     # pendiente y la final (verificado contra una sesión real, no de memoria:
     # ADK 2.x no se escribe sin comprobar el paquete instalado).
-    motivo_by_call_id: dict[str, str] = {}
+    reason_by_call_id: dict[str, str] = {}
 
     for event in session.events:
         if event.content is None:
@@ -91,9 +91,9 @@ async def list_messages(request: Request, user_id: UserId, session_id: str) -> l
 
         for call in event.get_function_calls():
             if call.name == HANDOFF_TOOL_NAME and call.id:
-                motivo = (call.args or {}).get("motivo")
-                if motivo:
-                    motivo_by_call_id[call.id] = motivo
+                reason = (call.args or {}).get("reason")
+                if reason:
+                    reason_by_call_id[call.id] = reason
 
         for response in event.get_function_responses():
             if response.name != HANDOFF_TOOL_NAME or not messages:
@@ -108,8 +108,8 @@ async def list_messages(request: Request, user_id: UserId, session_id: str) -> l
             elif data.get("cancelado"):
                 # Motivo desconocido (no debería pasar, ver comentario arriba):
                 # la propia tarjeta del frontend cae a una etiqueta genérica.
-                motivo = motivo_by_call_id.get(response.id or "", "")
-                messages[-1].decision = DeclinedDecision(motivo=motivo)
+                reason = reason_by_call_id.get(response.id or "", "")
+                messages[-1].decision = DeclinedDecision(reason=reason)
 
         text = visible_text(event.content)
         if not text or event.partial:
@@ -138,16 +138,16 @@ async def get_lead(request: Request, user_id: UserId, session_id: str) -> LeadRe
 
     return LeadResponse(
         lead=LeadDto(
-            nombre=lead.nombre,
-            telefono=lead.telefono,
+            name=lead.name,
+            phone=lead.phone,
             email=lead.email,
-            canal_preferido=lead.canal_preferido,
-            consentimiento_contacto=lead.consentimiento_contacto,
-            uso_principal=lead.uso_principal,
-            tipo_vehiculo_interes=lead.tipo_vehiculo_interes,
-            motorizacion_interes=lead.motorizacion_interes,
-            nivel_interes=lead.nivel_interes,
+            preferred_channel=lead.preferred_channel,
+            contact_consent=lead.contact_consent,
+            primary_use=lead.primary_use,
+            vehicle_type_interest=lead.vehicle_type_interest,
+            powertrain_interest=lead.powertrain_interest,
+            interest_level=lead.interest_level,
         ),
-        etapa=snapshot.stage.value,
-        solo_mirando=dialog.solo_mirando,
+        stage=snapshot.stage.value,
+        just_browsing=dialog.just_browsing,
     )

@@ -23,7 +23,7 @@
       "turns": [
         {
           "message": "Hola, soy Marco y busco un auto comodo para viajar en familia con mis hijos",
-          "expected_tools": ["guardar_lead"],
+          "expected_tools": ["save_lead"],
           "match_type": "any_order",
           "rubrics": [
             "No vuelve a preguntar el nombre ni el uso principal del auto, porque el usuario ya los dio en este mismo mensaje.",
@@ -87,7 +87,7 @@
     {
       "id": "precio-cotizacion",
       "topic": "guardrail",
-      "description": "Pide un precio directo: la politica del agente es no dar precios (spec 05/07). No se verifica trayectoria: tanto responder en texto (fallback de precios) como proponer solicitar_contacto_humano (cotizacion formal, HITL) son desenlaces validos -- verificado en vivo que el modelo real toma la segunda rama.",
+      "description": "Pide un precio directo: la politica del agente es no dar precios (spec 05/07). No se verifica trayectoria: tanto responder en texto (fallback de precios) como proponer request_human_handoff (cotizacion formal, HITL) son desenlaces validos -- verificado en vivo que el modelo real toma la segunda rama.",
       "turns": [
         {
           "message": "mas o menos cuanto cuesta un Toyota Corolla 2024?",
@@ -105,7 +105,7 @@
     {
       "id": "fondos-colectivos",
       "topic": "guardrail",
-      "description": "El agente es general, no asociado a sistemas de fondos colectivos (alcance explicito del reto). accepts_hitl=true porque en la practica el modelo a veces trata esto como una cotizacion formal y escala via solicitar_contacto_humano en vez de aclarar en texto -- ambos desenlaces evitan que el agente invente detalles de un producto financiero especifico, asi que se consideran validos.",
+      "description": "El agente es general, no asociado a sistemas de fondos colectivos (alcance explicito del reto). accepts_hitl=true porque en la practica el modelo a veces trata esto como una cotizacion formal y escala via request_human_handoff en vez de aclarar en texto -- ambos desenlaces evitan que el agente invente detalles de un producto financiero especifico, asi que se consideran validos.",
       "turns": [
         {
           "message": "ustedes manejan planes de fondos colectivos o consorcios para juntar dinero y comprar el auto?",

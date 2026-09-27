@@ -10,46 +10,46 @@ from asesor.agent.tools.envelope import error, ok
 from asesor.application.lead_service import LeadService
 from asesor.domain.entities import LeadUpdate
 from asesor.domain.enums import (
-    CanalPreferido,
-    Motorizacion,
-    NivelInteres,
-    TipoVehiculo,
-    UsoPrincipal,
+    InterestLevel,
+    Powertrain,
+    PreferredChannel,
+    PrimaryUse,
+    VehicleType,
 )
 from asesor.domain.errors import DomainError
 
-GuardarLead = Callable[..., Awaitable[dict[str, Any]]]
+SaveLead = Callable[..., Awaitable[dict[str, Any]]]
 
 
-class _GuardarLeadArgs(BaseModel):
-    nombre: str | None = None
-    telefono: str | None = None
+class _SaveLeadArgs(BaseModel):
+    name: str | None = None
+    phone: str | None = None
     email: str | None = None
-    canal_preferido: CanalPreferido | None = None
-    consentimiento_contacto: bool | None = None
-    uso_principal: UsoPrincipal | None = None
-    tipo_vehiculo_interes: TipoVehiculo | None = None
-    motorizacion_interes: Motorizacion | None = None
-    nivel_interes: NivelInteres | None = None
-    solo_mirando: bool | None = None
+    preferred_channel: PreferredChannel | None = None
+    contact_consent: bool | None = None
+    primary_use: PrimaryUse | None = None
+    vehicle_type_interest: VehicleType | None = None
+    powertrain_interest: Powertrain | None = None
+    interest_level: InterestLevel | None = None
+    just_browsing: bool | None = None
 
     def to_update(self) -> LeadUpdate:
-        return LeadUpdate(**self.model_dump(exclude={"solo_mirando"}))
+        return LeadUpdate(**self.model_dump(exclude={"just_browsing"}))
 
 
-def make_guardar_lead(lead_service: LeadService) -> GuardarLead:
-    async def guardar_lead(
+def make_save_lead(lead_service: LeadService) -> SaveLead:
+    async def save_lead(
         tool_context: ToolContext,
-        nombre: str | None = None,
-        telefono: str | None = None,
+        name: str | None = None,
+        phone: str | None = None,
         email: str | None = None,
-        canal_preferido: str | None = None,
-        consentimiento_contacto: bool | None = None,
-        uso_principal: str | None = None,
-        tipo_vehiculo_interes: str | None = None,
-        motorizacion_interes: str | None = None,
-        nivel_interes: str | None = None,
-        solo_mirando: bool | None = None,
+        preferred_channel: str | None = None,
+        contact_consent: bool | None = None,
+        primary_use: str | None = None,
+        vehicle_type_interest: str | None = None,
+        powertrain_interest: str | None = None,
+        interest_level: str | None = None,
+        just_browsing: bool | None = None,
     ) -> dict[str, Any]:
         """Guarda o actualiza la ficha del usuario con los datos que vaya compartiendo.
 
@@ -58,19 +58,19 @@ def make_guardar_lead(lead_service: LeadService) -> GuardarLead:
         Actualiza solo los campos que conozcas: manda null en todos los demás.
 
         Args:
-            nombre: Nombre del usuario, 1 a 80 caracteres.
-            telefono: Celular peruano de 9 dígitos o número en formato internacional.
+            name: Nombre del usuario, 1 a 80 caracteres.
+            phone: Celular peruano de 9 dígitos o número en formato internacional.
             email: Correo electrónico del usuario.
-            canal_preferido: Uno de WHATSAPP, LLAMADA, EMAIL, CHAT.
-            consentimiento_contacto: true si el usuario aceptó explícitamente ser
-                contactado. Obligatorio si mandas telefono o email.
-            uso_principal: Uno de CIUDAD, TRABAJO, FAMILIA, VIAJES, MIXTO.
-            tipo_vehiculo_interes: Uno de SUV, SEDAN, HATCHBACK, PICKUP, VAN,
-                CROSSOVER, OTRO.
-            motorizacion_interes: Uno de GASOLINA, DIESEL, HIBRIDO, ELECTRICO,
-                GLP_GNV, NO_DEFINIDO.
-            nivel_interes: Uno de BAJO, MEDIO, ALTO, deducido de la conversación.
-            solo_mirando: true la primera vez que el usuario diga que solo está
+            preferred_channel: Uno de WHATSAPP, CALL, EMAIL, CHAT.
+            contact_consent: true si el usuario aceptó explícitamente ser
+                contactado. Obligatorio si mandas phone o email.
+            primary_use: Uno de CITY, WORK, FAMILY, TRAVEL, MIXED.
+            vehicle_type_interest: Uno de SUV, SEDAN, HATCHBACK, PICKUP, VAN,
+                CROSSOVER, OTHER.
+            powertrain_interest: Uno de GASOLINE, DIESEL, HYBRID, ELECTRIC,
+                LPG_CNG, UNDEFINED.
+            interest_level: Uno de LOW, MEDIUM, HIGH, deducido de la conversación.
+            just_browsing: true la primera vez que el usuario diga que solo está
                 mirando/comparando, sin intención de avanzar todavía. Puede ir solo,
                 sin ningún otro campo. Una vez activado, sigue así el resto de la
                 conversación: no hace falta volver a mandarlo.
@@ -79,22 +79,22 @@ def make_guardar_lead(lead_service: LeadService) -> GuardarLead:
             La ficha actualizada y la etapa del diálogo.
         """
         try:
-            args = _GuardarLeadArgs(
-                nombre=nombre,
-                telefono=telefono,
+            args = _SaveLeadArgs(
+                name=name,
+                phone=phone,
                 email=email,
-                canal_preferido=canal_preferido,
-                consentimiento_contacto=consentimiento_contacto,
-                uso_principal=uso_principal,
-                tipo_vehiculo_interes=tipo_vehiculo_interes,
-                motorizacion_interes=motorizacion_interes,
-                nivel_interes=nivel_interes,
-                solo_mirando=solo_mirando,
+                preferred_channel=preferred_channel,
+                contact_consent=contact_consent,
+                primary_use=primary_use,
+                vehicle_type_interest=vehicle_type_interest,
+                powertrain_interest=powertrain_interest,
+                interest_level=interest_level,
+                just_browsing=just_browsing,
             )
         except ValidationError as exc:
             return error("VALIDATION_ERROR", _first_message(exc))
 
-        if args.solo_mirando:
+        if args.just_browsing:
             # Vive en el estado de sesion (dialog state), no en la ficha del
             # usuario: es una intencion de esta conversacion, no un dato del lead.
             tool_context.state[SOLO_MIRANDO_KEY] = True
@@ -102,7 +102,7 @@ def make_guardar_lead(lead_service: LeadService) -> GuardarLead:
         dialog = read_dialog_state(tool_context.state)
         update = args.to_update()
 
-        if args.solo_mirando and update.is_empty():
+        if args.just_browsing and update.is_empty():
             # Se llamo solo para activar "solo mirando", sin ningun dato nuevo del
             # lead -- valido, no debe caer en EMPTY_UPDATE.
             snapshot = await lead_service.get_snapshot(UUID(tool_context.user_id), dialog.stage)
@@ -118,19 +118,19 @@ def make_guardar_lead(lead_service: LeadService) -> GuardarLead:
         return ok(
             {
                 "lead": {
-                    "nombre": snapshot.lead.nombre,
-                    "canal_preferido": snapshot.lead.canal_preferido,
-                    "uso_principal": snapshot.lead.uso_principal,
-                    "tipo_vehiculo_interes": snapshot.lead.tipo_vehiculo_interes,
-                    "motorizacion_interes": snapshot.lead.motorizacion_interes,
-                    "nivel_interes": snapshot.lead.nivel_interes,
-                    "consentimiento_contacto": snapshot.lead.consentimiento_contacto,
+                    "name": snapshot.lead.name,
+                    "preferred_channel": snapshot.lead.preferred_channel,
+                    "primary_use": snapshot.lead.primary_use,
+                    "vehicle_type_interest": snapshot.lead.vehicle_type_interest,
+                    "powertrain_interest": snapshot.lead.powertrain_interest,
+                    "interest_level": snapshot.lead.interest_level,
+                    "contact_consent": snapshot.lead.contact_consent,
                 },
-                "etapa": snapshot.stage.value,
+                "stage": snapshot.stage.value,
             }
         )
 
-    return guardar_lead
+    return save_lead
 
 
 def _first_message(exc: ValidationError) -> str:

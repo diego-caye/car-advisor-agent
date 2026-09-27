@@ -1,6 +1,6 @@
 ---
 title: "Sedán y hatchback: dos formas de resolver lo mismo"
-categoria: CARROCERIAS
+categoria: BODY_TYPES
 ---
 
 ## Sedán

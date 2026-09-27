@@ -1,6 +1,6 @@
 ---
 title: "Pickup: cuándo la tolva justifica el resto"
-categoria: CARROCERIAS
+categoria: BODY_TYPES
 ---
 
 ## Qué es y cómo se configura
