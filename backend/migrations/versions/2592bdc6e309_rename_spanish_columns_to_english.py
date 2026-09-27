@@ -17,6 +17,51 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+# StrEnum *values* that changed as part of the rename (column renames alone
+# don't touch existing rows -- without this, every pre-existing row keeps the
+# old Spanish string, which is no longer a valid member of the new enum and
+# breaks the moment the app tries to parse it, e.g. KbCategory("CARROCERIAS").
+_PREFERRED_CHANNEL = {"LLAMADA": "CALL"}
+_PRIMARY_USE = {
+    "CIUDAD": "CITY",
+    "TRABAJO": "WORK",
+    "FAMILIA": "FAMILY",
+    "VIAJES": "TRAVEL",
+    "MIXTO": "MIXED",
+}
+_VEHICLE_TYPE = {"OTRO": "OTHER"}
+_POWERTRAIN = {
+    "GASOLINA": "GASOLINE",
+    "HIBRIDO": "HYBRID",
+    "ELECTRICO": "ELECTRIC",
+    "NO_DEFINIDO": "UNDEFINED",
+}
+_INTEREST_LEVEL = {"BAJO": "LOW", "MEDIO": "MEDIUM", "ALTO": "HIGH"}
+_HANDOFF_REASON = {
+    "COTIZACION_FORMAL": "FORMAL_QUOTE",
+    "COMPRA_INMEDIATA": "IMMEDIATE_PURCHASE",
+    "DISCONFORMIDAD": "DISSATISFACTION",
+    "FUERA_DE_ALCANCE": "OUT_OF_SCOPE",
+}
+_URGENCY = {"BAJA": "LOW", "MEDIA": "MEDIUM", "ALTA": "HIGH"}
+_KB_CATEGORY = {
+    "CARROCERIAS": "BODY_TYPES",
+    "SEGMENTOS": "SEGMENTS",
+    "MOTORIZACION": "POWERTRAIN",
+    "TRANSMISION": "TRANSMISSION",
+    "CONSUMO": "FUEL_ECONOMY",
+    "MANTENIMIENTO": "MAINTENANCE",
+    "SEGURIDAD": "SAFETY",
+    "USO": "USAGE",
+    "GLOSARIO": "GLOSSARY",
+}
+
+
+def _remap(table: str, column: str, mapping: dict[str, str]) -> None:
+    for old, new in mapping.items():
+        op.execute(f"UPDATE {table} SET {column} = '{new}' WHERE {column} = '{old}'")
+
+
 def upgrade() -> None:
     """Upgrade schema."""
     op.alter_column("leads", "nombre", new_column_name="name")
@@ -37,9 +82,29 @@ def upgrade() -> None:
     op.drop_index(op.f("ix_kb_chunks_categoria"), table_name="kb_chunks")
     op.create_index(op.f("ix_kb_chunks_category"), "kb_chunks", ["category"], unique=False)
 
+    _remap("leads", "preferred_channel", _PREFERRED_CHANNEL)
+    _remap("leads", "primary_use", _PRIMARY_USE)
+    _remap("leads", "vehicle_type_interest", _VEHICLE_TYPE)
+    _remap("leads", "powertrain_interest", _POWERTRAIN)
+    _remap("leads", "interest_level", _INTEREST_LEVEL)
+    _remap("handoffs", "reason", _HANDOFF_REASON)
+    _remap("handoffs", "preferred_channel", _PREFERRED_CHANNEL)
+    _remap("handoffs", "urgency", _URGENCY)
+    _remap("kb_chunks", "category", _KB_CATEGORY)
+
 
 def downgrade() -> None:
     """Downgrade schema."""
+    _remap("kb_chunks", "category", {v: k for k, v in _KB_CATEGORY.items()})
+    _remap("handoffs", "urgency", {v: k for k, v in _URGENCY.items()})
+    _remap("handoffs", "preferred_channel", {v: k for k, v in _PREFERRED_CHANNEL.items()})
+    _remap("handoffs", "reason", {v: k for k, v in _HANDOFF_REASON.items()})
+    _remap("leads", "interest_level", {v: k for k, v in _INTEREST_LEVEL.items()})
+    _remap("leads", "powertrain_interest", {v: k for k, v in _POWERTRAIN.items()})
+    _remap("leads", "vehicle_type_interest", {v: k for k, v in _VEHICLE_TYPE.items()})
+    _remap("leads", "primary_use", {v: k for k, v in _PRIMARY_USE.items()})
+    _remap("leads", "preferred_channel", {v: k for k, v in _PREFERRED_CHANNEL.items()})
+
     op.drop_index(op.f("ix_kb_chunks_category"), table_name="kb_chunks")
     op.alter_column("kb_chunks", "category", new_column_name="categoria")
     op.create_index(op.f("ix_kb_chunks_categoria"), "kb_chunks", ["categoria"], unique=False)
