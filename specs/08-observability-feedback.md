@@ -1,60 +1,60 @@
-# 08 · Observabilidad y feedback
+# 08 · Observability and feedback
 
 ## 1. Pipeline
 
-OpenTelemetry (SDK Python) + `openinference-instrumentation-google-adk` → exporter OTLP → Langfuse. Sin `LANGFUSE_*` configuradas, el exporter cae a no-op (`ConsoleSpanExporter` deshabilitado o `NoOpTracerProvider`) — la app funciona igual, solo sin backend de trazas. Nunca se lanza una excepción por telemetría ausente.
+OpenTelemetry (Python SDK) + `openinference-instrumentation-google-adk` → OTLP exporter → Langfuse. Without `LANGFUSE_*` configured, the exporter falls back to no-op (`ConsoleSpanExporter` disabled or `NoOpTracerProvider`) — the app works the same, just without a trace backend. Missing telemetry never raises an exception.
 
-## 2. Spans propios
+## 2. Custom spans
 
-| Span | Atributos propios | Cuándo |
+| Span | Custom attributes | When |
 |---|---|---|
-| `guardrail.l1` | `matched: bool`, `category?` | por cada mensaje entrante |
-| `guardrail.l2` | `label`, `confidence`, `timed_out: bool` | por cada mensaje entrante (si L1 no bloqueó) |
-| `guardrail.l4` | `matched: bool`, `category?` | por cada respuesta saliente |
-| `rag.retrieve` | `query`, `categoria?`, `top_k`, `best_score`, `result_count` | cada `search_knowledge_base` |
-| `hitl.request` | `motivo`, `session_id` | al proponer `solicitar_contacto_humano` |
-| `hitl.confirm` | `approved: bool` | al resolver la confirmación |
-| `eval.judge` | `criterio`, `score` | por cada criterio evaluado (spec §4) |
+| `guardrail.l1` | `matched: bool`, `category?` | on every incoming message |
+| `guardrail.l2` | `label`, `confidence`, `timed_out: bool` | on every incoming message (if L1 didn't block it) |
+| `guardrail.l4` | `matched: bool`, `category?` | on every outgoing response |
+| `rag.retrieve` | `query`, `category?`, `top_k`, `best_score`, `result_count` | on every `search_knowledge_base` call |
+| `hitl.request` | `reason`, `session_id` | when proposing `request_human_handoff` |
+| `hitl.confirm` | `approved: bool` | when resolving the confirmation |
+| `eval.judge` | `criterion`, `score` | for each criterion evaluated (spec §4) |
 
-Todos son hijos del span de turno abierto por `ChatService` (que lleva `trace_id`).
+All are children of the turn span opened by `ChatService` (which carries the `trace_id`).
 
-## 3. Datos por turno
+## 3. Per-turn data
 
-- `trace_id` se crea **antes** de invocar `runner.run_async` (nunca `run`: con `run` el contexto OTel no llega a los spans hijos — gotcha del prompt maestro).
-- Latencia medida en servidor (desde que se recibe el POST hasta `message.completed`).
-- Tokens in/out: suma de todas las llamadas LLM del turno (el agente **y** el clasificador L2 si corrió).
-- Se emiten en el evento SSE `message.completed` (spec 02) y en un log JSON estructurado (`stdout`, un objeto por turno) para poder grepear sin depender de Langfuse.
-- Atributos de span/log: `session_id`, `user_id`, `provider` (gemini/ollama), `model`, `etapa`, `guardrail_blocked: bool`, `hitl: bool`.
-- PII (`telefono`, `email` del lead) se enmascara antes de entrar a cualquier span o log (spec 03 §5) — nunca en claro en Langfuse.
+- `trace_id` is created **before** invoking `runner.run_async` (never `run`: with `run` the OTel context doesn't reach the child spans — a master-prompt gotcha).
+- Latency measured server-side (from receiving the POST to `message.completed`).
+- Tokens in/out: sum of every LLM call in the turn (the agent **and** the L2 classifier, if it ran).
+- Emitted in the `message.completed` SSE event (spec 02) and in a structured JSON log (`stdout`, one object per turn) so it can be grepped without depending on Langfuse.
+- Span/log attributes: `session_id`, `user_id`, `provider` (gemini/ollama), `model`, `stage`, `guardrail_blocked: bool`, `hitl: bool`.
+- PII (the lead's `phone`, `email`) is masked before entering any span or log (spec 03 §5) — never in the clear in Langfuse.
 
-## 4. Feedback de usuario
+## 4. User feedback
 
-`POST /api/v1/feedback {session_id, trace_id, score: 1 | -1, message, comment?}` → inserta en tabla `feedback` **y** registra un score `user-feedback` en Langfuse contra el `trace_id` recibido (Langfuse permite adjuntar scores a un trace ya cerrado). Si Langfuse no está configurado, solo se persiste en la tabla — no es bloqueante. `message` (el texto de la respuesta calificada) se guarda denormalizado en la propia fila, para poder listar el feedback sin depender de que el historial de ADK siga teniendo ese evento.
+`POST /api/v1/feedback {session_id, trace_id, score: 1 | -1, message, comment?}` → inserts into the `feedback` table **and** records a `user-feedback` score in Langfuse against the received `trace_id` (Langfuse allows attaching scores to an already-closed trace). If Langfuse isn't configured, only the table write happens — it's non-blocking. `message` (the text of the rated response) is stored denormalized in the row itself, so feedback can be listed without depending on the ADK history still having that event.
 
-`GET /api/v1/feedback?limit=` (sin token, a diferencia de `/handoffs` — motivo en spec 02) lista el feedback más reciente primero. El frontend lo consume en el Panel dev (sección "Feedback"): carga sola al abrir el panel, y cada fila es clickeable — navega a `/c/:session_id` de la conversación donde se dio ese feedback, en vez de quedar como un número suelto sin contexto.
+`GET /api/v1/feedback?limit=` (no token, unlike `/handoffs` — reason in spec 02) lists the most recent feedback first. The frontend consumes it in the dev panel ("Feedback" section): it loads on its own when the panel opens, and each row is clickable — it navigates to `/c/:session_id` for the conversation where that feedback was given, instead of being just a floating number with no context.
 
-## 5. Evaluación post-ejecución (P1)
+## 5. Post-execution evaluation (P1)
 
-Tarea en background (no bloquea la respuesta al usuario) que corre con `EVAL_MODEL`, muestreada por `EVAL_SAMPLE_RATE` (env, 0–1), sobre una fracción de los turnos. Evalúa por turno:
+A background task (doesn't block the response to the user) that runs with `EVAL_MODEL`, sampled by `EVAL_SAMPLE_RATE` (env, 0–1), over a fraction of turns. Evaluates per turn:
 
-| Criterio | Qué mide |
+| Criterion | What it measures |
 |---|---|
-| Tono empático | Coherencia con la VOZ de "Luis" (spec 05) |
-| Brevedad | 2–3 oraciones, sin markdown pesado |
-| Una sola pregunta | No acumula varias preguntas en un turno |
-| Sin precios | No menciona precios/cotizaciones/stock/financiamiento |
-| Fidelidad al contexto RAG | Si hubo `search_knowledge_base` con resultados, la respuesta no contradice ni inventa sobre esos chunks |
+| Empathetic tone | Consistency with Luis's VOICE (spec 05) |
+| Brevity | 2–3 sentences, no heavy markdown |
+| A single question | Doesn't stack several questions in one turn |
+| No prices | Doesn't mention prices/quotes/stock/financing |
+| Faithfulness to RAG context | If `search_knowledge_base` ran with results, the response doesn't contradict or invent beyond those chunks |
 
-Persiste en tabla `evaluations` (`session_id`, `message_id`, criterio, score, justificación corta) y emite scores `quality.<criterio>` en Langfuse contra el `trace_id` del turno. Nunca bloquea ni retrasa `message.completed`.
+Persists to the `evaluations` table (`session_id`, `message_id`, criterion, score, short justification) and emits `quality.<criterion>` scores to Langfuse against the turn's `trace_id`. Never blocks or delays `message.completed`.
 
-**Implementado en F7** (`EvaluationService`): una sola llamada al juez por turno (no una por criterio) que devuelve un veredicto JSON por criterio; `fidelidad_rag` solo se pide si el turno llamó `search_knowledge_base`. Se agenda como `BackgroundTasks` desde dentro de `_stream` (chat.py), una vez conocido el texto final del turno — no antes, porque a diferencia de `title_service` necesita el resultado, no solo el mensaje de entrada. Un turno reanudado por `chat/confirmations` (HITL) nunca se muestrea: no hay mensaje de usuario fresco que evaluar ahí.
+**Implemented in F7** (`EvaluationService`): a single call to the judge per turn (not one per criterion) that returns a JSON verdict per criterion; `fidelidad_rag` (RAG faithfulness) is only requested if the turn called `search_knowledge_base`. Scheduled as a `BackgroundTasks` call from within `_stream` (chat.py), once the turn's final text is known — not earlier, because unlike `title_service` it needs the result, not just the input message. A turn resumed via `chat/confirmations` (HITL) is never sampled: there's no fresh user message to evaluate there.
 
-Existe además el equivalente offline — un dataset dorado de conversaciones (`backend/tests/evalset/`, tipo `evalset` en spec 09) que corre contra el modelo real y el mismo mecanismo de juez, más trayectoria de tools y contención fuera de tema. Es la pieza de "correr conversaciones on-topic y off-topic para verificar que el agente no se sale de su guion" — offline y bajo demanda, no online por muestreo como este mecanismo.
+There's also an offline equivalent — a golden dataset of conversations (`backend/tests/evalset/`, the `evalset` type in spec 09) that runs against the real model with the same judge mechanism, plus tool trajectory and off-topic containment. This is the piece that "runs on-topic and off-topic conversations to check the agent doesn't stray from its script" — offline and on-demand, not sampled online like this mechanism.
 
-## 6. Variables de entorno
+## 6. Environment variables
 
-`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `LANGFUSE_PROJECT_ID` (para el link del panel dev), `EVAL_MODEL`, `EVAL_SAMPLE_RATE`.
+`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `LANGFUSE_PROJECT_ID` (for the dev panel's link), `EVAL_MODEL`, `EVAL_SAMPLE_RATE`.
 
-## 7. Qué mirar en Langfuse (para el README, F9)
+## 7. What to look at in Langfuse (for the README, F9)
 
-Árbol de la traza de un turno (agente → tools → guardrails), latencia total vs. por span, tokens in/out acumulados, score `user-feedback` y scores `quality.*` cuando corrió la evaluación.
+The trace tree for a turn (agent → tools → guardrails), total latency vs. per-span latency, cumulative tokens in/out, the `user-feedback` score, and `quality.*` scores when evaluation ran.

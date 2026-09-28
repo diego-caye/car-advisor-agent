@@ -1,10 +1,10 @@
 # PROGRESS.md
 
-Entrega: viernes 18-sep-2026, 15:00 (hora Perú). Actualizar al cerrar cada ítem.
+Delivery: Friday 18-Sep-2026, 15:00 (Peru time). Update when closing each item.
 
 ## F0 · `docs/specs` · P0
 
-DoD: specs, `CLAUDE.md` y `PROGRESS.md`. **Parar para revisión.**
+DoD: specs, `CLAUDE.md`, and `PROGRESS.md`. **Stop for review.**
 
 - [x] `specs/00-baseline-analysis.md`
 - [x] `specs/01-architecture.md`
@@ -22,360 +22,392 @@ DoD: specs, `CLAUDE.md` y `PROGRESS.md`. **Parar para revisión.**
 - [x] `specs/open-questions.md`
 - [x] `CLAUDE.md`
 - [x] `PROGRESS.md`
-- [x] Repo git local inicializado (`main`, `develop`, `docs/specs`), `.gitignore` con `.local/` y `.env`
-- [x] **Revisión humana de F0** — aprobada 2026-09-15; merge `docs/specs → develop`
+- [x] Local git repo initialized (`main`, `develop`, `docs/specs`), `.gitignore` with `.local/` and `.env`
+- [x] **Human review of F0** — approved 2026-09-15; `docs/specs → develop` merge
 
-Prerrequisitos aún pendientes (detalle en `specs/open-questions.md`): repo remoto en GitHub + `gh auth login`, skills ADK (`npx skills add google/agents-cli`), `GOOGLE_API_KEY` real.
+Prerequisites still pending (detail in `specs/open-questions.md`): a GitHub remote + `gh auth login`, ADK skills (`npx skills add google/agents-cli`), a real `GOOGLE_API_KEY`.
 
 ## F1 · `feature/scaffold` · P0
 
-DoD: `make up` y `make lint typecheck test` en verde. **Cumplido.**
+DoD: `make up` and `make lint typecheck test` green. **Met.**
 
-- [x] Estructura de carpetas (`backend/src/asesor/...`, `frontend/src/...`)
-- [x] `Settings` (pydantic-settings) con validación de combinaciones de provider
-- [x] `docker-compose.yml` (db pgvector + backend + frontend) + `Makefile`
-- [x] `.env.example` comentado, con IDs de modelo verificados
+- [x] Folder structure (`backend/src/asesor/...`, `frontend/src/...`)
+- [x] `Settings` (pydantic-settings) validating provider combinations
+- [x] `docker-compose.yml` (pgvector db + backend + frontend) + `Makefile`
+- [x] Commented `.env.example`, with verified model IDs
 - [x] CI (ruff, mypy, pytest, tsc, build)
 - [x] `GET /healthz`
-- [x] `FakeLlm` determinista
-- [x] Plantilla de PR (`.github/pull_request_template.md`)
+- [x] Deterministic `FakeLlm`
+- [x] PR template (`.github/pull_request_template.md`)
 
-Verificado el 2026-09-15: `ruff check` + `ruff format --check` limpios, `mypy --strict` sin errores en 20 archivos, 17 tests pytest en verde, `tsc --noEmit` y `vite build` en verde, y `docker compose up` con los tres servicios *healthy* respondiendo `/healthz` (directo y a través del proxy del frontend). `google-adk==2.9.1` importa en el entorno.
+Verified on 2026-09-15: `ruff check` + `ruff format --check` clean, `mypy --strict` with no errors across 20 files, 17 pytest tests passing, `tsc --noEmit` and `vite build` clean, and `docker compose up` with all three services *healthy* responding to `/healthz` (directly and through the frontend proxy). `google-adk==2.9.1` imports in the environment.
 
 ## F2 · `feature/agent-core` · P0
 
-DoD: AT de saludo, lead, anti-loop y concurrencia (spec 09: AT-01, AT-02, AT-03, AT-19). **Cumplido.**
+DoD: greeting, lead, anti-loop, and concurrency ATs (spec 09: AT-01, AT-02, AT-03, AT-19). **Met.**
 
-- [x] `specs/notes/adk-api.md` con firmas verificadas contra `google-adk==2.9.1`
-- [x] Agente "Luis" con instrucción dinámica (callable, no template de `{state_key}`)
-- [x] Tool `guardar_lead` con validación Pydantic e ids desde `ToolContext`
-- [x] Máquina de estados pura en `domain/`
-- [x] `DatabaseSessionService` sobre Postgres + tabla `leads` con Alembic
-- [x] SSE de `chat/stream` con el contrato de spec 02
-- [x] Endpoints de sesiones (`POST`/`GET`, messages, lead)
-- [x] Telemetría base (OTel → Langfuse, no-op sin keys; `trace_id`, latencia, tokens)
-- [x] `FakeAdkLlm` (reemplaza al `FakeLlm` provisional de F1, ya como `BaseLlm` real)
-- [x] Postgres en el CI para los tests de integración y aceptación
+- [x] `specs/notes/adk-api.md` with signatures verified against `google-adk==2.9.1`
+- [x] "Luis" agent with a dynamic instruction (a callable, not a `{state_key}` template)
+- [x] `save_lead` tool with Pydantic validation and ids from `ToolContext`
+- [x] Pure state machine in `domain/`
+- [x] `DatabaseSessionService` over Postgres + `leads` table with Alembic
+- [x] `chat/stream` SSE following spec 02's contract
+- [x] Session endpoints (`POST`/`GET`, messages, lead)
+- [x] Base telemetry (OTel → Langfuse, no-op without keys; `trace_id`, latency, tokens)
+- [x] `FakeAdkLlm` (replaces F1's provisional `FakeLlm`, now a real `BaseLlm`)
+- [x] Postgres in CI for integration and acceptance tests
 
-Verificado el 2026-09-15: 52 tests en verde (AT-01, AT-02, AT-03, AT-19 incluidos), mypy strict limpio en 54 archivos, ruff limpio, y la app real en Docker crea sesiones, sirve `/lead`, devuelve 404 ante sesión ajena y degrada con gracia cuando el modelo falla.
+Verified on 2026-09-15: 52 tests passing (including AT-01, AT-02, AT-03, AT-19), mypy strict clean across 54 files, ruff clean, and the real app in Docker creates sessions, serves `/lead`, returns 404 for someone else's session, and degrades gracefully when the model fails.
 
-Pendiente para fases siguientes: la tool `guardar_lead` expone sus parámetros como opcionales (desviación deliberada de la guía "sin defaults" de ADK, porque el upsert es parcial por diseño). `EventsCompactionConfig` está activo pero sus umbrales no se han afinado con conversaciones largas (F7).
+Pending for later phases: the `save_lead` tool exposes its parameters as optional (a deliberate deviation from ADK's "no defaults" guidance, because the upsert is partial by design). `EventsCompactionConfig` is active but its thresholds haven't been tuned with long conversations yet (F7).
 
-Nota: no hay `LlmProvider` factory todavía — el modelo se pasa como string de env directo a `Agent(model=...)`, que es lo que ADK acepta. La factory con adaptadores aparece en F8, cuando Ollama entre en juego (requiere el extra `google-adk[extensions]`).
+Note: there's no `LlmProvider` factory yet — the model is passed as an env string directly to `Agent(model=...)`, which is what ADK accepts. The factory with adapters shows up in F8, once Ollama enters the picture (requires the `google-adk[extensions]` extra).
 
 ## F3 · `feature/hitl` · P0
 
-DoD: AT de HITL (AT-08, AT-09, AT-10). **Cumplido.**
+DoD: HITL ATs (AT-08, AT-09, AT-10). **Met.**
 
-- [x] Spike de confirmación nativa de tools ADK sobre SSE propio — **funciona**, no hace falta fallback
+- [x] Spike of ADK's native tool confirmation over our own SSE — **works**, no fallback needed
 - [x] `ADR-002-hitl.md`
-- [x] Tool `solicitar_contacto_humano` con confirmación previa
-- [x] Tabla `handoffs` + transiciones `OPEN → IN_PROGRESS → CLOSED`
-- [x] `POST /chat/confirmations` (reanuda el stream)
-- [x] `GET /handoffs`, `PATCH /handoffs/{id}` (admin con `ADMIN_TOKEN`)
+- [x] `request_human_handoff` tool with prior confirmation
+- [x] `handoffs` table + `OPEN → IN_PROGRESS → CLOSED` transitions
+- [x] `POST /chat/confirmations` (resumes the stream)
+- [x] `GET /handoffs`, `PATCH /handoffs/{id}` (admin with `ADMIN_TOKEN`)
 
-Verificado el 2026-09-15: 58 tests en verde. AT-08 (test drive → confirmación → ticket + etapa `DERIVADO`), AT-09 (cancelar no crea nada y restaura la etapa previa), AT-10 (segundo pedido devuelve el mismo ticket con `ya_existia: true`), más 401 sin token admin, 409 en transición inválida y 404 en handoff inexistente.
+Verified on 2026-09-15: 58 tests passing. AT-08 (test drive → confirmation → ticket + stage `HANDED_OFF`), AT-09 (canceling creates nothing and restores the previous stage), AT-10 (a second request returns the same ticket with `ya_existia: true`), plus a 401 with no admin token, a 409 on an invalid transition, and a 404 for a nonexistent handoff.
 
-Hallazgo importante: el autogenerate de Alembic veía las tablas de ADK (`sessions`, `events`, `app_states`, `user_states`, `adk_internal_metadata`) como sobrantes y emitía `DROP TABLE`. `migrations/env.py` ahora filtra con `include_object` las tablas que no son nuestras.
+Important finding: Alembic's autogenerate treated ADK's own tables (`sessions`, `events`, `app_states`, `user_states`, `adk_internal_metadata`) as leftovers and emitted `DROP TABLE`. `migrations/env.py` now filters them out with `include_object` for anything that isn't ours.
 
 ## F4 · `feature/frontend` · P0
 
-DoD: flujo end-to-end en el navegador. **Cumplido.**
+DoD: end-to-end flow in the browser. **Met.**
 
-- [x] Plan de diseño en `docs/ui.md` (paleta azul noche + ámbar, tipografía, layout ASCII, principios y anti-patrones)
-- [x] Sidebar de conversaciones + panel de chat + panel dev plegable
-- [x] Streaming token a token con cursor, chips de actividad por tool
-- [x] Tarjeta HITL con motivo en lenguaje natural y aviso de ticket
-- [x] Errores que dicen qué hacer + botón Reintentar
-- [x] Tipos generados desde `/openapi.json` (`npm run gen:types`)
-- [x] Tests vitest del parser SSE y del reducer del chat (17 casos)
-- [x] **Verificación del camino feliz en navegador** — desbloqueada con los modelos locales
-- [ ] Feedback 👍/👎 — movido a F7, junto con el endpoint que lo respalda
+- [x] Design plan in `docs/ui.md` (midnight-blue + amber palette, typography, ASCII layout, principles and anti-patterns)
+- [x] Conversation sidebar + chat panel + collapsible dev panel
+- [x] Token-by-token streaming with a cursor, per-tool activity chips
+- [x] HITL card with a natural-language reason and a ticket notice
+- [x] Errors that say what to do + a Retry button
+- [x] Types generated from `/openapi.json` (`npm run gen:types`)
+- [x] Vitest tests for the SSE parser and the chat reducer (17 cases)
+- [x] **Happy-path verification in the browser** — unblocked by the local models
+- [ ] 👍/👎 feedback — moved to F7, together with the endpoint backing it
 
-Verificado el 2026-09-15 en Chromium contra el stack real con `qwen3:4b` local: conversación completa, ficha del lead llenándose en vivo en el panel dev (nombre, uso, nivel de interés), chip de etapa, latencia/tokens/modelo del turno, sesión listada en la sidebar. Sin errores de consola y sin scroll horizontal a 390px. `tsc --noEmit` limpio con `noUncheckedIndexedAccess`, `vite build` y 17 tests de vitest en verde.
+Verified on 2026-09-15 in Chromium against the real stack with local `qwen3:4b`: a full conversation, the lead record filling in live in the dev panel (name, use, interest level), a stage chip, the turn's latency/tokens/model, the session listed in the sidebar. No console errors, no horizontal scroll at 390px. `tsc --noEmit` clean with `noUncheckedIndexedAccess`, `vite build` and 17 vitest tests passing.
 
-La captura del navegador fue lo que destapó dos bugs que los tests con el doble no podían ver: el modelo escribiendo `guardar_lead(...)` como texto en la burbuja, y el filtro de categoría del RAG devolviendo `no_results` con la respuesta en la KB.
+Capturing it in the browser is what surfaced two bugs the tests with the double couldn't see: the model writing `save_lead(...)` as text in the bubble, and the RAG category filter returning `no_results` when the answer was actually in the KB.
 
 ## F5 · `feature/rag` · P0
 
-DoD: AT de RAG y sin datos (AT-06, AT-07). **Cumplido con el embedder determinista; falta una corrida de ingesta con embeddings reales.**
+DoD: RAG and no-data ATs (AT-06, AT-07). **Met with the deterministic embedder; a real-embeddings ingestion run is still missing.**
 
-- [x] `kb/*.md` — 18 documentos, 71 fragmentos, sin marcas ni precios
-- [x] `scripts/ingest_kb.py` idempotente por hash (verificado: segunda corrida re-embebe 0)
-- [x] Tabla `kb_chunks` + índice HNSW coseno + extensión `vector` creada por la migración
-- [x] Tool `search_knowledge_base` con umbral, filtro por categoría y `no_results`
-- [x] Chequeo de `embedding_model` al arrancar (falla con mensaje que pide re-ingesta)
-- [x] Adaptador de embeddings de Gemini, con el caso especial de `gemini-embedding-2` (sin `task_type`)
-- [x] `docs/kb-afirmaciones-a-revisar.md` con las afirmaciones a verificar
-- [ ] **Ingesta con embeddings reales** — necesita `GOOGLE_API_KEY`
+- [x] `kb/*.md` — 18 documents, 71 chunks, no brands or prices
+- [x] `scripts/ingest_kb.py`, idempotent by hash (verified: a second run re-embeds 0)
+- [x] `kb_chunks` table + HNSW cosine index + `vector` extension created by the migration
+- [x] `search_knowledge_base` tool with a threshold, category filtering, and `no_results`
+- [x] `embedding_model` check at startup (fails with a message asking for re-ingestion)
+- [x] Gemini embeddings adapter, handling the special case of `gemini-embedding-2` (no `task_type`)
+- [x] `docs/kb-afirmaciones-a-revisar.md` with claims to verify
+- [ ] **Ingestion with real embeddings** — needs `GOOGLE_API_KEY`
 
-Verificado el 2026-09-15: 76 tests en verde, mypy strict limpio (71 archivos), ruff limpio. AT-06 (consulta la KB y responde con lo recuperado, con título/fuente/score y en orden de score) y AT-07 (sin datos y con KB vacía devuelve `no_results` y el agente usa la frase honesta del baseline).
+Verified on 2026-09-15: 76 tests passing, mypy strict clean (71 files), ruff clean. AT-06 (queries the KB and answers with what it retrieved, with title/source/score and sorted by score) and AT-07 (with no data, and with an empty KB, returns `no_results` and the agent uses the baseline's honest phrase).
 
-Nota sobre el umbral: `RAG_MIN_SCORE` vale 0.55 en producción, calibrado para un embedder real. `FakeEmbeddings` es bolsa de palabras y su distribución de scores es otra (medido sobre la KB real: consulta relevante ~0.55, irrelevante ~0.07), así que los tests usan 0.35. Lo que verifican es el cableado del umbral, no la calidad semántica. **El 0.55 de producción hay que re-calibrarlo con embeddings reales.**
+Note on the threshold: `RAG_MIN_SCORE` is 0.55 in production, calibrated for a real embedder. `FakeEmbeddings` is bag-of-words and its score distribution is different (measured against the real KB: a relevant query scores ~0.55, an irrelevant one ~0.07), so the tests use 0.35. What they verify is the threshold's wiring, not semantic quality. **The production 0.55 needs to be re-calibrated with real embeddings.**
 
 ## F6 · `feature/guardrails` · P0 (L2/L4 P1)
 
-DoD: AT de guardrails y fallos (AT-11 a AT-18). **Cumplido salvo L2.**
+DoD: guardrail and failure ATs (AT-11 through AT-18). **Met except for L2.**
 
-- [x] L1 determinista: longitud, normalización Unicode, invisibles, patrones ES/EN de inyección
-- [x] L3: tope de tool calls por turno (la validación Pydantic y los ids desde `ToolContext` ya venían de F2/F3)
-- [x] L4 salida: fuga del canary y precios/cuotas/stock → mensaje seguro
-- [x] Fallbacks de tool, modelo (backoff + respaldo), RAG y DB
-- [x] Fault injection (`X-Debug-Fault`), solo en dev
-- [ ] L2 clasificador (P1) — **no implementado**; L1 + L4 cubren los AT del reto
+- [x] L1 deterministic: length, Unicode normalization, invisible characters, ES/EN injection patterns
+- [x] L3: cap on tool calls per turn (Pydantic validation and ids from `ToolContext` already came from F2/F3)
+- [x] L4 output: canary leak and prices/installments/stock → a safe message
+- [x] Tool, model (backoff + fallback), RAG, and DB fallbacks
+- [x] Fault injection (`X-Debug-Fault`), dev-only
+- [ ] L2 classifier (P1) — **not implemented**; L1 + L4 cover the challenge's ATs
 
-Verificado el 2026-09-15: 125 tests en verde, mypy strict limpio (83 archivos), ruff limpio. AT-11 a AT-18 cubiertos, incluidos el fallback por 429 y los dos casos de L4.
+Verified on 2026-09-15: 125 tests passing, mypy strict clean (83 files), ruff clean. AT-11 through AT-18 covered, including the 429 fallback and both L4 cases.
 
-**Cambio de contrato (spec 02 §4):** el texto ya no se transmite token a token. L4 necesita ver la respuesta completa antes de que salga, y un delta transmitido no se puede retirar del cliente. El backend acumula y emite un solo `message.delta` ya filtrado. Los chips de tools, la ficha y la tarjeta HITL siguen llegando en vivo. **Pendiente al mergear F4:** actualizar `docs/ui.md`, que todavía describe la escritura token a token.
+**Contract change (spec 02 §4):** text is no longer streamed token by token. L4 needs to see the complete response before it goes out, and a delta that's already been sent can't be retracted from the client. The backend now accumulates and emits a single, already-filtered `message.delta`. Tool chips, the lead record, and the HITL card still arrive live. **Pending when merging F4:** update `docs/ui.md`, which still describes token-by-token typing.
 
-Hallazgo: `FaultInjectionPlugin` no puede inyectar fallos del modelo, porque ADK captura las excepciones de los plugins y `ResilientLlm` nunca vería el 429. Se inyectan dentro de `ResilientLlm` vía un contextvar por request.
+Finding: `FaultInjectionPlugin` can't inject model failures, because ADK catches exceptions from plugins and `ResilientLlm` would never see the 429. These are injected inside `ResilientLlm` via a per-request contextvar instead.
 
-## F8 (adelantada) · modelos locales · P2 → hecha en F6
+## F8 (moved up) · local models · P2 → done within F6
 
-Adelantada a pedido del humano: sin `GOOGLE_API_KEY`, era lo que desbloqueaba verificar F4, la ingesta real y la calibración del umbral de RAG.
+Moved up at the human's request: with no `GOOGLE_API_KEY`, this was what unblocked verifying F4, real ingestion, and calibrating the RAG threshold.
 
-- [x] `ADR-003-modelos-locales.md` con los hallazgos de integración
-- [x] Adaptadores: `LiteLlm` con `ollama_chat/` para el agente, `OllamaEmbeddings` para la KB
-- [x] `google-adk[extensions]` (LiteLLM no viene en la instalación base)
-- [x] Ollama en el `docker-compose.yml` bajo el perfil `local-llm` (antes dos archivos de override)
-- [x] `.env.example` con los dos perfiles intercambiables
-- [x] Validación del prefijo `ollama_chat/` y de `num_ctx` explícito en `Settings`
-- [x] KB re-ingerida con `embeddinggemma` y `RAG_MIN_SCORE` calibrado a 0.42
-- [x] Conversación real verificada: saludo, captura de lead, RAG, HITL, guardrails y precios
+- [x] `ADR-003-modelos-locales.md` with the integration findings
+- [x] Adapters: `LiteLlm` with `ollama_chat/` for the agent, `OllamaEmbeddings` for the KB
+- [x] `google-adk[extensions]` (LiteLLM doesn't ship in the base install)
+- [x] Ollama in `docker-compose.yml` under the `local-llm` profile (previously two override files)
+- [x] `.env.example` with the two swappable profiles
+- [x] Validation of the `ollama_chat/` prefix and of an explicit `num_ctx` in `Settings`
+- [x] KB re-ingested with `embeddinggemma` and `RAG_MIN_SCORE` calibrated to 0.42
+- [x] Real conversation verified: greeting, lead capture, RAG, HITL, guardrails, and prices
 
-**Modelo del agente: `gemma4:latest` con `OLLAMA_THINK=low` y contexto 32768, 100% en GPU, 5–10 s por turno.**
+**Agent model: `gemma4:latest` with `OLLAMA_THINK=low` and a 32768 context, 100% on GPU, 5–10 s per turn.**
 
-Llegar ahí requirió dos arreglos de entorno que no son del código y que están documentados en ADR-003:
+Getting there required two environment fixes that aren't part of the code, documented in ADR-003:
 
-1. **`%USERPROFILE%\.wslconfig` con `memory=24GB`.** Sin él, WSL toma el 50% de la RAM del equipo y Docker corre dentro de esa VM: Ollama veía 6 GB de RAM del sistema y `gemma4` fallaba con `model requires more system memory`. Requiere `wsl --shutdown`.
-2. **Liberar la VRAM que otros contenedores retienen ociosos.** Un servicio de síntesis de voz mantenía su modelo cargado (~4,8 GB) aunque no se usara. Los servicios de ML suelen hacer *eager loading* y PyTorch no devuelve al driver la VRAM que libera.
+1. **`%USERPROFILE%\.wslconfig` with `memory=24GB`.** Without it, WSL takes 50% of the machine's RAM and Docker runs inside that VM: Ollama saw 6 GB of system RAM and `gemma4` failed with `model requires more system memory`. Requires `wsl --shutdown`.
+2. **Freeing the VRAM other containers hold onto while idle.** A speech-synthesis service kept its model loaded (~4.8 GB) even when unused. ML services tend to do *eager loading* and PyTorch doesn't return freed VRAM to the driver.
 
-Con ambos, `gemma4` pasó de repartirse 66% a CPU (19 s/turno) a 100% GPU (5–10 s/turno). `ollama ps` es lo que delata el reparto.
+With both fixed, `gemma4` went from splitting 66% to CPU (19 s/turn) to 100% GPU (5–10 s/turn). `ollama ps` is what reveals the split.
 
-Alternativa si no se puede liberar VRAM: `qwen3:4b` con thinking entra en GPU con bastante menos margen y también llama las tres tools.
+Fallback if VRAM can't be freed: `qwen3:4b` with thinking fits on the GPU with much less headroom and also calls all three tools.
 
-## UX de modelos y conversaciones · `feature/ux-modelos-shadcn` · pedida por el humano
+## Model and conversation UX · `feature/ux-modelos-shadcn` · requested by the human
 
-Fuera del plan de fases original; se hizo sobre F6 porque es lo que vuelve
-demostrable el trabajo de los modelos locales en el vídeo.
+Outside the original phase plan; done on top of F6 because it's what makes the local-models work demonstrable in the video.
 
-- [x] `GET /api/v1/models` y `model_id` por turno, con un `Runner` por modelo
-- [x] Selector de modelo en la cabecera (Gemma 4 / Qwen3 / Gemini)
-- [x] Título de conversación generado en segundo plano con `GUARDRAIL_MODEL`
-- [x] shadcn/ui como base de componentes, con la paleta reexpresada en sus tokens
-- [x] Un único `docker-compose.yml` y recarga en caliente de backend y frontend
-- [x] L4: pseudo-llamadas a tools con llaves o prefijo (`llama:guardar_lead{…}`)
+- [x] `GET /api/v1/models` and a per-turn `model_id`, with one `Runner` per model
+- [x] Model selector in the header (Gemma 4 / Qwen3 / Gemini)
+- [x] Conversation title generated in the background with `GUARDRAIL_MODEL`
+- [x] shadcn/ui as the component base, with the palette re-expressed in its tokens
+- [x] A single `docker-compose.yml` with hot reload for backend and frontend
+- [x] L4: pseudo tool calls with braces or a prefix (`llama:save_lead{…}`)
 
-Verificado el 2026-09-15 en el navegador: 152 tests de backend y 17 de frontend
-en verde, mypy strict limpio, sin errores de consola y sin scroll horizontal a
-390px. El cambio de modelo a media conversación conserva historial y lead.
+Verified on 2026-09-15 in the browser: 152 backend tests and 17 frontend tests
+passing, mypy strict clean, no console errors, no horizontal scroll at
+390px. Switching models mid-conversation keeps the history and the lead.
 
-El modelo se elige **por turno y no por sesión**: la conversación vive en
-`DatabaseSessionService`, así que cambiarlo a media charla no pierde nada. Es la
-forma más directa de enseñar el mismo caso con los tres modelos.
+The model is chosen **per turn, not per session**: the conversation lives in
+`DatabaseSessionService`, so switching mid-chat loses nothing. It's the most
+direct way to show the same case with all three models.
 
-### Ronda de corrección · `fix/ux-reintento-modo-oscuro`
+### Correction round · `fix/ux-reintento-modo-oscuro`
 
-Bugs reales encontrados al usar la interfaz recién armada, todos con causa
-identificada antes de tocar código:
+Real bugs found while using the freshly built UI, each one root-caused before
+touching code:
 
-- [x] **"Nueva conversación" creaba una sesión por clic.** Sin guard: cada
-  clic disparaba su propia llamada async antes de que la primera terminara.
-  Se guarda la promesa en curso y los clics mientras tanto la reciben en vez
-  de crear otra; el botón además se deshabilita. Verificado con 8 clics
-  síncronos → 1 sola sesión.
-- [x] **El `Select` de modelo se abría encima del propio selector.**
-  `position="item-aligned"` (el valor por defecto de shadcn, pensado para
-  imitar un `<select>` nativo) alinea la opción elegida con el disparador;
-  en una cabecera angosta eso lo tapaba. Cambiado a `position="popper"`.
-- [x] **Un turno sin respuesta dejaba la interfaz colgada en "escribiendo"
-  para siempre**, sin error ni forma de reintentar. Dos causas cubiertas: (a)
-  la conexión SSE se corta sin ningún evento de cierre — se detecta si el
-  stream termina sin haber visto `message.completed`/`error`/confirmación/
-  handoff; (b) el turno queda en silencio total — timeout de inactividad de
-  3 minutos en el cliente (holgado a propósito: un turno sin tools no manda
-  ni un byte hasta que L4 termina de revisar la respuesta completa, y Gemini
-  con reintentos de proveedor se ha medido en 121 s). Verificado interceptando
-  la respuesta SSE con Playwright para forzar el corte silencioso.
-- [x] **Paleta monocroma (blanco y negro) con modo claro/oscuro**, a pedido
-  del humano en vez de azul noche + ámbar. `ThemeToggle` alterna la clase
-  `.dark`, persiste en `localStorage` y sigue el tema del sistema hasta que
-  se toca el botón; un script inline evita el parpadeo del tema equivocado
-  en la primera pintura.
-- [x] Descubierto en el camino: el caché de módulos de Vite (`node_modules/.vite`)
-  había quedado con una versión de antes de adoptar shadcn/ui, así que la UI
-  que se estaba probando mezclaba componentes viejos y nuevos. `docker compose
-  restart` no lo limpia; hace falta borrar el caché a mano una vez.
+- [x] **"New conversation" created one session per click.** No guard: every
+  click fired its own async call before the first one finished. The
+  in-flight promise is now saved, and clicks in the meantime receive it
+  instead of creating another one; the button is also disabled meanwhile.
+  Verified with 8 synchronous clicks → 1 single session.
+- [x] **The model `Select` opened on top of the selector itself.**
+  `position="item-aligned"` (shadcn's default, meant to mimic a native
+  `<select>`) aligns the chosen option with the trigger; in a narrow header
+  that covered it. Changed to `position="popper"`.
+- [x] **A turn with no response left the UI stuck on "typing" forever**,
+  with no error or way to retry. Two causes covered: (a) the SSE connection
+  drops with no closing event at all — detected if the stream ends without
+  having seen `message.completed`/`error`/a confirmation/a handoff; (b) the
+  turn goes completely silent — a 3-minute client-side inactivity timeout
+  (deliberately generous: a turn with no tools sends not a single byte
+  until L4 finishes reviewing the complete response, and Gemini with
+  provider retries has been measured at 121 s). Verified by intercepting
+  the SSE response with Playwright to force the silent cutoff.
+- [x] **Monochrome (black and white) palette with light/dark mode**, at the
+  human's request instead of midnight blue + amber. `ThemeToggle` toggles
+  the `.dark` class, persists it in `localStorage`, and follows the system
+  theme until the button is touched; an inline script avoids a flash of
+  the wrong theme on first paint.
+- [x] Found along the way: Vite's module cache (`node_modules/.vite`) had
+  been left over from before adopting shadcn/ui, so the UI being tested
+  was mixing old and new components. `docker compose restart` doesn't
+  clear it; the cache has to be deleted by hand once.
 
-Verificado el 2026-09-16: 152 tests de backend y 19 de frontend en verde
-(2 nuevos para el timeout de inactividad), typecheck y build limpios, cero
-errores de consola en el navegador en ambos temas.
+Verified on 2026-09-16: 152 backend tests and 19 frontend tests passing
+(2 new ones for the inactivity timeout), clean typecheck and build, zero
+console errors in the browser in both themes.
 
-### Segunda ronda · `fix/nueva-conversacion-vacia` y `feature/rutas-por-chat`
+### Second round · `fix/nueva-conversacion-vacia` and `feature/rutas-por-chat`
 
-El reporte de "sigue abriendo varios" persistía tras la ronda anterior porque
-esa corrección solo cubría clics simultáneos; clics normales (cada uno
-completo antes del siguiente) seguían creando una sesión vacía por clic. La
-causa de fondo era otra: el botón creaba la sesión en el backend de
-inmediato, así que cualquier repetición —incluida recargar la página con el
-borrador sin usar, ya que `sessionId` no sobrevivía a un refresh— dejaba una
-fila vacía nueva.
+The "still opens several" report persisted after the previous round because
+that fix only covered simultaneous clicks; normal clicks (each one
+completing before the next) still created an empty session per click. The
+root cause was different: the button created the session in the backend
+immediately, so any repetition — including reloading the page with the
+unused draft, since `sessionId` didn't survive a refresh — left a new empty
+row behind.
 
-- [x] Primer parche: si ya se está en una conversación vacía, pedir otra
-  devuelve la misma en vez de crear una (cubre el caso de clic repetido).
-- [x] Arreglo de fondo: cada conversación pasa a tener su propia URL,
-  `/c/:id`, navegable de verdad (recarga, pestaña nueva con Ctrl/Cmd+clic,
-  atrás/adelante del navegador). `/` es el borrador. "Nueva conversación" ya
-  no llama a la API en absoluto: solo vuelve al borrador. La sesión se crea
-  recién cuando se envía el primer mensaje real.
-- [x] Router propio, sin librería: solo dos formas de URL, así que una
-  librería completa de rutas sería más código que resolver, no menos
+- [x] First patch: if already in an empty conversation, requesting another
+  one returns the same one instead of creating a new one (covers the
+  repeated-click case).
+- [x] Root fix: every conversation now has its own URL, `/c/:id`, truly
+  navigable (reload, a new tab with Ctrl/Cmd+click, browser back/forward).
+  `/` is the draft. "New conversation" no longer calls the API at all: it
+  just returns to the draft. The session is only created once the first
+  real message is sent.
+- [x] A custom router, no library: there are only two kinds of URLs, so a
+  full routing library would be more code to deal with than to write
   (`frontend/src/lib/route.ts`).
-- [x] Entrar directo a `/c/:id` con un `id` inexistente o de otro usuario cae
-  al borrador en vez de dejar la pantalla colgada.
-- [x] Descartada una regresión del banner de reintento: la misma conversación
-  del reporte ("holaaa" → "q tal?") se repitió contra el backend real y
-  respondió bien las dos veces. La causa más probable del cuelgue reportado
-  fueron los reinicios del contenedor del frontend durante las pruebas en
-  paralelo, no un bug del cliente.
+- [x] Going straight to `/c/:id` with a nonexistent `id` or one belonging to
+  another user falls back to the draft instead of leaving the screen stuck.
+- [x] Ruled out a regression in the retry banner: the same conversation from
+  the report ("holaaa" → "q tal?") was replayed against the real backend
+  and answered correctly both times. The most likely cause of the reported
+  hang was the frontend container restarting during parallel testing, not
+  a client bug.
 
-Verificado en el navegador: 3 clics en el borrador → 0 sesiones creadas;
-enviar el primer mensaje → URL cambia a `/c/:id` y crea 1 sesión; recargar
-en `/c/:id` conserva la conversación; Ctrl+clic en la barra lateral abre la
-misma conversación en una pestaña nueva sin navegar la actual.
+Verified in the browser: 3 clicks on the draft → 0 sessions created;
+sending the first message → the URL changes to `/c/:id` and creates 1
+session; reloading on `/c/:id` keeps the conversation; Ctrl+click in the
+sidebar opens the same conversation in a new tab without navigating the
+current one.
 
-### Tercera ronda · `feature/reintento-tras-recarga`
+### Third round · `feature/reintento-tras-recarga`
 
-Diagnóstico confirmado con datos, no solo sospecha: se inspeccionó la tabla
-`events` en Postgres para la sesión reportada como colgada y se comprobó
-que el turno de "q tal?" nunca escribió ningún evento del agente — solo el
-mensaje del usuario y, después, el evento del título en segundo plano. Se
-reprodujo la misma firma a propósito (mandar un mensaje y cortar la
-conexión del cliente a medio turno) y salió el mismo patrón exacto,
-incluido el log `Root node luis was cancelled.` de ADK. Los logs del
-incidente original ya no existían — el contenedor del backend se había
-reconstruido varias veces durante las pruebas en paralelo — así que no se
-pudo confirmar la causa puntual, pero el mecanismo general quedó probado:
-un cliente que se desconecta a medio turno hace que ADK cancele la tarea
-sin persistir nada, ni siquiera un evento de error.
+Diagnosis confirmed with data, not just a hunch: the `events` table in
+Postgres was inspected for the session reported as stuck, and it showed
+that the "q tal?" turn never wrote any agent event at all — only the
+user's message and, later, the background title event. The same signature
+was reproduced on purpose (sending a message and cutting the client's
+connection mid-turn) and produced the exact same pattern, including ADK's
+`Root node luis was cancelled.` log line. The original incident's logs no
+longer existed — the backend container had been rebuilt several times
+during the parallel testing — so the specific cause couldn't be confirmed,
+but the general mechanism was proven: a client that disconnects mid-turn
+makes ADK cancel the task without persisting anything, not even an error
+event.
 
-- [x] Al cargar una conversación cuyo último mensaje es del usuario (sin
-  respuesta después), se reconstruye la señal de reintento: mismo banner y
-  botón "Reintentar" que un fallo en vivo, con el mensaje exacto guardado.
-- [x] De paso, "Reintentar" dejó de duplicar la burbuja del mensaje del
-  usuario (ya estaba en pantalla, sea por un fallo en vivo o por el
-  historial cargado): `send()` ahora recibe `{ echo: false }` para no
-  volver a agregarla.
-- [x] 2 tests nuevos del reducer para el caso "conversación sin respuesta"
-  y el caso "ya tiene respuesta, no muestra el aviso".
-- [x] A pedido del humano, el botón "Reintentar" se movió del banner de
-  error (al pie de la pantalla, ambiguo con más de un mensaje) a un ícono
-  bajo el mensaje concreto que se reenvía — solo el último mensaje puede
-  necesitarlo. El banner se queda solo con el texto de qué pasó.
+- [x] When loading a conversation whose last message is from the user (with
+  no response after it), the retry signal is reconstructed: the same
+  banner and "Retry" button as a live failure, with the exact saved
+  message.
+- [x] Along the way, "Retry" stopped duplicating the user's message bubble
+  (it was already on screen, whether from a live failure or the loaded
+  history): `send()` now takes `{ echo: false }` so it doesn't add it
+  again.
+- [x] 2 new reducer tests for the "conversation with no response" case and
+  the "already has a response, doesn't show the notice" case.
+- [x] At the human's request, the "Retry" button moved from the error
+  banner (at the bottom of the screen, ambiguous with more than one
+  message) to an icon under the specific message being resent — only the
+  last message can ever need it. The banner now just carries the text of
+  what happened.
 
-Verificado en el navegador contra una sesión reproducida a propósito: el
-banner aparece al abrir `/c/:id`, "Reintentar" reenvía el mismo mensaje sin
-duplicar la burbuja y el banner desaparece al llegar la respuesta real.
+Verified in the browser against a session reproduced on purpose: the
+banner shows up when opening `/c/:id`, "Retry" resends the same message
+without duplicating the bubble, and the banner disappears once the real
+response arrives.
 
-### Cuarta ronda · `fix/indicador-escritura` y edición del último mensaje
+### Fourth round · `fix/indicador-escritura` and editing the last message
 
-- [x] Los puntos del indicador de escritura eran invisibles en modo oscuro:
-  `bg-muted` y `bg-card` son el mismo gris (`#171717`). Cambiado a
-  `bg-muted-foreground`, verificado con el color real calculado por el
-  navegador en los dos temas.
-- [x] El aviso a los 8s afirmaba "suele tardar la primera vez" sin poder
-  saberlo — Ollama descarga el modelo de la VRAM tras un rato sin uso, así
-  que un turno "no-primero" puede recargar igual. Texto reescrito para no
-  depender de esa afirmación.
-- [x] A pedido del humano, botón "Editar" junto a "Reintentar": la propia
-  burbuja del mensaje se vuelve editable en su lugar (no se manda el texto
-  al campo de entrada principal de abajo). Al confirmar, esa misma burbuja
-  queda con el texto corregido y se reenvía — no se agrega una aparte.
-  Nueva acción de reducer, `edit-last-message`, que reemplaza el contenido
-  del último mensaje en vez de añadir uno; `send()` pasa a aceptar un modo
-  (`'append' | 'silent' | 'replace-last'`) en vez del booleano `echo`
-  anterior, para cubrir los tres casos: mensaje nuevo, reintento tal cual,
-  reintento editado.
+- [x] The typing indicator's dots were invisible in dark mode: `bg-muted`
+  and `bg-card` are the same gray (`#171717`). Changed to
+  `bg-muted-foreground`, verified with the browser's actual computed
+  color in both themes.
+- [x] The 8s notice claimed "it's usually slower the first time" with no
+  way to know that — Ollama unloads the model from VRAM after a while
+  unused, so a "non-first" turn can reload it just the same. Text rewritten
+  to not depend on that claim.
+- [x] At the human's request, an "Edit" button next to "Retry": the
+  message's own bubble becomes editable in place (the text isn't sent to
+  the main input field below). On confirming, that same bubble keeps the
+  corrected text and is resent — no separate one is added. New reducer
+  action, `edit-last-message`, which replaces the last message's content
+  instead of appending one; `send()` now takes a mode
+  (`'append' | 'silent' | 'replace-last'`) instead of the previous `echo`
+  boolean, to cover all three cases: a new message, a plain retry, an
+  edited retry.
 
-Verificado en el navegador: clic en "Editar" convierte la burbuja de
-"q tal?" en un campo editable con foco; al corregirlo y confirmar, esa
-misma burbuja pasa a mostrar el texto nuevo y recibe su respuesta — la
-conversación sigue teniendo 2 mensajes, no 3.
+Verified in the browser: clicking "Edit" turns the "q tal?" bubble into a
+focused, editable field; correcting it and confirming leaves that same
+bubble showing the new text and it gets its response — the conversation
+still has 2 messages, not 3.
 
-### Sidebar de conversaciones con las primitivas oficiales de shadcn
+### Conversation sidebar with shadcn's official primitives
 
-La barra lateral era un `<nav>` a mano, `hidden md:flex`: sin forma de
-ocultarla en desktop y sin ninguna versión para pantallas angostas. Se
-reemplazó por `Sidebar`/`SidebarProvider`/`SidebarTrigger` de shadcn
-(`npx shadcn add sidebar`, que de paso trajo `sheet`, `tooltip`, `input`,
-`skeleton` como dependencias) en vez de escribir la animación a mano.
+The sidebar was a hand-rolled `<nav>`, `hidden md:flex`: no way to collapse
+it on desktop and no version at all for narrow screens. Replaced with
+shadcn's `Sidebar`/`SidebarProvider`/`SidebarTrigger`
+(`npx shadcn add sidebar`, which also pulled in `sheet`, `tooltip`,
+`input`, `skeleton` as dependencies) instead of hand-writing the animation.
 
-- [x] Botón de alternar (ícono junto al título "Luis") con la animación
-  de deslizamiento ya incluida en el componente — verificado con
-  Playwright: 1er clic → `data-state="collapsed"`, 2do clic →
-  `"expanded"`, cero errores de consola.
-- [x] En pantallas angostas pasa a ser un overlay (`Sheet`) en vez de no
-  existir, que era el comportamiento anterior — la lista de
-  conversaciones ahora es alcanzable en mobile.
-- [x] Lista de conversaciones migrada a `SidebarMenu`/`SidebarMenuButton`/
-  `SidebarMenuAction`: mismo comportamiento (link real, no botón; borrar
-  con confirmación), ahora con el estado activo/hover que trae el
-  componente en vez de clases manuales.
+- [x] Toggle button (icon next to the "Luis" title) with the slide
+  animation already built into the component — verified with Playwright:
+  1st click → `data-state="collapsed"`, 2nd click → `"expanded"`, zero
+  console errors.
+- [x] On narrow screens it becomes an overlay (`Sheet`) instead of not
+  existing at all, which was the previous behavior — the conversation
+  list is now reachable on mobile.
+- [x] Conversation list migrated to `SidebarMenu`/`SidebarMenuButton`/
+  `SidebarMenuAction`: same behavior (a real link, not a button; delete
+  with confirmation), now with the active/hover state the component
+  provides instead of hand-written classes.
 
-### Quinta ronda · catálogo dinámico de Ollama y versiones fijas
+### Fifth round · dynamic Ollama catalog and fixed versions
 
-A pedido del humano: los modelos de Ollama dejan de declararse a mano en
-`MODEL_CHOICES` y se descubren en vivo; de paso, nada de `:latest` en lo
-que Docker instala solo.
+At the human's request: Ollama models stop being declared by hand in
+`MODEL_CHOICES` and are discovered live; along the way, no `:latest`
+anywhere Docker installs on its own.
 
 - [x] `infrastructure/llm/ollama_discovery.py`: `GET /api/tags` + `POST
-  /api/show` por modelo, filtra los que no tienen `"completion"` en
-  `capabilities` (así `embeddinggemma` nunca aparece en el selector de
-  chat) y trae `supports_tools`/`supports_thinking` reales.
-- [x] `infrastructure/container.py`: el catálogo (`build_catalog`) mezcla
-  lo estático (Gemini, vía `MODEL_CHOICES`) con lo descubierto; una
-  entrada de Ollama declarada a mano se ignora a propósito. El modelo por
-  defecto es el que coincide con `AGENT_MODEL`, no "el primero de la
-  lista" — con descubrimiento dinámico el orden no es una decisión.
-  `RunnerRegistry` pasa a resolver sus propios ids en vez de delegar en
-  `Settings`, que se queda solo con configuración estática.
-  `build_container` pasa a ser async (un único call site, `main.py`).
-- [x] `build_base_model` ya no manda `think` siempre al modelo principal:
-  solo si `supports_thinking` de la opción elegida es cierto — antes
-  mandarlo a un modelo sin esa capacidad tiraba 400 (ADR-003), ahora ya no
-  puede pasar con ninguna opción del catálogo.
-- [x] `ModelOption`/`ModelSelect`: íconos de razonamiento y herramientas
-  por modelo en el desplegable (verificado: `qwen3:4b-instruct` sin ícono
-  de razonamiento, `qwen3:4b` con los dos — son variantes con capacidades
-  distintas de verdad, no solo de nombre).
-- [x] `docker-compose.yml`: `ollama/ollama:0.24.0` fijo (no `:latest`) y
-  el job `ollama-pull` ahora baja los **cuatro** modelos que la app usa
-  (agente, guardrail/eval, respaldo, embeddings) con tags explícitos —
-  antes solo bajaba dos; cualquier turno que tocara el respaldo o el
-  guardrail habría fallado con "model not found" la primera vez que hiciera
-  falta en una instalación fresca desde GitHub.
-- [x] `.env.example` y specs 02/11/ADR-003 sincronizados con el nuevo
-  contrato de `GET /api/v1/models` y la política de versiones fijas.
-- [x] 11 tests nuevos (`test_ollama_discovery.py`, `test_model_catalog.py`).
+  /api/show` per model, filters out anything without `"completion"` in
+  `capabilities` (so `embeddinggemma` never shows up in the chat
+  selector), and returns real `supports_tools`/`supports_thinking`.
+- [x] `infrastructure/container.py`: the catalog (`build_catalog`) mixes
+  the static part (Gemini, via `MODEL_CHOICES`) with the discovered part;
+  an Ollama entry declared by hand is deliberately ignored. The default
+  model is the one matching `AGENT_MODEL`, not "the first one in the
+  list" — with dynamic discovery, order isn't a design decision.
+  `RunnerRegistry` now resolves its own ids instead of delegating to
+  `Settings`, which is left with only static configuration.
+  `build_container` becomes async (a single call site, `main.py`).
+- [x] `build_base_model` no longer always sends `think` to the main model:
+  only if the chosen option's `supports_thinking` is true — before,
+  sending it to a model without that capability threw a 400 (ADR-003),
+  now that can't happen with any catalog option.
+- [x] `ModelOption`/`ModelSelect`: reasoning and tools icons per model in
+  the dropdown (verified: `qwen3:4b-instruct` with no reasoning icon,
+  `qwen3:4b` with both — genuinely different capabilities, not just
+  different names).
+- [x] `docker-compose.yml`: `ollama/ollama:0.24.0` pinned (not `:latest`)
+  and the `ollama-pull` job now downloads the **four** models the app
+  uses (agent, guardrail/eval, fallback, embeddings) with explicit tags —
+  it used to pull only two; any turn touching the fallback or the
+  guardrail model would have failed with "model not found" the first
+  time it was needed on a fresh install from GitHub.
+- [x] `.env.example` and specs 02/11/ADR-003 synced with the new
+  `GET /api/v1/models` contract and the fixed-versions policy.
+- [x] 11 new tests (`test_ollama_discovery.py`, `test_model_catalog.py`).
 
-Verificado contra el Ollama real de esta máquina: 163 tests de backend en
-verde, `GET /api/v1/models` devuelve 5 opciones (4 de Ollama descubiertas
-+ Gemini), `embeddinggemma` correctamente ausente, capacidades distintas
-por variante confirmadas.
+Verified against this machine's real Ollama: 163 backend tests passing,
+`GET /api/v1/models` returns 5 options (4 discovered from Ollama + Gemini),
+`embeddinggemma` correctly absent, distinct capabilities per variant
+confirmed.
 
-**Verificado con una descarga limpia real**, a pedido del humano: `ollama/ollama:0.24.0` no alcanzaba — `gemma4:12b` necesita Ollama ≥0.30.3 (≥0.30.5 para evitar un crash conocido de esa variante), y `pulling manifest: 412 requires a newer version of Ollama` lo confirmó en la práctica. Se subió el pin a `ollama/ollama:0.34.0` (última estable al momento de fijarlo) y se repitió la descarga:
+**Verified with a real clean download**, at the human's request:
+`ollama/ollama:0.24.0` wasn't enough — `gemma4:12b` needs Ollama ≥0.30.3
+(≥0.30.5 to avoid a known crash in that variant), and `pulling manifest:
+412 requires a newer version of Ollama` confirmed it in practice. The pin
+was bumped to `ollama/ollama:0.34.0` (the latest stable at the time) and
+the download was repeated:
 
-- `docker exec asesor-ollama-1 ollama list` → los 4 modelos, con los tags exactos de `.env.example`.
-- `discover_ollama_models("http://localhost:11435")` (la función real, no una simulación) contra ese Ollama recién bajado → 3 modelos de chat (`embeddinggemma:300m` correctamente ausente), con `supports_tools`/`supports_thinking` reales.
-- Dato curioso que confirma por qué esto se descubre en vivo y no se asume: `qwen3:4b-instruct` reportó `thinking=True` en 0.34.0 pero `thinking=False` en la instalación nativa de esta máquina (0.24.0) — la propia versión del motor puede cambiar cómo reporta las capacidades del mismo modelo.
+- `docker exec asesor-ollama-1 ollama list` → all 4 models, with the exact
+  tags from `.env.example`.
+- `discover_ollama_models("http://localhost:11435")` (the real function,
+  not a simulation) against that freshly pulled Ollama → 3 chat models
+  (`embeddinggemma:300m` correctly absent), with real
+  `supports_tools`/`supports_thinking`.
+- A curious data point confirming why this is discovered live and not
+  assumed: `qwen3:4b-instruct` reported `thinking=True` on 0.34.0 but
+  `thinking=False` on this machine's native install (0.24.0) — the
+  engine's own version can change how it reports the same model's
+  capabilities.
 
-Contenedores `ollama`/`ollama-pull` parados tras la verificación (no borrados: el volumen conserva los modelos, así que `docker compose --profile local-llm up -d` los trae de vuelta sin volver a descargar nada). Sigue pendiente, y sí hace falta si se usa este perfil para la demo: correr `ollama ps` y repetir el ajuste de VRAM/contexto de ADR-003, que está medido contra la instalación nativa, no contra esta.
+The `ollama`/`ollama-pull` containers were stopped after verification (not
+removed: the volume keeps the models, so `docker compose --profile
+local-llm up -d` brings them back with no re-download). Still pending, and
+needed if this profile is used for the demo: run `ollama ps` and repeat
+ADR-003's VRAM/context tuning, which is measured against the native
+install, not this one.
 
-- [x] `OLLAMA_EXTRA_MODELS` (`.env`, lista separada por espacio): suma modelos al job `ollama-pull` sin editar `docker-compose.yml`. Corrige una confusión real: sumar un modelo al Ollama nativo (`ollama pull` + reiniciar backend) y sumarlo al perfil dockerizado para quien clona el repo son dos caminos distintos — antes el segundo exigía editar el compose a mano. Verificado con la variable vacía (0 pulls de más, `exit 0`) y con un nombre inválido (`pull model manifest: file does not exist`, `exit 1`).
+- [x] `OLLAMA_EXTRA_MODELS` (`.env`, a space-separated list): adds models
+  to the `ollama-pull` job without editing `docker-compose.yml`. Fixes a
+  real point of confusion: adding a model to native Ollama (`ollama pull`
+  + restart the backend) and adding it to the dockerized profile for
+  whoever clones the repo are two different paths — before, the second one
+  required editing the compose file by hand. Verified with the variable
+  empty (0 extra pulls, `exit 0`) and with an invalid name
+  (`pull model manifest: file does not exist`, `exit 1`).
 
-### Sexta ronda · `StaleSessionError` — el título tumbaba turnos reales
+### Sixth round · `StaleSessionError` — the title was taking down real turns
 
-Bug encontrado en uso real (no en pruebas sintéticas): un mensaje enviado poco después del primero, o "Reintentar", a veces fallaba con "No pudimos conectar con el asesor" sin relación aparente con Ollama ni Docker. El log real:
+A bug found in real usage (not synthetic tests): a message sent shortly
+after the first one, or "Retry," would sometimes fail with "Couldn't
+connect to the advisor" with no apparent link to Ollama or Docker. The
+actual log:
 
 ```
 google.adk.errors._stale_session_error.StaleSessionError: The session has
@@ -383,568 +415,565 @@ been modified in storage since it was loaded. Please reload the session
 before appending more events.
 ```
 
-Causa: `TitleService` guardaba el título con `append_event` + `state_delta`
-sobre la sesión de ADK — el mismo mecanismo de bloqueo optimista que usa
-cualquier turno de chat para escribir su propia respuesta. Si la generación
-del título (que corre en segundo plano tras el primer mensaje, spec 08)
-terminaba de escribir *mientras* un turno siguiente en la misma sesión
-seguía en vuelo, el `append_event` de ese turno salía rechazado como
-obsoleto — un adorno de la barra lateral tumbando una respuesta real.
-Reproducido a propósito: primer mensaje, 0.3s de espera, segundo mensaje →
-antes fallaba, con el fix no.
+Cause: `TitleService` saved the title with `append_event` + `state_delta`
+on the ADK session — the same optimistic-locking mechanism any chat turn
+uses to write its own response. If the title generation (which runs in
+the background after the first message, spec 08) finished writing *while*
+a following turn in the same session was still in flight, that turn's
+`append_event` came back rejected as stale — a sidebar decoration taking
+down a real response. Reproduced on purpose: first message, 0.3s wait,
+second message → used to fail, doesn't with the fix.
 
-- [x] Nueva tabla `session_titles` (migración `37a9f8f5a59d`), completamente
-  aparte de la sesión de ADK: no comparte ningún candado con el turno de
-  chat. `SqlSessionTitleRepository` (get/get_many/upsert/delete).
-- [x] `TitleService` simplificado: ya no carga ni recarga la sesión de ADK
-  en ningún punto, solo llama al repositorio. Menos código y sin la
-  condición de carrera.
-- [x] `GET /api/v1/sessions` lee los títulos en un solo round-trip
-  (`get_many`), no uno por fila.
-- [x] `DELETE /api/v1/sessions/{id}` limpia también la fila de
-  `session_titles` — antes de esto no habría quedado huérfana en ADK
-  (vivía en el propio estado de la sesión, que se borra con ella), así
-  que hacía falta el borrado explícito para no dejar filas sueltas.
-  Verificado.
-- [x] 10 tests nuevos (`test_session_title_repository.py`,
-  `test_title_service.py` con `ensure_title`).
+- [x] New `session_titles` table (migration `37a9f8f5a59d`), entirely
+  separate from the ADK session: it shares no lock with the chat turn.
+  `SqlSessionTitleRepository` (get/get_many/upsert/delete).
+- [x] `TitleService` simplified: it no longer loads or reloads the ADK
+  session anywhere, it just calls the repository. Less code and no race
+  condition.
+- [x] `GET /api/v1/sessions` reads titles in a single round trip
+  (`get_many`), not one per row.
+- [x] `DELETE /api/v1/sessions/{id}` also cleans up the `session_titles`
+  row — before this it wouldn't have been left orphaned in ADK (it lived
+  in the session's own state, which gets deleted with it), but the
+  explicit delete was needed to avoid leaving loose rows behind.
+  Verified.
+- [x] 10 new tests (`test_session_title_repository.py`,
+  `test_title_service.py` with `ensure_title`).
 
-Verificado en vivo contra el backend real: el escenario exacto que
-reproducía el bug (mensaje + reintento a 0.3s) ya no falla — ambos turnos
-`ok=True`, cero `StaleSessionError` en los logs. 173 tests de backend en
-verde.
+Verified live against the real backend: the exact scenario that
+reproduced the bug (message + retry at 0.3s) no longer fails — both turns
+`ok=True`, zero `StaleSessionError` in the logs. 173 backend tests
+passing.
 
-- [x] El aviso de "los modelos locales tardan más" del indicador de
-  escritura salía siempre, incluso con Gemini seleccionado (un texto
-  pensado para modelos locales en una llamada a una API en la nube no
-  tiene sentido). Pasa a depender del proveedor real del modelo elegido,
-  no de un texto fijo. Verificado en el navegador con los dos casos.
+- [x] The typing indicator's "local models take longer" notice used to
+  show up always, even with Gemini selected (text meant for local models
+  makes no sense for a cloud API call). It now depends on the chosen
+  model's actual provider, not a fixed text. Verified in the browser for
+  both cases.
 
-### Séptima ronda · todo el Ollama dentro de Docker, nada nativo
+### Seventh round · Ollama entirely inside Docker, nothing native
 
-A pedido explícito del humano: quien descargue el repo no debería
-depender de nada instalado fuera de Docker. Hasta esta ronda, `.env.example`
-ya recomendaba el perfil `local-llm`, pero el `.env` real de esta máquina
-seguía apuntando al Ollama nativo (`host.docker.internal:11434`) — dos
-caminos coexistiendo, y el real (nativo) sin ser el documentado.
+At the human's explicit request: whoever downloads the repo shouldn't
+depend on anything installed outside Docker. Up to this round,
+`.env.example` already recommended the `local-llm` profile, but this
+machine's real `.env` still pointed at native Ollama
+(`host.docker.internal:11434`) — two paths coexisting, and the real one
+(native) wasn't the documented one.
 
-- [x] `.env` de esta máquina cambiado para usar exclusivamente el Ollama de
-  Docker: `OLLAMA_API_BASE_CONTAINER=http://ollama:11434`,
-  `COMPOSE_PROFILES=local-llm` (así `docker compose up -d`, sin ningún
-  flag, ya incluye Ollama), `OLLAMA_PORT=11435` (el 11434 del host lo
-  tiene el Ollama nativo, que sigue existiendo para otros proyectos pero
-  este ya no lo toca). `AGENT_MODEL`/`FALLBACK_MODEL` pasaron a los tags
-  fijos (`gemma4:12b`/`llama3.2:3b`) que el `docker-compose.yml` ya
-  bajaba, en vez de los `:latest` de la instalación nativa.
-- [x] `EMBEDDINGS_MODEL` de `embeddinggemma` a `embeddinggemma:300m` — el
-  único cambio con costo real: `verify_embedding_model()` compara el
-  string tal cual contra lo grabado en `kb_chunks`, así que hubo que
-  volver a correr `scripts/ingest_kb.py` (71 fragmentos, contra el Ollama
-  de Docker) antes de que el backend arrancara sin
+- [x] This machine's `.env` changed to use the Dockerized Ollama
+  exclusively: `OLLAMA_API_BASE_CONTAINER=http://ollama:11434`,
+  `COMPOSE_PROFILES=local-llm` (so `docker compose up -d`, with no flags,
+  already includes Ollama), `OLLAMA_PORT=11435` (the host's 11434 belongs
+  to native Ollama, which still exists for other projects but this one no
+  longer touches it). `AGENT_MODEL`/`FALLBACK_MODEL` moved to the fixed
+  tags (`gemma4:12b`/`llama3.2:3b`) that `docker-compose.yml` already
+  pulled, instead of the native install's `:latest` tags.
+- [x] `EMBEDDINGS_MODEL` from `embeddinggemma` to `embeddinggemma:300m` —
+  the only change with a real cost: `verify_embedding_model()` compares
+  the string as-is against what's stored in `kb_chunks`, so
+  `scripts/ingest_kb.py` had to be re-run (71 chunks, against the
+  Dockerized Ollama) before the backend would start without
   `EmbeddingModelMismatchError`.
-- [x] `.env.example` y `docker-compose.yml` actualizados para que este sea
-  el camino por defecto de cualquiera que clone el repo, no solo de esta
-  máquina: `COMPOSE_PROFILES=local-llm` ya viene en la plantilla.
-- [x] `MODEL_CHOICES` limpiado a solo Gemini (los de Ollama se descubren
-  solos, declararlos a mano ya no tenía efecto desde la ronda del
-  catálogo dinámico).
+- [x] `.env.example` and `docker-compose.yml` updated so this is the
+  default path for anyone cloning the repo, not just this machine:
+  `COMPOSE_PROFILES=local-llm` now ships in the template.
+- [x] `MODEL_CHOICES` cleaned up to Gemini only (the Ollama ones discover
+  themselves, declaring them by hand had had no effect since the dynamic
+  catalog round).
 
-Verificado de punta a punta contra el Ollama de Docker exclusivamente:
-`GET /api/v1/models` devuelve las 3 variantes instaladas ahí + Gemini,
-`gemma4:12b` como default (coincide con `AGENT_MODEL`); una conversación
-real con saludo (`guardar_lead`) y una pregunta técnica que dispara
-`search_knowledge_base` con respuesta correcta; `ollama ps` dentro del
-contenedor confirma `100% GPU` en los tres modelos con el mismo contexto
-(32768) ya calibrado para la instalación nativa. 173 tests de backend en
-verde (sin cambios, usan su propio entorno de test).
+Verified end-to-end against the Dockerized Ollama exclusively:
+`GET /api/v1/models` returns the 3 variants installed there + Gemini,
+`gemma4:12b` as the default (matching `AGENT_MODEL`); a real conversation
+with a greeting (`save_lead`) and a technical question that triggers
+`search_knowledge_base` with a correct answer; `ollama ps` inside the
+container confirms `100% GPU` across all three models with the same
+context (32768) already calibrated for the native install. 173 backend
+tests passing (unchanged, they use their own test environment).
 
 ## F7 · `feature/feedback-evals` · P1
 
-DoD: scores visibles en Langfuse; evalset corre.
+DoD: scores visible in Langfuse; the evalset runs.
 
 - [x] `POST /feedback`
-- [x] Evaluación post-ejecución en background
-- [x] `EventsCompactionConfig` afinado
-- [x] Evalset ADK
+- [x] Background post-execution evaluation
+- [x] `EventsCompactionConfig` tuned
+- [x] ADK evalset
 
-**F7 completo.** Solo queda F9 para cerrar el proyecto.
+**F7 complete.** Only F9 remains to close out the project.
 
-### `EventsCompactionConfig` afinado con conversaciones reales
+### `EventsCompactionConfig` tuned against real conversations
 
-Dos hallazgos reales al investigar antes de tocar el número, no una
-adivinanza (leyendo `google/adk/apps/compaction.py`, verificado en vivo):
+Two real findings from investigating before touching the number, not a
+guess (reading `google/adk/apps/compaction.py`, verified live):
 
-1. **Sin `summarizer` explícito, la compactación usaba el modelo grande del
-   propio agente para resumir** (`agent.canonical_model`), en la misma
-   llamada síncrona que cierra el turno — justo cuando la conversación ya es
-   larga, el peor momento para sumarle otra llamada al modelo principal.
-   `create_adk_app` ahora recibe el mismo modelo ligero que ya titula
-   conversaciones (`GUARDRAIL_MODEL`) y se lo pasa explícito a
-   `LlmEventSummarizer`. Un solo modelo de utilidad, no dos instancias.
-2. **El número que dispara la compactación no es el `tokens_in` que muestra
-   el panel dev.** Ese metric suma todas las llamadas al modelo de un turno
-   (incluidas las de tool-calling); el disparador de ADK compara contra el
-   `prompt_token_count` de la **última** llamada nada más. Confirmado
-   inspeccionando una sesión real: un turno con `tokens_in=8249` (dos
-   llamadas, 3817+4432) dejaba en 4432 el valor que ADK de verdad compara.
+1. **With no explicit `summarizer`, compaction used the agent's own large
+   model to summarize** (`agent.canonical_model`), in the same synchronous
+   call that closes the turn — right when the conversation is already
+   long, the worst moment to add another call to the main model.
+   `create_adk_app` now receives the same lightweight model already used
+   to title conversations (`GUARDRAIL_MODEL`) and passes it explicitly to
+   `LlmEventSummarizer`. One utility model, not two instances.
+2. **The number that triggers compaction isn't the `tokens_in` shown in
+   the dev panel.** That metric sums every model call in a turn
+   (including tool-calling ones); ADK's trigger compares against the
+   **last** call's `prompt_token_count` only. Confirmed by inspecting a
+   real session: a turn with `tokens_in=8249` (two calls, 3817+4432) left
+   the value ADK actually compares at 4432.
 
-Con el umbral original (12000, puesto en F2 sin conversación real de por
-medio) **la compactación no llegó a dispararse ni una vez** en una
-conversación de 10 turnos con captura de lead y preguntas técnicas — el
-crecimiento real ronda 300-700 tokens/turno con `gemma4:12b`. Bajado a
-**6000**: dispararía alrededor del turno 8-10 de una conversación larga
-(margen amplio frente a los 32768 de `OLLAMA_CONTEXT_LENGTH`), sin activarse
-en los intercambios cortos de 2-5 turnos que son el caso común de este
-asesor.
+With the original threshold (12000, set in F2 with no real conversation
+behind it) **compaction never triggered even once** in a 10-turn
+conversation with lead capture and technical questions — real growth is
+around 300-700 tokens/turn with `gemma4:12b`. Lowered to **6000**: it
+would trigger around turn 8-10 of a long conversation (a wide margin
+against `OLLAMA_CONTEXT_LENGTH`'s 32768), without kicking in during the
+short 2-5 turn exchanges that are the common case for this advisor.
 
-Verificado en vivo forzando el disparo con un umbral bajo (1500, temporal,
-solo para la prueba): 3 compactaciones reales en la misma sesión, cero
-errores y cero `StaleSessionError` (ADK ya maneja esa carrera de origen —
-la misma que tuvimos que resolver a mano para `session_titles`, spec 06 §1
-— con su propio try/except), y el resumen generado por el modelo ligero
-conservó nombre, uso principal, etapa, qué tool se llamó y qué pregunta
-quedó sin responder. Con 6000 en una conversación de 5 turnos, no se
-disparó — consistente con el crecimiento medido, no una sorpresa.
+Verified live by forcing the trigger with a low threshold (1500,
+temporary, test-only): 3 real compactions in the same session, zero
+errors and zero `StaleSessionError` (ADK already handles that race
+condition on its own — the same one we had to fix by hand for
+`session_titles`, spec 06 §1 — with its own try/except), and the summary
+generated by the lightweight model kept name, primary use, stage, which
+tool was called, and which question was left unanswered. With 6000 in a
+5-turn conversation, it didn't trigger — consistent with the measured
+growth, not a surprise.
 
-1 test nuevo (`test_agent_factory.py`, fija que se usa el modelo ligero y no
-el del agente). Suite completa: 191 tests, mypy y ruff limpios.
+1 new test (`test_agent_factory.py`, pins that the lightweight model is
+used, not the agent's own). Full suite: 191 tests, mypy and ruff clean.
 
-### Langfuse real configurado y `POST /feedback` + evaluación en background
+### Real Langfuse configured, plus `POST /feedback` and background evaluation
 
-El humano creó su propio proyecto de Langfuse (plan HIPAA, host distinto del
-`cloud.langfuse.com` por defecto) y pasó las keys. Quedaron solo en `.env`
-(nunca en `.env.example` ni comiteadas — verificado con `git check-ignore`).
+The human created their own Langfuse project (HIPAA plan, a host other
+than the default `cloud.langfuse.com`) and provided the keys. They stayed
+only in `.env` (never in `.env.example` and never committed — verified
+with `git check-ignore`).
 
-- [x] Verificado end-to-end contra el Langfuse real, no asumido: un turno de
-  verdad genera un trace consultable por la API pública de Langfuse
-  (`GET /api/public/v2/observations`) con el árbol completo de spans
-  (`chat.turn` → `invocation` → `agent_run` → `call_llm`). La API "legacy"
-  de lectura de traces (`GET /api/public/traces/{id}`) está deprecada para
-  cuentas nuevas — hay que usar la v2; documentado en el código.
-- [x] `POST /api/v1/feedback`: tabla `feedback` (migración), repositorio,
-  endpoint con el contrato exacto de spec 02, más el score `user-feedback`
-  a Langfuse (`POST /api/public/scores`, también verificado en vivo:
-  responde 200 y el score aparece consultable por `GET /api/public/v3/scores`
-  con delay de unos minutos — la API de lectura de Langfuse lo advierte
-  explícitamente).
-- [x] Evaluación post-ejecución en background (`EvaluationService`): tras
-  cada turno, si `EVAL_SAMPLE_RATE` lo elige, un juez con `EVAL_MODEL`
-  (una sola llamada, no una por criterio) evalúa tono empático, brevedad,
-  una sola pregunta y sin precios siempre, más fidelidad al RAG solo si el
-  turno usó `search_knowledge_base`. Persiste en tabla `evaluations` y manda
-  `quality.<criterio>` a Langfuse. Nunca bloquea `message.completed`: se
-  agenda como `BackgroundTasks` una vez conocido el texto final, dentro del
-  propio generador de `_stream` (no antes, a diferencia de `title_service`,
-  porque necesita el resultado del turno, no solo el mensaje de entrada).
-  Un turno reanudado por HITL (`chat/confirmations`) nunca se muestrea: no
-  hay mensaje de usuario fresco que evaluar ahí.
-- [x] Verificado en vivo contra el stack Docker + Ollama real con
-  `EVAL_SAMPLE_RATE=1.0`: un turno real generó las 4 filas en `evaluations`
-  con justificaciones coherentes del juez (`qwen3:4b-instruct`), y los
-  scores llegaron a Langfuse.
-- [x] `EVAL_SAMPLE_RATE` real de esta máquina en `1.0` para que la demo
-  muestre evaluaciones en todos los turnos; el default de `.env.example`
-  se queda en `0.0` (P1 opcional, cada turno muestreado es una llamada
-  extra al modelo).
-- [x] `tests/conftest.py`: `LANGFUSE_*` ahora se fuerzan a vacío en
-  `TEST_ENV` — sin esto, con keys reales en el `.env` del desarrollador,
-  toda la suite heredaba `telemetry_enabled=True` y command tests que
-  asumían "sin Langfuse" se rompían (o peor, habrían llamado a la API real
-  de Langfuse sin querer). Hallazgo real al configurar las keys, no
-  hipotético.
-- [x] 17 tests nuevos (feedback, telemetry/scores, evaluation_service,
-  wiring de background). Suite completa: 190 tests, mypy y ruff limpios.
+- [x] Verified end-to-end against the real Langfuse, not assumed: a real
+  turn generates a trace queryable via Langfuse's public API
+  (`GET /api/public/v2/observations`) with the full span tree
+  (`chat.turn` → `invocation` → `agent_run` → `call_llm`). The "legacy"
+  trace-reading API (`GET /api/public/traces/{id}`) is deprecated for new
+  accounts — v2 has to be used instead; documented in the code.
+- [x] `POST /api/v1/feedback`: a `feedback` table (migration), a
+  repository, an endpoint matching spec 02's exact contract, plus a
+  `user-feedback` score sent to Langfuse (`POST /api/public/scores`, also
+  verified live: returns 200 and the score is queryable via
+  `GET /api/public/v3/scores` with a delay of a few minutes — Langfuse's
+  read API explicitly warns about that).
+- [x] Background post-execution evaluation (`EvaluationService`): after
+  each turn, if `EVAL_SAMPLE_RATE` selects it, a judge using `EVAL_MODEL`
+  (a single call, not one per criterion) evaluates empathetic tone,
+  brevity, a single question, and no prices always, plus RAG faithfulness
+  only if the turn used `search_knowledge_base`. Persists to the
+  `evaluations` table and sends `quality.<criterion>` to Langfuse. Never
+  blocks `message.completed`: it's scheduled as `BackgroundTasks` once the
+  final text is known, inside `_stream` itself (not earlier, unlike
+  `title_service`, because it needs the turn's result, not just the input
+  message). A turn resumed via HITL (`chat/confirmations`) is never
+  sampled: there's no fresh user message to evaluate there.
+- [x] Verified live against the real Docker + Ollama stack with
+  `EVAL_SAMPLE_RATE=1.0`: a real turn generated all 4 rows in
+  `evaluations` with coherent justifications from the judge
+  (`qwen3:4b-instruct`), and the scores reached Langfuse.
+- [x] This machine's real `EVAL_SAMPLE_RATE` set to `1.0` so the demo
+  shows evaluations on every turn; `.env.example`'s default stays at
+  `0.0` (optional P1, every sampled turn is an extra model call).
+- [x] `tests/conftest.py`: `LANGFUSE_*` are now forced empty in
+  `TEST_ENV` — without this, with real keys in a developer's `.env`, the
+  whole suite inherited `telemetry_enabled=True` and tests assuming "no
+  Langfuse" broke (or worse, would have unintentionally called the real
+  Langfuse API). A real finding while configuring the keys, not
+  hypothetical.
+- [x] 17 new tests (feedback, telemetry/scores, evaluation_service,
+  background wiring). Full suite: 190 tests, mypy and ruff clean.
 
-A pedido del humano: armar conversaciones on-topic y fuera de tema para
-verificar que el agente no se sale de su guion, y correrlas de verdad contra
-el Ollama real (no simuladas).
+At the human's request: assemble on-topic and off-topic conversations to
+verify the agent doesn't stray from its script, and run them for real
+against the real Ollama (not simulated).
 
-- [x] `backend/tests/evalset/luis.cases.json` — 7 conversaciones editables a
-  mano sin tocar código: saludo, captura de lead, RAG (AT-06), y cuatro fuera
-  de guion — pregunta totalmente ajena al dominio, intento de extraer el
-  prompt/token interno (canary, spec 07), pedido de precio, y fondos
-  colectivos/consorcios (exclusión explícita del reto).
-- [x] Cada turno se valida con dos mecanismos reales, no un string fijo (un
-  LLM no responde igual dos veces): `TrajectoryEvaluator` de ADK (tools
-  llamadas, determinista) y un juez propio de una sola llamada a
-  `EVAL_MODEL` (aquí Ollama, cero keys) que evalúa la respuesta contra
-  reglas en español.
-- [x] Marker `evalset` registrado (`pyproject.toml`), excluido de CI igual
-  que `live`.
+- [x] `backend/tests/evalset/luis.cases.json` — 7 conversations, editable
+  by hand with no code changes: a greeting, lead capture, RAG (AT-06), and
+  four off-script cases — a question entirely outside the domain, an
+  attempt to extract the prompt/internal token (canary, spec 07), a price
+  request, and group-savings/consortium financing (an explicit exclusion
+  from the challenge).
+- [x] Each turn is validated with two real mechanisms, not a fixed string
+  (an LLM doesn't answer the same way twice): ADK's `TrajectoryEvaluator`
+  (tools called, deterministic) and a custom single-call judge against
+  `EVAL_MODEL` (Ollama here, zero keys) that evaluates the response
+  against rules written in Spanish.
+- [x] The `evalset` marker is registered (`pyproject.toml`), excluded
+  from CI just like `live`.
 
-**Dos hallazgos verificando la API de ADK antes de usarla** (regla del
-proyecto; detalle en `specs/notes/adk-api.md` §9):
-1. El runner "oficial" de un `EvalSet` (`LocalEvalService`) arrastra
-   `vertexai`/`pandas`/`nltk` en su cadena de imports — pesado y ajeno al
-   "sin ninguna API key" del proyecto. Se usaron las clases de evaluación
-   sueltas directamente en su lugar.
-2. La única clase de rúbricas totalmente concreta de ADK
-   (`RubricBasedFinalResponseQualityV1Evaluator`) exige "evidencia" de tools
-   para dar una regla por cumplida, y marcó un saludo perfectamente correcto
-   como fallido solo porque el turno no había llamado ninguna tool — está
-   pensada para fidelidad a evidencia recuperada (RAG), no para reglas de
-   tono/política. Se descartó por un juez propio de una sola llamada.
+**Two findings from verifying ADK's API before using it** (project rule;
+detail in `specs/notes/adk-api.md` §9):
+1. The "official" runner for an `EvalSet` (`LocalEvalService`) drags in
+   `vertexai`/`pandas`/`nltk` through its import chain — heavy and at odds
+   with the project's "no API key at all." The loose evaluation classes
+   were used directly instead.
+2. ADK's only fully concrete rubric class
+   (`RubricBasedFinalResponseQualityV1Evaluator`) requires tool "evidence"
+   to mark a rule as met, and it flagged a perfectly correct greeting as
+   failed just because the turn hadn't called any tool — it's built for
+   faithfulness to retrieved evidence (RAG), not for tone/policy rules. It
+   was dropped in favor of a custom single-call judge.
 
-**Corriendo el evalset contra el modelo real salieron 3 casos que fallaban
-al principio, los tres por el mismo motivo de fondo: el arnés asumía que
-todo turno termina en texto, y eso no es cierto para dos desenlaces
-legítimos del propio diseño del agente:**
-- `precio-cotizacion`: el modelo interpretó "¿cuánto cuesta...?" como una
-  cotización formal y propuso `solicitar_contacto_humano` (HITL) en vez de
-  responder en texto — exactamente lo que spec 03 pide, no un fallo.
-- `fondos-colectivos`: en corridas distintas del mismo mensaje, el modelo se
-  comportó de tres formas distintas (escribió la tool como texto y quedó en
-  blanco tras limpiarla, escribió la tool como texto con una respuesta de
-  reemplazo de L4, o llamó la tool de verdad y disparó HITL) — la misma
-  inconsistencia de tools de modelos pequeños ya documentada en ADR-003 #8,
-  ahora vista en un caso concreto.
-- `rag-suv-crossover`: una corrida agotó el presupuesto de tokens de salida
-  (`FinishReason.MAX_TOKENS`) en un turno con tool + thinking; el backend lo
-  tradujo a un `error` SSE retryable en vez de romperse (spec 07 funcionando
-  como está diseñado) — no se reprodujo en corridas repetidas, documentado
-  como hallazgo #9 en ADR-003 para quien lo retome.
+**Running the evalset against the real model turned up 3 initially
+failing cases, all three for the same underlying reason: the harness
+assumed every turn ends in text, and that isn't true for two legitimate
+outcomes of the agent's own design:**
+- `precio-cotizacion`: the model interpreted "how much does... cost?" as
+  a formal quote request and proposed `request_human_handoff` (HITL)
+  instead of answering in text — exactly what spec 03 calls for, not a
+  failure.
+- `fondos-colectivos`: across different runs of the same message, the
+  model behaved three different ways (wrote the tool as text and went
+  blank after it was stripped, wrote the tool as text with an L4
+  replacement response, or actually called the tool and triggered HITL) —
+  the same small-model tool-call inconsistency already documented in
+  ADR-003 #8, now seen in a concrete case.
+- `rag-suv-crossover`: one run exhausted the output token budget
+  (`FinishReason.MAX_TOKENS`) on a turn with a tool call plus thinking;
+  the backend translated it into a retryable SSE `error` instead of
+  breaking (spec 07 working as designed) — it didn't reproduce on repeated
+  runs, documented as finding #9 in ADR-003 for whoever picks it up.
 
-El arnés ahora tolera explícitamente estos desenlaces por caso
-(`accepts_hitl`/`tolerates_error` en el JSON), no los oculta: un caso que
-dispare uno de estos sin haberlo declarado sigue fallando. **Verificado: los
-7 casos pasan en una corrida completa contra el Ollama real** (`uv run
-pytest tests/evalset -m evalset`, ~4 min). Suite normal sin regresiones: 173
-tests en verde, mypy y ruff limpios.
+The harness now explicitly tolerates these outcomes per case
+(`accepts_hitl`/`tolerates_error` in the JSON), rather than hiding them: a
+case that triggers one of these without having declared it still fails.
+**Verified: all 7 cases pass in a full run against the real Ollama**
+(`uv run pytest tests/evalset -m evalset`, ~4 min). Normal suite with no
+regressions: 173 tests passing, mypy and ruff clean.
 
-Pendiente para quien retome esto: sumar casos al JSON es directo (no toca
-código); `docs/pruebas-manuales.md` tiene el mismo espíritu para probar a
-mano en el navegador, incluyendo el flujo de HITL completo (confirmar y
-cancelar) que el evalset automático no cubre.
+Pending for whoever picks this up: adding cases to the JSON is
+straightforward (no code changes); `docs/pruebas-manuales.md` covers the
+same spirit for manual browser testing, including the full HITL flow
+(confirm and cancel) that the automated evalset doesn't cover.
 
 ## F9 · `docs/release` · P0
 
-DoD: checklist de entrega completo. **Parar antes del merge `develop → main`.**
+DoD: complete delivery checklist. **Stop before the `develop → main` merge.**
 
-- [x] README completo
-- [x] Diagrama Mermaid, antes/después
-- [x] Sync specs ↔ código
-- [ ] PR `develop → main`
-- [ ] Tag `v1.0.0`
-- [ ] Video 5–7 min
+- [x] Complete README
+- [x] Mermaid diagram, before/after
+- [x] Spec ↔ code sync
+- [ ] `develop → main` PR
+- [ ] `v1.0.0` tag
+- [ ] 5–7 min video
 
-### README y diagramas
+### README and diagrams
 
-`README.md` en la raíz (antes no existía ninguno): características, arquitectura
-(diagrama Mermaid verificado con `@mermaid-js/mermaid-cli` antes de comitear —
-un intento inicial con comillas escapadas dentro de una etiqueta no renderizaba,
-corregido y re-verificado), comparación antes/después contra el baseline n8n
-(dos diagramas + tabla de brechas cerradas, spec 00), quick start con Docker
-(el camino sin API key como principal), estructura del proyecto, comandos,
-tests y evaluación, e índice de documentación.
+`README.md` at the root (none existed before): features, architecture
+(Mermaid diagram verified with `@mermaid-js/mermaid-cli` before committing
+— an initial attempt with escaped quotes inside a label didn't render,
+fixed and re-verified), before/after comparison against the n8n baseline
+(two diagrams + a table of closed gaps, spec 00), Docker quick start (the
+no-API-key path as the primary one), project structure, commands, tests
+and evaluation, and a documentation index.
 
-### Sync specs ↔ código: 7 desajustes reales encontrados, 6 arreglados directo, 1 resuelto con el humano
+### Spec ↔ code sync: 7 real mismatches found, 6 fixed directly, 1 resolved with the human
 
-Auditoría dedicada (agente de exploración, no una relectura superficial) de
-specs/03, 04, 05, 07, 10, 11 contra el código real. specs/01, 02, 06, 08, 09 ya
-se habían mantenido al día durante las rondas de F6/F7 de esta sesión, así que
-no se re-auditaron.
+Dedicated audit (an exploration agent, not a superficial re-read) of
+specs 03, 04, 05, 07, 10, 11 against the real code. Specs 01, 02, 06, 08, 09
+had already been kept in sync during this session's F6/F7 rounds, so they
+weren't re-audited.
 
-**Arreglados directo en la spec (sin tocar código, cero riesgo):**
-- `search_knowledge_base`: la spec 03 decía `data` como array directo; el
-  código envuelve en `{"resultados": [...]}`.
-- `next_stage`: la spec 04 documentaba una firma `(current, lead, event)`; la
-  real es `(current, lead)` — la etapa siguiente sale del propio `Lead`
-  resultante, sin un `event` aparte.
-- HITL: la spec 05 decía "pide confirmación explícita al usuario antes de
-  ejecutar" — lo contrario de lo que hace el código (llama de inmediato, la
-  tool nativa de ADK maneja la confirmación, ADR-002). La instrucción real ya
-  lo dice bien; la spec se había quedado desactualizada.
-- Nombres de placeholders de la instrucción: la spec 05 decía `{lead_json}`/
-  `{canary_token}`; el código real usa `{ficha}`/`{canary}`.
-- L2 (clasificador): la spec 07 lo listaba como capa activa. Sigue sin
-  implementarse (P1) — esto ya lo decía `PROGRESS.md` desde F6, la spec 07
-  nunca se había actualizado para reflejarlo. De paso, categorías
-  `off_topic`/`abuse` (dependen de L2) marcadas como no emitidas todavía, y
-  `GUARDRAIL_MODEL` aclarado como reutilizado por `TitleService`/compactación,
-  no por ningún guardrail real.
-- Spec 11: referencia colgante a un inexistente "spec 13" (era spec 10).
+**Fixed directly in the spec (no code changes, zero risk):**
+- `search_knowledge_base`: spec 03 said `data` was a direct array; the code
+  wraps it in `{"resultados": [...]}`.
+- `next_stage`: spec 04 documented a `(current, lead, event)` signature; the
+  real one is `(current, lead)` — the next stage comes from the resulting
+  `Lead` itself, with no separate `event`.
+- HITL: spec 05 said "ask the user for explicit confirmation before
+  executing" — the opposite of what the code does (it calls immediately,
+  ADK's native tool handles the confirmation, ADR-002). The real
+  instruction already gets this right; the spec had gone stale.
+- Instruction placeholder names: spec 05 said `{lead_json}`/
+  `{canary_token}`; the real code uses `{ficha}`/`{canary}`.
+- L2 (classifier): spec 07 listed it as an active layer. It's still
+  unimplemented (P1) — `PROGRESS.md` had already said so since F6, but
+  spec 07 had never been updated to reflect it. Along the way, the
+  `off_topic`/`abuse` categories (which depend on L2) were marked as not
+  yet emitted, and `GUARDRAIL_MODEL` was clarified as reused by
+  `TitleService`/compaction, not by any real guardrail.
+- Spec 11: a dangling reference to a nonexistent "spec 13" (it meant spec 10).
 
-**Resuelto con el humano, no solo documentado:** `solo_mirando` (el modo
-"solo estoy mirando" del baseline) nunca se activaba — la frase canned y la
-lectura del flag existían, pero ningún código lo escribía (a diferencia de la
-etapa, que sí se escribe desde `guardar_lead`). AT-05 tampoco tenía test
-propio, así que nada lo había detectado. El humano pidió cerrarlo antes de la
-entrega en vez de dejarlo documentado como límite conocido:
+**Resolved with the human, not just documented:** `just_browsing` (the
+baseline's "just browsing" mode) was never actually triggered — the canned
+phrase and the flag's read path existed, but no code ever wrote it (unlike
+the stage, which is written from `save_lead`). AT-05 had no test of its
+own either, so nothing had caught it. The human asked to close this before
+delivery instead of leaving it documented as a known limitation:
 
-- [x] `guardar_lead` gana un campo opcional `solo_mirando: bool`, que puede ir
-  solo (sin ningún otro campo, sin disparar `EMPTY_UPDATE`) y escribe
-  `SOLO_MIRANDO_KEY` en el estado de sesión — mismo patrón que ya usaba la
-  etapa.
-- [x] Instrucción actualizada: el agente ahora sabe que debe llamar a
-  `guardar_lead(solo_mirando=true)`, no solo decir la frase canned.
-- [x] AT-05 real (`test_at_agent_core.py`) — tool call, frase exacta,
-  `GET /sessions/{id}/lead` refleja `solo_mirando: true`, y el flag sigue
-  activo (visible en la instrucción) en el turno siguiente.
-- [x] **Verificado contra el modelo real, no solo el doble de test:** "por
-  ahora solo estoy mirando" con `gemma4:12b` llamó la tool, dijo la frase
-  exacta, y `GET /lead` devolvió `solo_mirando: true`.
+- [x] `save_lead` gains an optional `just_browsing: bool` field, which can
+  be sent alone (with no other field, without triggering `EMPTY_UPDATE`)
+  and writes `SOLO_MIRANDO_KEY` to the session state — the same pattern
+  already used for the stage.
+- [x] Instruction updated: the agent now knows it must call
+  `save_lead(just_browsing=true)`, not just say the canned phrase.
+- [x] Real AT-05 (`test_at_agent_core.py`) — tool call, exact phrase,
+  `GET /sessions/{id}/lead` reflects `just_browsing: true`, and the flag
+  stays active (visible in the instruction) on the following turn.
+- [x] **Verified against the real model, not just the test double:** "por
+  ahora solo estoy mirando" ("just browsing for now") with `gemma4:12b`
+  called the tool, said the exact phrase, and `GET /lead` returned
+  `just_browsing: true`.
 
-### Auditoría de conformidad con el enunciado y su rúbrica de evaluación
+### Conformance audit against the challenge statement and its rubric
 
-A pedido del humano, antes de la parada obligatoria de `develop → main` se
-verificó el estado real del código contra el enunciado completo (rúbrica
-incluida), no solo contra los specs. Dos ajustes:
+At the human's request, before the mandatory `develop → main` checkpoint,
+the real state of the code was checked against the full challenge
+statement (rubric included), not just against the specs. Two adjustments:
 
-- [x] **README ganó una justificación del framework escrita directo, no solo
-  enlazada.** El enunciado pide "justificación técnica del framework
-  agéntico seleccionado" *en* el README — antes solo había un link a
-  `ADR-001-framework.md`. Se agregó un párrafo propio (§ "Por qué Google
-  ADK").
-- [x] **Diagrama nuevo: "Flujo de un turno"**, con memoria, las 3 tools, HITL
-  y guardrails como nodos explícitos — el enunciado pide el diagrama
-  "especificando memoria, tools, HITL y guardrails" y el diagrama de
-  componentes original no los etiquetaba como pasos de un flujo. Verificado
-  con `mermaid-cli` como los otros tres.
-- [x] **Feedback del usuario con UI real, no solo el endpoint.** La rúbrica
-  (20%, "Implementación del Harness") pide explícitamente "captura de
-  feedback del usuario" como resultado esperado — más fuerte que el "opcional"
-  del cuerpo del enunciado, que habla del feedback loop de *evaluación*, no
-  del de usuario. `MessageList` ganó botones 👍/👎 bajo la última respuesta
-  del agente (`onFeedback`, `api.sendFeedback` nuevo en `client.ts`,
-  `sendFeedback` en `useChat`). Verificado en el navegador contra el stack
-  real: la fila queda en `feedback` y el score llega a Langfuse — un primer
-  intento de verificación pareció fallar (la fila no aparecía) porque el
-  script de prueba cerraba el navegador antes de que la llamada a Langfuse
-  (awaited dentro del propio endpoint) terminara; no es un bug de la app.
-- [x] `.gitignore` ganó `*.pdf`: el enunciado del reto vivía sin trackear en
-  la raíz del repo — un `git add -A` lo habría comiteado, metiendo el nombre
-  de la empresa del proceso de selección al historial.
+- [x] **The README gained a framework justification written directly, not
+  just linked.** The challenge asks for "technical justification of the
+  chosen agentic framework" *in* the README — before there was only a
+  link to `ADR-001-framework.md`. A dedicated paragraph was added (§ "Why
+  Google ADK").
+- [x] **New diagram: "Flow of a turn,"** with memory, the 3 tools, HITL,
+  and guardrails as explicit nodes — the challenge asks for a diagram
+  "specifying memory, tools, HITL, and guardrails," and the original
+  component diagram didn't label them as steps of a flow. Verified with
+  `mermaid-cli` like the other three.
+- [x] **Real user feedback UI, not just the endpoint.** The rubric (20%,
+  "Harness Implementation") explicitly asks for "user feedback capture" as
+  an expected result — stronger than the "optional" wording in the body of
+  the challenge statement, which talks about the *evaluation* feedback
+  loop, not the user one. `MessageList` gained 👍/👎 buttons under the
+  agent's last response (`onFeedback`, a new `api.sendFeedback` in
+  `client.ts`, `sendFeedback` in `useChat`). Verified in the browser
+  against the real stack: the row lands in `feedback` and the score
+  reaches Langfuse — a first verification attempt seemed to fail (the row
+  didn't show up) because the test script closed the browser before the
+  Langfuse call (awaited inside the endpoint itself) finished; not an app
+  bug.
+- [x] `.gitignore` gained `*.pdf`: the challenge statement lived untracked
+  at the repo root — a `git add -A` would have committed it, leaking the
+  hiring company's name into the history.
 
-Resto del enunciado, verificado sin cambios de código: persistencia SQL ✅,
-sesiones concurrentes sin fuga (AT-19) ✅, tipado estricto en ambos lados
-(mypy strict + TS strict) ✅, config vía variables de entorno ✅, rama por
-fase con merge commits ✅, specs cubriendo contratos de API/tools,
-transiciones de estado y AT/guardrails ✅.
+Rest of the challenge statement, verified with no code changes: SQL
+persistence ✅, concurrent sessions with no leakage (AT-19) ✅, strict
+typing on both sides (mypy strict + TS strict) ✅, config via environment
+variables ✅, one branch per phase with merge commits ✅, specs covering
+API/tool contracts, state transitions, and ATs/guardrails ✅.
 
-Frontend: typecheck, build y 22 tests de vitest limpios.
+Frontend: typecheck, build, and 22 vitest tests clean.
 
-Suite completa: 192 tests, mypy y ruff limpios.
+Full suite: 192 tests, mypy and ruff clean.
 
-### Ronda adicional de la auditoría de conformidad, a pedido del humano
+### Additional conformance-audit round, at the human's request
 
-Verificación adicional del código contra el enunciado (MVP, entregables y
-rúbrica), no solo contra el estado documentado en la ronda anterior. Un
-hallazgo real:
+Further verification of the code against the challenge statement (MVP,
+deliverables, and rubric), not just against the previous round's
+documented state. One real finding:
 
-- [x] **"Asesor general, no asociado a marcas específicas ni sistemas de
-  fondos colectivos" nunca estaba en la instrucción del agente** — es el
-  primer punto del MVP en el enunciado, palabra por palabra, y ni
-  `instruction.py` ni la spec 05 lo mencionaban. El comportamiento correcto
-  salía porque la KB no tiene datos de marcas ni de ese producto (regla
-  implícita, no diseñada) — funcionaba, pero por accidente de qué hay en la
-  KB, no por una regla del agente. Se agregó la regla explícita al ROL de
-  la instrucción y a la spec 05 (fila 11 de la tabla de cambios).
-  Verificado contra el modelo real: los casos del evalset
-  `saludo-generico` y `fondos-colectivos` siguen pasando sin cambios de
-  comportamiento. 192 tests, mypy y ruff limpios.
+- [x] **"A general advisor, not tied to specific brands or group-savings
+  schemes" was never actually in the agent's instruction** — it's the
+  first point of the MVP in the challenge statement, word for word, and
+  neither `instruction.py` nor spec 05 mentioned it. The correct behavior
+  happened because the KB has no brand or product data of that kind (an
+  implicit, undesigned rule) — it worked, but by accident of what's in the
+  KB, not because of an agent rule. The explicit rule was added to the
+  ROLE section of the instruction and to spec 05 (row 11 of the change
+  table). Verified against the real model: the evalset's `saludo-generico`
+  and `fondos-colectivos` cases still pass with no behavior changes. 192
+  tests, mypy and ruff clean.
 
-Verificado también, sin encontrar nada nuevo que cambiar: las spans de
-`execute_tool` (una por tool llamada, ej. `solicitar_contacto_humano`)
-aparecen en Langfuse junto a `call_llm`/`agent_run`/`invocation` — la
-"visualización de tool calls" de la rúbrica de Observabilidad (10%) ya
-estaba cubierta por la instrumentación propia de ADK, sin código nuestro
-de más. Confirmado contra el Langfuse real vía `GET
-/api/public/v2/observations`, no solo asumido.
+Also verified, with nothing new to change: `execute_tool` spans (one per
+tool called, e.g. `request_human_handoff`) show up in Langfuse alongside
+`call_llm`/`agent_run`/`invocation` — the Observability rubric's (10%)
+"tool call visualization" was already covered by ADK's own
+instrumentation, with no extra code of ours. Confirmed against the real
+Langfuse via `GET /api/public/v2/observations`, not just assumed.
 
-**Único bloqueante real que queda:** no existe repositorio remoto en
-GitHub/GitLab. Es un entregable explícito de la rúbrica ("Repositorio de
-Código... se valorará el uso correcto de la gestión de ramificación en
-Git") y el único canal de entrega es el link público por correo — sin
-esto no hay nada que evaluar. Todo el historial local (`main`, `develop`,
-merge commits por fase) ya está listo para empujarlo tal cual en cuanto
-exista el remoto.
+**The only real blocker left:** there's no remote repository on
+GitHub/GitLab. It's an explicit rubric deliverable ("Code Repository...
+correct use of Git branching will be assessed") and the only delivery
+channel is a public link by email — without this there's nothing to
+evaluate. The entire local history (`main`, `develop`, per-phase merge
+commits) is already ready to push as-is once the remote exists.
 
-### Panel de feedback en el DevPanel, a pedido del humano
+### Feedback panel in the DevPanel, at the human's request
 
-Probar el feedback via `psql` contra la tabla real funcionaba pero era
-poco demostrable en vivo. Se movió a la propia UI:
+Testing feedback via `psql` against the real table worked but wasn't very
+demonstrable live. It was moved into the UI itself:
 
-- [x] `feedback` gana la columna `message` (NOT NULL, migración
-  `aa3ad54be751`): el texto de la respuesta del agente que se calificó,
-  denormalizado al momento del feedback en vez de un join contra el
-  historial de ADK — así el panel puede listarlo aunque la sesión se haya
-  compactado o borrado. Las 2 filas de prueba de antes (sin `message`,
-  de antes de este cambio) se borraron.
-- [x] `GET /api/v1/feedback?limit=` (admin, spec 02): mismo mecanismo de
-  `admin_token` por Bearer que `/handoffs` — cruza sesiones ajenas, no
-  puede colgar del `X-User-Id` normal. `require_admin`/`Admin` se movió
-  de `routers/handoffs.py` a `api/dependencies.py` (vivía duplicado
-  palabra por palabra, ahora `/feedback` lo reusa).
-- [x] Panel dev, nueva sección "Feedback": pide el `admin_token` una vez
-  (con recuerdo en `localStorage`, igual que la preferencia de mostrar el
-  panel), lista lo más reciente primero con ícono 👍/👎, mensaje y fecha,
-  y cada fila es clickeable — navega a `/c/:session_id` de esa
-  conversación (reusa `openSession`, ya existente para la barra lateral).
-- [x] Tipos regenerados desde `/openapi.json` (`FeedbackDto` nuevo).
-- [x] 3 tests nuevos de backend (mensaje requerido, listado admin-gated,
-  orden por fecha) más los 2 existentes ajustados al campo nuevo.
+- [x] `feedback` gains a `message` column (NOT NULL, migration
+  `aa3ad54be751`): the text of the agent response that was rated,
+  denormalized at the moment of feedback instead of a join against the
+  ADK history — so the panel can list it even if the session has been
+  compacted or deleted. The 2 test rows from before (with no `message`,
+  predating this change) were deleted.
+- [x] `GET /api/v1/feedback?limit=` (admin, spec 02): the same
+  `admin_token`-via-Bearer mechanism as `/handoffs` — crosses other users'
+  sessions, can't hang off the normal `X-User-Id`. `require_admin`/`Admin`
+  moved from `routers/handoffs.py` to `api/dependencies.py` (it lived
+  duplicated word-for-word, now `/feedback` reuses it).
+- [x] Dev panel, new "Feedback" section: asks for the `admin_token` once
+  (remembered in `localStorage`, same as the panel-visibility preference),
+  lists the most recent first with a 👍/👎 icon, message, and date, and
+  each row is clickable — navigates to `/c/:session_id` for that
+  conversation (reuses `openSession`, already used by the sidebar).
+- [x] Types regenerated from `/openapi.json` (new `FeedbackDto`).
+- [x] 3 new backend tests (message required, admin-gated listing, sorted
+  by date) plus the 2 existing ones adjusted for the new field.
 
-Verificado en el navegador contra el stack real con Playwright: like a
-una respuesta → aparece en el panel con el texto exacto de esa respuesta
-→ clic en la fila navega de vuelta a la sesión original (URL idéntica a
-la de origen, verificado por comparación exacta). Suite completa: 196
-tests de backend, mypy y ruff limpios; typecheck, build y 24 tests de
-frontend limpios.
+Verified in the browser against the real stack with Playwright: liking a
+response → shows up in the panel with that exact response's text →
+clicking the row navigates back to the original session (URL identical to
+the source, verified by exact comparison). Full suite: 196 backend tests,
+mypy and ruff clean; typecheck, build, and 24 frontend tests clean.
 
-- [x] Borrar una conversación limpia también su feedback (`delete_for_session`
-  en el repositorio, llamado desde `DELETE /sessions/{id}` junto al borrado
-  de `session_titles` que ya existía) — a pedido del humano, para que el
-  panel no liste feedback de una sesión que ya no existe.
+- [x] Deleting a conversation also clears its feedback (`delete_for_session`
+  in the repository, called from `DELETE /sessions/{id}` alongside the
+  existing `session_titles` deletion) — at the human's request, so the
+  panel doesn't list feedback for a session that no longer exists.
 
-### Verificado con Gemini, no solo con modelos locales — 3 bugs reales
+### Verified with Gemini, not just local models — 3 real bugs
 
-A pedido del humano: grabar la demo en local pondría lento el equipo, así
-que hacía falta confirmar que todo funciona igual con Gemini. Verificarlo
-de verdad (no asumirlo) sacó tres bugs que nunca se habían visto porque
-toda la sesión se había probado con Ollama de punta a punta:
+At the human's request: recording the demo locally would slow the machine
+down, so it was necessary to confirm everything works the same with
+Gemini. Actually verifying it (not assuming it) turned up three bugs that
+had never surfaced because the whole session had been tested with Ollama
+end-to-end:
 
-- [x] **El modelo de respaldo cruzaba de proveedor mal.**
-  `build_fallback_model` ramificaba por el proveedor del modelo
-  *principal* elegido, no por el propio `FALLBACK_MODEL`. Con Gemini
-  seleccionado y `FALLBACK_MODEL` en Ollama (el default de este repo),
-  construía un `Gemini(model="ollama_chat/llama3.2:3b")` — 404 real
-  contra la API de Gemini en cuanto el principal fallaba tres veces.
-  Visto en vivo: Gemini devolvió `503 "high demand"` real mientras se
-  probaba, y el respaldo se rompió en vez de rescatar el turno. Arreglado
-  para leer el prefijo `ollama_chat/` del propio `FALLBACK_MODEL`. 3 tests
-  nuevos (`test_fallback_model.py`) — no había ninguna cobertura antes.
-- [x] Los chips de actividad usaban el nombre de la tool como key de React
-  (`item.name`), que no es única si la misma tool se llama más de una vez
-  en un turno — pasó con Gemini y disparó el aviso de consola "two
-  children with the same key". Confirmado contra los eventos crudos de
-  ADK que no era una tool ejecutándose dos veces de verdad, solo la key.
-  Se enumera antes de filtrar, la key combina nombre + posición original.
+- [x] **The fallback model crossed providers incorrectly.**
+  `build_fallback_model` branched on the *primary* selected model's
+  provider, not on `FALLBACK_MODEL`'s own. With Gemini selected and
+  `FALLBACK_MODEL` on Ollama (this repo's default), it built a
+  `Gemini(model="ollama_chat/llama3.2:3b")` — a real 404 against the
+  Gemini API as soon as the primary failed three times. Seen live: Gemini
+  returned a real `503 "high demand"` during testing, and the fallback
+  broke instead of rescuing the turn. Fixed to read the `ollama_chat/`
+  prefix from `FALLBACK_MODEL` itself. 3 new tests
+  (`test_fallback_model.py`) — there was no coverage for this before.
+- [x] Activity chips used the tool name as the React key (`item.name`),
+  which isn't unique if the same tool is called more than once in a turn
+  — happened with Gemini and triggered the "two children with the same
+  key" console warning. Confirmed against the raw ADK events that it
+  wasn't really the same tool running twice, just the key. Now enumerated
+  before filtering, with the key combining name + original position.
 
-Verificado en el navegador contra el stack real con Gemini seleccionado
-(saludo+lead, RAG, HITL con ticket) vía Playwright: cero errores de
-consola. Suite completa: 196 tests de backend (3 nuevos), mypy y ruff
-limpios; typecheck, build y 24 tests de frontend limpios.
+Verified in the browser against the real stack with Gemini selected
+(greeting+lead, RAG, HITL with a ticket) via Playwright: zero console
+errors. Full suite: 196 backend tests (3 new), mypy and ruff clean;
+typecheck, build, and 24 frontend tests clean.
 
-### `GET /feedback` sin `admin_token`, a pedido del humano
+### `GET /feedback` with no `admin_token`, at the human's request
 
-El proyecto no tiene auth de verdad en ningún otro lado (`X-User-Id` es
-un UUID que pone el propio cliente); quien evalúa el reto como máximo
-configura su `GOOGLE_API_KEY`. Pedirle además un `admin_token` solo
-para ver el panel de feedback era fricción sin ninguna seguridad real
-detrás. `/handoffs` se queda con el token (cambia estado real vía
-`PATCH`), pero listar feedback ya no lo necesita — el panel dev carga
-la sección "Feedback" sola al abrirse, sin ningún campo que llenar.
+The project has no real auth anywhere else (`X-User-Id` is a UUID the
+client itself sets); whoever evaluates the challenge at most configures
+their own `GOOGLE_API_KEY`. Requiring an `admin_token` just to see the
+feedback panel was friction with no real security behind it. `/handoffs`
+keeps the token (it changes real state via `PATCH`), but listing feedback
+no longer needs it — the dev panel's "Feedback" section just loads on its
+own when opened, with no field to fill in.
 
-Base de datos limpiada para grabar la demo (`TRUNCATE` de
+Database cleaned up for recording the demo (`TRUNCATE` of
 sessions/events/leads/handoffs/feedback/evaluations/session_titles,
-`kb_chunks` intacto — eso es contenido real, no dato de prueba).
-Encontrado en el camino: truncar `adk_internal_metadata` a mano rompe
-el arranque del backend (ADK guarda ahí su `schema_version`); restaurado
-insertando `('schema_version', '1')`.
+`kb_chunks` left intact — that's real content, not test data). Found
+along the way: truncating `adk_internal_metadata` by hand breaks the
+backend's startup (ADK stores its `schema_version` there); restored by
+inserting `('schema_version', '1')`.
 
-### Repaso completo del guion de demo con Gemini, a pedido del humano
+### Full walkthrough of the demo script with Gemini, at the human's request
 
-Un bug real encontrado y arreglado (detalle arriba, "L4 no atrapaba una
-pseudo-tool-call en forma de JSON"): el modelo de respaldo escribió la
-tool como texto JSON crudo y se le coló al usuario en la burbuja del
-chat. Verificado con unit tests; no se pudo forzar en vivo de nuevo
-porque no es determinístico, pero el caso real quedó capturado como
-test.
+One real bug found and fixed (detail above, "L4 didn't catch a
+pseudo-tool-call shaped as JSON"): the fallback model wrote the tool call
+as raw JSON text and it leaked to the user in the chat bubble. Verified
+with unit tests; couldn't force it live again because it isn't
+deterministic, but the real case was captured as a test.
 
-**Hallazgo externo, no de código:** la cuota gratuita de Gemini
-(`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, 20 solicitudes/día
-por modelo) se agotó en medio de las pruebas de esta sesión. El sistema
-lo manejó bien -- 3 reintentos y caída al respaldo, tal como especifica
-la spec 07 -- pero cada turno con Gemini se volvió notablemente más
-lento después de agotarse. Resetea diario (probablemente medianoche
-hora Pacífico, ~2am hora Perú), así que debería estar libre para la
-grabación de mañana si no se le pega más hoy.
+**External finding, not a code one:** Gemini's free-tier quota
+(`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, 20 requests/day per
+model) ran out in the middle of this session's testing. The system
+handled it well — 3 retries and a fallback, exactly as spec 07 specifies —
+but every turn with Gemini got noticeably slower after it ran out. It
+resets daily (probably midnight Pacific time, ~2am Peru time), so it
+should be free again for tomorrow's recording if it isn't hit again today.
 
-**Nota sobre el propio proceso de verificación:** varios "bugs" que
-parecían reales durante esta ronda resultaron ser fallos del script de
-Playwright usado para probar (un `waitForSelector` con
-`state:'detached'` sobre un elemento nunca montado resuelve de
-inmediato; un chequeo de contenido que matcheaba la burbuja del propio
-usuario en vez de la respuesta del agente) -- verificado consultando la
-tabla `events` y `GET /sessions/{id}/messages` directamente en cada
-caso dudoso, en vez de confiar ciegamente en el resultado del script.
-Los dos bugs reales de este repaso (el cruce de proveedor del respaldo,
-y este de L4) sí se confirmaron con datos crudos de Postgres antes de
-tocar código.
+**Note on the verification process itself:** several "bugs" that looked
+real during this round turned out to be flaws in the Playwright script
+used to test (a `waitForSelector` with `state:'detached'` on an element
+that was never mounted resolves immediately; a content check that matched
+the user's own bubble instead of the agent's response) — verified by
+checking the `events` table and `GET /sessions/{id}/messages` directly in
+every doubtful case, instead of blindly trusting the script's result. The
+two real bugs from this pass (the fallback provider crossover, and this
+L4 one) were confirmed with raw Postgres data before touching any code.
 
-### Reportado en vivo por el humano: declinar una derivación no "se quedaba" cancelado
+### Reported live by the human: declining a handoff didn't "stay" canceled
 
-Screenshots del propio humano usando la app mostraron la tarjeta de
-confirmación reapareciendo justo después de declinarla. Diagnóstico con
-los eventos crudos de ADK (no una suposición): `pendiente_de_confirmacion`
-→ `confirmed=false` → `cancelado=true` → **`pendiente_de_confirmacion`
-otra vez**, todo en el mismo turno — el modelo, tras enterarse de que el
-usuario canceló, volvía a llamar `solicitar_contacto_humano` por su
-cuenta, porque el pedido original seguía calificando para derivar y la
-instrucción nunca decía qué hacer con un `cancelado=true`.
+Screenshots from the human using the app showed the confirmation card
+reappearing right after declining it. Diagnosed with raw ADK events (not
+a guess): `pendiente_de_confirmacion` → `confirmed=false` →
+`cancelado=true` → **`pendiente_de_confirmacion` again**, all in the same
+turn — the model, upon learning the user had canceled, called
+`request_human_handoff` again on its own, because the original request
+still qualified for a handoff and the instruction never said what to do
+with a `cancelado=true`.
 
-- [x] Regla explícita en la instrucción: si la tool devuelve `cancelado`,
-  no volver a llamarla en el mismo turno. Verificado a mano contra
-  `gemma4:12b` real (no hay evalset automático posible: `FakeAdkLlm` no
-  razona) — tras declinar, la tarjeta ya no reaparece.
-- [x] El eco de la derivación (ticket o "Ahora no") se movió de una
-  barra fija junto al composer a debajo del último mensaje de la
-  conversación (dentro de `MessageList`, mismo patrón que feedback y
-  reintentar) — a pedido del humano, para que se lea como parte de esa
-  respuesta puntual.
+- [x] Explicit rule in the instruction: if the tool returns `cancelado`,
+  don't call it again in the same turn. Verified by hand against the real
+  `gemma4:12b` (no automated evalset is possible here: `FakeAdkLlm`
+  doesn't reason) — after declining, the card no longer reappears.
+- [x] The handoff echo (ticket or "Not now") moved from a fixed bar next
+  to the composer to below the last message in the conversation (inside
+  `MessageList`, the same pattern as feedback and retry) — at the human's
+  request, so it reads as part of that specific response.
 
-Suite completa: 196 tests de backend, mypy y ruff limpios; typecheck,
-build y 24 tests de frontend limpios.
+Full suite: 196 backend tests, mypy and ruff clean; typecheck, build, and
+24 frontend tests clean.
 
-### Reportado en vivo: a veces el primer mensaje "no se iba" desde el borrador
+### Reported live: sometimes the first message from the draft "didn't go through"
 
-Screenshot del humano: mensaje enviado desde `/` (borrador), la pantalla
-seguía viéndose vacía un momento, y la conversación terminaba en "se
-quedó sin respuesta, puedes reintentar". Diagnóstico con los eventos
-crudos (un solo evento de usuario, sin ninguna respuesta, ni siquiera
-`end_of_agent`) y los logs del backend (`Root node was cancelled`
-justo cuando el cliente recargó): `send()` esperaba a que terminara
-`POST /sessions` (un round-trip de red real) antes de mostrar la
-burbuja del usuario o deshabilitar "Enviar" — durante esa ventana la
-pantalla se veía igual al borrador vacío, y recargar pensando que no
-había registrado cortaba el turno a medias.
+Screenshot from the human: a message sent from `/` (the draft), the
+screen still looked empty for a moment, and the conversation ended up
+saying "no response, you can retry." Diagnosed with the raw events (a
+single user event, no response at all, not even `end_of_agent`) and the
+backend logs (`Root node was cancelled` right when the client reloaded):
+`send()` was waiting for `POST /sessions` (a real network round trip) to
+finish before showing the user's bubble or disabling "Send" — during that
+window the screen looked identical to the empty draft, and reloading
+because it seemed unregistered cut the turn off mid-way.
 
-- [x] `send()` despacha `user-sent`/`turn-start` ANTES de esperar a
-  `createSession()`: la burbuja y el botón deshabilitado aparecen de
-  inmediato (~70ms, verificado), sin importar cuánto tarde crear la
-  sesión. Si `createSession()` falla, despacha `turn-failed` en vez de
-  dejar la promesa sin manejar.
+- [x] `send()` now dispatches `user-sent`/`turn-start` BEFORE waiting for
+  `createSession()`: the bubble and the disabled button appear right away
+  (~70ms, verified), no matter how long session creation takes. If
+  `createSession()` fails, it dispatches `turn-failed` instead of leaving
+  the promise unhandled.
 
-### Dos bugs más reportados en vivo: el eco se borraba, y a veces el mensaje entero desaparecía
+### Two more bugs reported live: the echo got erased, and sometimes the whole message vanished
 
-- [x] **El eco de la derivación (ticket o "Ahora no") vivía en un campo
-  global** (`handoff`/`declinedConfirmation`) que `user-sent` limpiaba en
-  cada mensaje nuevo — se borraba para siempre al seguir conversando,
-  aunque la fila con la decisión siguiera en la conversación. Movido a un
-  campo `decision` colgado del propio `Message`: sobrevive porque el
-  mensaje nunca se borra. 3 tests del reducer reescritos, uno invertido a
-  propósito ("un mensaje nuevo NO borra el eco de una decisión anterior").
-- [x] **El bug más serio, encontrado depurando el anterior:** a veces la
-  burbuja del usuario y la respuesta entera desaparecían al mandar el
-  primer mensaje de una conversación nueva, como si nunca se hubiera
-  enviado — aunque el backend sí lo había recibido. Diagnóstico con un log
-  temporal de cada acción del reducer: `navigate()` disparaba un
-  `popstate` sintético que relanzaba `loadSessionData()` para la sesión
-  recién creada; como el backend todavía no tenía el mensaje procesado,
-  esa carga volvía con `messages: []` y pisaba por completo el estado
-  optimista que el fix anterior (feedback inmediato) acababa de poner —
-  un bug preexistente que ese mismo fix hizo mucho más fácil de disparar,
-  al ensanchar la ventana de la carrera. `navigate()` ya no dispara el
-  evento a mano: cada quien la llama ya maneja su propio estado.
+- [x] **The handoff echo (ticket or "Not now") lived in a global field**
+  (`handoff`/`declinedConfirmation`) that `user-sent` cleared on every new
+  message — it was lost for good as soon as the conversation continued,
+  even though the row with the decision was still in the conversation.
+  Moved to a `decision` field hanging off the `Message` itself: it
+  survives because the message is never deleted. 3 reducer tests
+  rewritten, one deliberately inverted ("a new message does NOT erase a
+  previous decision's echo").
+- [x] **The more serious bug, found while debugging the previous one:**
+  sometimes the user's bubble and the entire response would vanish when
+  sending the first message of a new conversation, as if it had never
+  been sent — even though the backend had in fact received it. Diagnosed
+  with a temporary log of every reducer action: `navigate()` fired a
+  synthetic `popstate` that re-triggered `loadSessionData()` for the
+  just-created session; since the backend hadn't finished processing the
+  message yet, that load came back with `messages: []` and completely
+  overwrote the optimistic state the previous fix (immediate feedback) had
+  just set — a pre-existing bug that same fix made much easier to trigger,
+  by widening the race window. `navigate()` no longer fires that event by
+  hand: whoever calls it now manages their own state.
 
-Verificado en el navegador (bubble + eco visibles de inmediato y
-sobreviven a mandar otro mensaje). Suite completa: 196 tests de backend,
-mypy y ruff limpios; typecheck, build y 24 tests de frontend limpios.
+Verified in the browser (bubble + echo visible immediately and surviving
+sending another message). Full suite: 196 backend tests, mypy and ruff
+clean; typecheck, build, and 24 frontend tests clean.
 
-- [x] **Panel de feedback se actualiza solo.** Reportado en vivo: dar
-  like/dislike no hacía aparecer la fila en el panel dev hasta recargar
-  la pestaña (la sección solo cargaba una vez, al montar). `sendFeedback`
-  expone un contador `feedbackVersion` que sube en cada POST exitoso;
-  `FeedbackSection` lo agrega a su propio efecto de carga. Verificado en
-  el navegador: like con el panel abierto → la fila aparece sola en
-  segundos.
+- [x] **The feedback panel now updates itself.** Reported live: liking/
+  disliking didn't make the row appear in the dev panel until the tab was
+  reloaded (the section only loaded once, on mount). `sendFeedback`
+  exposes a `feedbackVersion` counter that increments on every successful
+  POST; `FeedbackSection` adds it to its own loading effect. Verified in
+  the browser: liking with the panel open → the row appears on its own
+  within seconds.
