@@ -5,6 +5,7 @@ from uuid import UUID
 from google.adk.tools import ToolContext
 from pydantic import BaseModel, Field, ValidationError
 
+from asesor.agent.language import detect_language
 from asesor.agent.state import STAGE_KEY, STAGE_PREVIA_KEY, read_dialog_state
 from asesor.agent.tools.envelope import error, ok
 from asesor.application.handoff_service import HandoffService
@@ -13,7 +14,10 @@ from asesor.domain.errors import DomainError
 
 RequestHumanHandoff = Callable[..., Awaitable[dict[str, Any]]]
 
-CONFIRMATION_HINT = "¿Confirmas que derivemos tu solicitud a un asesor humano?"
+CONFIRMATION_HINT = {
+    "es": "¿Confirmas que derivemos tu solicitud a un asesor humano?",
+    "en": "Can you confirm you'd like us to hand your request off to a human advisor?",
+}
 
 
 class _HandoffArgs(BaseModel):
@@ -67,7 +71,7 @@ def make_request_human_handoff(handoff_service: HandoffService) -> RequestHumanH
             tool_context.state[STAGE_PREVIA_KEY] = dialog.stage.value
             tool_context.state[STAGE_KEY] = Stage.HANDOFF_PENDING.value
             tool_context.request_confirmation(
-                hint=CONFIRMATION_HINT,
+                hint=CONFIRMATION_HINT[detect_language(args.requirement_summary)],
                 payload={
                     "reason": args.reason.value,
                     "resumen": args.requirement_summary,
