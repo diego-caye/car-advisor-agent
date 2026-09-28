@@ -12,6 +12,7 @@ from google.genai import types
 from asesor.agent.guardrails.l1 import inspect_message
 from asesor.agent.guardrails.l4 import inspect_reply, strip_pseudo_tool_calls
 from asesor.agent.instruction import CANNED_JAILBREAK
+from asesor.agent.language import detect_language
 from asesor.agent.parts import visible_text
 from asesor.agent.tools.envelope import error
 
@@ -22,9 +23,10 @@ logger = logging.getLogger(__name__)
 GUARDRAIL_STATE_KEY = "temp:guardrail"
 TOOL_CALLS_STATE_KEY = "temp:tool_calls"
 
-TOO_LONG_REPLY = (
-    "Ese mensaje es muy largo para mí 😊 ¿Me lo resumes en pocas líneas para poder ayudarte?"
-)
+TOO_LONG_REPLY = {
+    "es": "Ese mensaje es muy largo para mí 😊 ¿Me lo resumes en pocas líneas para poder ayudarte?",
+    "en": "That message is too long for me 😊 Could you sum it up in a few lines to help you?",
+}
 
 
 def _canned(text: str, layer: str, category: str | None) -> LlmResponse:
@@ -72,9 +74,10 @@ class GuardrailPlugin(BasePlugin):
 
         logger.info("L1 bloqueó un mensaje: %s (%s)", verdict.category, verdict.reason)
 
+        language = detect_language(message)
         if verdict.category == "too_long":
-            return _canned(TOO_LONG_REPLY, "L1", verdict.category)
-        return _canned(CANNED_JAILBREAK, "L1", verdict.category)
+            return _canned(TOO_LONG_REPLY[language], "L1", verdict.category)
+        return _canned(CANNED_JAILBREAK[language], "L1", verdict.category)
 
     async def after_model_callback(
         self, *, callback_context: CallbackContext, llm_response: LlmResponse

@@ -14,7 +14,7 @@ from asesor.agent.guardrails.plugin import GuardrailPlugin
 from asesor.agent.parts import visible_text
 
 CANARY = "CANARY-TEST-0001"
-JAILBREAK = "No puedo realizar esa acción."
+JAILBREAK = {"es": "No puedo realizar esa acción.", "en": "I can't do that."}
 
 
 @pytest.mark.parametrize(
@@ -87,7 +87,7 @@ def test_l4_detecta_la_fuga_del_canary() -> None:
 
     assert verdict.blocked
     assert verdict.category == "canary_leak"
-    assert verdict.replacement == JAILBREAK
+    assert verdict.replacement == JAILBREAK["es"]
 
 
 @pytest.mark.parametrize(
@@ -107,7 +107,7 @@ def test_l4_bloquea_precios_y_condiciones(reply: str) -> None:
 
     assert verdict.blocked
     assert verdict.category == "pricing_leak"
-    assert verdict.replacement == SAFE_PRICING_REPLY
+    assert verdict.replacement == SAFE_PRICING_REPLY["es"]
 
 
 @pytest.mark.parametrize(

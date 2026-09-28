@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from httpx import AsyncClient
 
-from asesor.agent.instruction import CANNED_SALUDO_SIN_NOMBRE, CANNED_SOLO_MIRANDO
+from asesor.agent.instruction import CANNED_GREETING_NO_NAME, CANNED_JUST_BROWSING
 from asesor.infrastructure.llm.fake import FakeAdkLlm, FakeTurn
 from tests.support.sse import reply_text, send_message, tool_names
 
@@ -20,12 +20,12 @@ async def new_session(client: AsyncClient, user_id: UUID) -> str:
 async def test_at01_saludo_sin_nombre(
     client: AsyncClient, fake_llm: FakeAdkLlm, user_id: UUID
 ) -> None:
-    fake_llm.turns = [FakeTurn(text=CANNED_SALUDO_SIN_NOMBRE)]
+    fake_llm.turns = [FakeTurn(text=CANNED_GREETING_NO_NAME)]
     session_id = await new_session(client, user_id)
 
     events = await send_message(client, user_id, session_id, "hola")
 
-    assert reply_text(events) == CANNED_SALUDO_SIN_NOMBRE
+    assert reply_text(events) == CANNED_GREETING_NO_NAME
     assert tool_names(events) == []
 
     lead = await client.get(
@@ -35,8 +35,8 @@ async def test_at01_saludo_sin_nombre(
     assert lead.json()["lead"]["name"] is None
 
     instruction = fake_llm.instructions[0]
-    assert "Nombre conocido: ninguno" in instruction
-    assert "Etapa del diálogo: NEW" in instruction
+    assert "Known name: none" in instruction
+    assert "Dialog stage: NEW" in instruction
 
 
 async def test_at02_usuario_que_vuelve_es_saludado_por_nombre(
@@ -54,8 +54,8 @@ async def test_at02_usuario_que_vuelve_es_saludado_por_nombre(
     await send_message(client, user_id, second_session, "hola de nuevo")
 
     instruction = fake_llm.instructions[-1]
-    assert "Nombre conocido: Diego" in instruction
-    assert "Etapa del diálogo: DISCOVERY" in instruction
+    assert "Known name: Diego" in instruction
+    assert "Dialog stage: DISCOVERY" in instruction
 
     lead = await client.get(
         f"/api/v1/sessions/{second_session}/lead", headers={"X-User-Id": str(user_id)}
@@ -88,7 +88,7 @@ async def test_at03_no_repregunta_datos_que_ya_estan_en_la_ficha(
     instruction = fake_llm.instructions[-1]
     assert '"primary_use": "FAMILY"' in instruction
     assert '"name": "Diego"' in instruction
-    assert "Nunca vuelvas a preguntar un dato que ya aparece en la ficha" in instruction
+    assert "Never ask again for a piece of data that's already in the lead" in instruction
 
 
 async def test_at05_solo_estoy_mirando_activa_el_modo_y_persiste(
@@ -96,14 +96,14 @@ async def test_at05_solo_estoy_mirando_activa_el_modo_y_persiste(
 ) -> None:
     fake_llm.turns = [
         FakeTurn(tool_name="save_lead", tool_args={"just_browsing": True}),
-        FakeTurn(text=CANNED_SOLO_MIRANDO),
+        FakeTurn(text=CANNED_JUST_BROWSING),
     ]
     session_id = await new_session(client, user_id)
 
     events = await send_message(client, user_id, session_id, "por ahora solo estoy mirando")
 
     assert tool_names(events) == ["save_lead"]
-    assert reply_text(events) == CANNED_SOLO_MIRANDO
+    assert reply_text(events) == CANNED_JUST_BROWSING
     assert not any(e.event == "error" for e in events)
 
     lead = await client.get(
@@ -116,7 +116,7 @@ async def test_at05_solo_estoy_mirando_activa_el_modo_y_persiste(
     fake_llm.turns = [FakeTurn(text="Claro, aquí estoy si tienes dudas.")]
     await send_message(client, user_id, session_id, "ok")
 
-    assert 'Modo "solo mirando" activo: sí' in fake_llm.instructions[-1]
+    assert '"Just browsing" mode active: yes' in fake_llm.instructions[-1]
 
 
 async def test_at19_dos_sesiones_concurrentes_sin_fuga(

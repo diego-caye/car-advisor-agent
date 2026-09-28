@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from asesor.agent.instruction import CANNED_SIN_DATOS_KB
+from asesor.agent.instruction import CANNED_NO_KB_DATA
 from asesor.infrastructure.container import Container
 from asesor.infrastructure.db.engine import SessionFactory
 from asesor.infrastructure.embeddings.fake import FakeEmbeddings
@@ -91,7 +91,7 @@ async def test_at07_sin_datos_en_la_kb_devuelve_no_results(
                 tool_name="search_knowledge_base",
                 tool_args={"query": "garantía específica del turbocompresor kilometraje exacto"},
             ),
-            FakeTurn(text=CANNED_SIN_DATOS_KB),
+            FakeTurn(text=CANNED_NO_KB_DATA),
         ]
     }
     session_id = await new_session(client, user_id)
@@ -105,7 +105,7 @@ async def test_at07_sin_datos_en_la_kb_devuelve_no_results(
 
     finished = tool_results(events, "search_knowledge_base")
     assert finished[0].data["status"] == "no_results"
-    assert reply_text(events) == CANNED_SIN_DATOS_KB
+    assert reply_text(events) == CANNED_NO_KB_DATA
 
 
 async def test_at07_kb_vacia_tambien_devuelve_no_results(
@@ -116,7 +116,7 @@ async def test_at07_kb_vacia_tambien_devuelve_no_results(
     fake_llm.rules = {
         "híbrido": [
             FakeTurn(tool_name="search_knowledge_base", tool_args={"query": "híbridos"}),
-            FakeTurn(text=CANNED_SIN_DATOS_KB),
+            FakeTurn(text=CANNED_NO_KB_DATA),
         ]
     }
     session_id = await new_session(client, user_id)
