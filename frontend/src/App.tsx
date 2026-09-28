@@ -146,7 +146,7 @@ export default function App() {
       >
         <DevPanel
           lead={state.lead}
-          etapa={state.etapa}
+          stage={state.stage}
           metrics={state.metrics}
           onClose={() => toggleDevPanel(false)}
           onOpenSession={(id) => void openSession(id)}

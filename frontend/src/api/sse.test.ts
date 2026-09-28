@@ -24,8 +24,8 @@ describe('createSseParser', () => {
     const parse = createSseParser()
 
     const frames = parse(
-      'event: tool.started\ndata: {"name":"guardar_lead"}\n\n' +
-        'event: tool.finished\ndata: {"name":"guardar_lead"}\n\n',
+      'event: tool.started\ndata: {"name":"save_lead"}\n\n' +
+        'event: tool.finished\ndata: {"name":"save_lead"}\n\n',
     )
 
     expect(frames.map((f) => f.event)).toEqual(['tool.started', 'tool.finished'])

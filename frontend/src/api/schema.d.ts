@@ -260,8 +260,8 @@ export interface components {
              * @enum {string}
              */
             kind: "declined";
-            /** Motivo */
-            motivo: string;
+            /** Reason */
+            reason: string;
         };
         /** FeedbackDto */
         FeedbackDto: {
@@ -337,14 +337,14 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
-            /** Motivo */
-            motivo: string;
-            /** Resumen Requerimiento */
-            resumen_requerimiento: string;
-            /** Canal Preferido */
-            canal_preferido?: string | null;
-            /** Urgencia */
-            urgencia?: string | null;
+            /** Reason */
+            reason: string;
+            /** Requirement Summary */
+            requirement_summary: string;
+            /** Preferred Channel */
+            preferred_channel?: string | null;
+            /** Urgency */
+            urgency?: string | null;
             /** Status */
             status: string;
             /**
@@ -365,35 +365,35 @@ export interface components {
         };
         /** LeadDto */
         LeadDto: {
-            /** Nombre */
-            nombre?: string | null;
-            /** Telefono */
-            telefono?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Phone */
+            phone?: string | null;
             /** Email */
             email?: string | null;
-            /** Canal Preferido */
-            canal_preferido?: string | null;
+            /** Preferred Channel */
+            preferred_channel?: string | null;
             /**
-             * Consentimiento Contacto
+             * Contact Consent
              * @default false
              */
-            consentimiento_contacto: boolean;
-            /** Uso Principal */
-            uso_principal?: string | null;
-            /** Tipo Vehiculo Interes */
-            tipo_vehiculo_interes?: string | null;
-            /** Motorizacion Interes */
-            motorizacion_interes?: string | null;
-            /** Nivel Interes */
-            nivel_interes?: string | null;
+            contact_consent: boolean;
+            /** Primary Use */
+            primary_use?: string | null;
+            /** Vehicle Type Interest */
+            vehicle_type_interest?: string | null;
+            /** Powertrain Interest */
+            powertrain_interest?: string | null;
+            /** Interest Level */
+            interest_level?: string | null;
         };
         /** LeadResponse */
         LeadResponse: {
             lead: components["schemas"]["LeadDto"] | null;
-            /** Etapa */
-            etapa: string;
-            /** Solo Mirando */
-            solo_mirando: boolean;
+            /** Stage */
+            stage: string;
+            /** Just Browsing */
+            just_browsing: boolean;
         };
         /** MessageDto */
         MessageDto: {
@@ -439,8 +439,8 @@ export interface components {
              * Format: date-time
              */
             last_update_time: string;
-            /** Etapa */
-            etapa: string;
+            /** Stage */
+            stage: string;
         };
         /** UpdateHandoffRequest */
         UpdateHandoffRequest: {

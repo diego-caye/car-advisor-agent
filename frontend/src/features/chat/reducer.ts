@@ -1,4 +1,4 @@
-import type { Etapa, LeadDto, ServerEvent, TurnMetrics } from '../../api/types'
+import type { LeadDto, ServerEvent, Stage, TurnMetrics } from '../../api/types'
 
 export type Handoff = { ticket: string; ya_existia: boolean }
 
@@ -6,7 +6,7 @@ export type Handoff = { ticket: string; ya_existia: boolean }
 // aprobar (donde handoff.created cuenta la historia con el ticket), cancelar
 // no crea nada del lado del backend, así que sin esto no queda ningún rastro
 // de qué se preguntó ni qué se contestó.
-export type DeclinedConfirmation = { motivo: string }
+export type DeclinedConfirmation = { reason: string }
 
 // Va DENTRO del mensaje al que pertenece (el que disparó la derivación), no
 // en un campo aparte del estado global: un campo aparte se limpiaba con
@@ -31,9 +31,9 @@ export type Activity = { name: string; done: boolean }
 
 export type Confirmation = {
   confirmation_id: string
-  motivo: string
+  reason: string
   resumen: string
-  canal_preferido: string | null
+  preferred_channel: string | null
 }
 
 export type ChatState = {
@@ -41,7 +41,7 @@ export type ChatState = {
   activity: Activity[]
   pendingConfirmation: Confirmation | null
   lead: LeadDto | null
-  etapa: Etapa
+  stage: Stage
   metrics: TurnMetrics | null
   streaming: boolean
   error: { message: string; retryable: boolean } | null
@@ -53,7 +53,7 @@ export const initialChatState: ChatState = {
   activity: [],
   pendingConfirmation: null,
   lead: null,
-  etapa: 'NUEVO',
+  stage: 'NEW',
   metrics: null,
   streaming: false,
   error: null,
@@ -73,7 +73,7 @@ export type ChatAction =
       type: 'load'
       messages: Message[]
       lead: LeadDto | null
-      etapa: Etapa
+      stage: Stage
       unansweredMessage?: string | null
     }
   | { type: 'user-sent'; content: string }
@@ -102,7 +102,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...initialChatState,
         messages: action.messages,
         lead: action.lead,
-        etapa: action.etapa,
+        stage: action.stage,
         ...(action.unansweredMessage
           ? {
               lastUserMessage: action.unansweredMessage,
@@ -153,10 +153,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return applyServerEvent(state, action.event)
 
     case 'confirmation-declined': {
-      const motivo = state.pendingConfirmation?.motivo
+      const reason = state.pendingConfirmation?.reason
       const cleared = clearConfirmation(state)
-      return motivo
-        ? { ...cleared, messages: attachDecision(cleared.messages, { kind: 'declined', motivo }) }
+      return reason
+        ? { ...cleared, messages: attachDecision(cleared.messages, { kind: 'declined', reason }) }
         : cleared
     }
   }
@@ -198,7 +198,7 @@ function applyServerEvent(state: ChatState, event: ServerEvent): ChatState {
       }
 
     case 'lead.updated':
-      return { ...state, lead: event.lead, etapa: event.etapa }
+      return { ...state, lead: event.lead, stage: event.stage }
 
     case 'hitl.confirmation_required':
       return {
@@ -207,9 +207,9 @@ function applyServerEvent(state: ChatState, event: ServerEvent): ChatState {
         activity: [],
         pendingConfirmation: {
           confirmation_id: event.confirmation_id,
-          motivo: event.motivo,
+          reason: event.reason,
           resumen: event.resumen,
-          canal_preferido: event.canal_preferido,
+          preferred_channel: event.preferred_channel,
         },
       }
 
