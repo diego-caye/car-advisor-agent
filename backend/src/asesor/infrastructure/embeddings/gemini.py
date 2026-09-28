@@ -6,8 +6,8 @@ from google.genai import types
 
 from asesor.domain.knowledge import EMBEDDING_DIMENSIONS
 
-# gemini-embedding-2 no acepta task_type: la tarea va como instrucción en el texto
-# (gotcha de specs/11-llm-providers.md §2).
+# gemini-embedding-2 doesn't accept task_type: the task goes as an
+# instruction in the text (gotcha from specs/11-llm-providers.md §2).
 _MODELS_WITHOUT_TASK_TYPE = ("gemini-embedding-2",)
 
 _QUERY_INSTRUCTION = "Consulta de búsqueda sobre asesoría automotriz: "
@@ -49,7 +49,7 @@ class GeminiEmbeddings:
 
         response = await self._client.aio.models.embed_content(
             model=self._model,
-            # list[str] es invariante frente a la unión que declara el SDK.
+            # list[str] is invariant with respect to the union the SDK declares.
             contents=cast("Any", payload),
             config=config,
         )

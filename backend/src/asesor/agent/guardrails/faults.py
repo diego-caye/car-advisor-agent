@@ -19,7 +19,7 @@ class Fault(StrEnum):
 
 
 class InjectedModelError(RuntimeError):
-    """Fallo del modelo provocado a propósito, para demostrar los fallbacks."""
+    """Model failure triggered on purpose, to demonstrate the fallbacks."""
 
     def __init__(self, fault: Fault) -> None:
         super().__init__(f"fault injection: {fault.value}")
@@ -36,15 +36,15 @@ def parse_fault(raw: str | None) -> Fault | None:
 
 
 class FaultInjectionPlugin(BasePlugin):
-    """Solo se registra si APP_ENV=dev y ENABLE_FAULT_INJECTION=true."""
+    """Only registered if APP_ENV=dev and ENABLE_FAULT_INJECTION=true."""
 
     def __init__(self) -> None:
         super().__init__(name="fault-injection")
 
-    # Los fallos del modelo NO se inyectan aquí: ADK captura las excepciones de
-    # los plugins y las convierte en un error del turno, así que ResilientLlm
-    # nunca vería el 429 ni podría caer al respaldo. Se inyectan dentro de
-    # ResilientLlm, leyendo el contextvar de fault_context.
+    # Model failures are NOT injected here: ADK catches plugin exceptions and
+    # turns them into a turn error, so ResilientLlm would never see the 429
+    # or be able to fall back. They're injected inside ResilientLlm, by
+    # reading fault_context's contextvar.
 
     async def before_tool_callback(
         self, *, tool: BaseTool, tool_args: dict[str, Any], tool_context: ToolContext

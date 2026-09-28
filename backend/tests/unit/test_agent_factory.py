@@ -6,12 +6,12 @@ from asesor.infrastructure.llm.fake import FakeAdkLlm
 
 
 def test_create_adk_app_usa_el_modelo_liviano_para_compactar(settings: Settings) -> None:
-    """Sin `summarizer` explícito, ADK usa por defecto el modelo grande del
-    propio agente para resumir (agent.canonical_model, verificado leyendo
-    google/adk/apps/compaction.py) -- justo cuando la conversación ya es
-    larga, el peor momento para sumarle otra llamada al modelo principal.
-    Este test fija que `create_adk_app` pasa el modelo liviano en su lugar,
-    no que ADK "adivine" el correcto.
+    """Without an explicit `summarizer`, ADK defaults to the agent's own big
+    model for summarizing (agent.canonical_model, verified by reading
+    google/adk/apps/compaction.py) -- right when the conversation is already
+    long, the worst moment to add another call to the main model. This test
+    pins down that `create_adk_app` passes the lightweight model instead,
+    not that ADK "guesses" the right one.
     """
     agent_model = FakeAdkLlm(model="agente-grande")
     summarizer_model = FakeAdkLlm(model="modelo-liviano")

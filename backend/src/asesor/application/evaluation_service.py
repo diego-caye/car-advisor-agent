@@ -12,9 +12,9 @@ from asesor.infrastructure.telemetry import send_langfuse_score
 
 logger = logging.getLogger(__name__)
 
-# Los 4 primeros criterios de spec 08 S5 corren siempre; fidelidad_rag se suma
-# solo si el turno consulto la base de conocimiento (no tiene sentido
-# evaluarla sobre una respuesta que nunca usa la KB).
+# The first 4 criteria from spec 08 S5 always run; fidelidad_rag is added
+# only if the turn queried the knowledge base (it doesn't make sense to
+# evaluate it on a response that never uses the KB).
 _BASE_CRITERIA: dict[str, str] = {
     "tono_empatico": (
         "El tono es cordial y empatico, en espanol, tuteando -- coherente con "
@@ -59,12 +59,12 @@ bloques de codigo:
 
 
 class EvaluationService:
-    """Evaluación post-ejecución en background (spec 08 S5).
+    """Post-execution evaluation in the background (spec 08 S5).
 
-    Corre después de que la respuesta ya se envió al usuario (se agenda desde
-    el router una vez conocido el texto final) y nunca debe romper nada: un
-    fallo del juez, un JSON mal formado, o Langfuse caído se registran y se
-    descartan, no se propagan.
+    Runs after the response has already been sent to the user (scheduled
+    from the router once the final text is known) and must never break
+    anything: a judge failure, malformed JSON, or Langfuse being down are
+    logged and discarded, never propagated.
     """
 
     def __init__(
@@ -92,7 +92,7 @@ class EvaluationService:
             verdicts = await self._judge(user_message, agent_reply, criteria)
         except Exception:
             logger.warning(
-                "evaluación post-turno falló, se descarta",
+                "post-turn evaluation failed, discarding",
                 exc_info=True,
                 extra={"trace_id": trace_id},
             )
@@ -101,7 +101,7 @@ class EvaluationService:
         for verdict in verdicts:
             criterio = verdict.get("criterio")
             if criterio not in criteria:
-                continue  # el juez inventó o repitió un nombre; se ignora
+                continue  # the judge made up or repeated a name; ignored
 
             score = 1.0 if verdict.get("cumple") else 0.0
             justificacion = str(verdict.get("justificacion") or "")
@@ -138,10 +138,10 @@ class EvaluationService:
         raw = "".join(chunks)
         start, end = raw.find("{"), raw.rfind("}")
         if start == -1 or end == -1:
-            raise ValueError(f"el juez no devolvió JSON: {raw!r}")
+            raise ValueError(f"the judge didn't return JSON: {raw!r}")
 
         parsed: dict[str, Any] = json.loads(raw[start : end + 1])
         verdicts = parsed.get("veredictos")
         if not isinstance(verdicts, list):
-            raise ValueError(f"el juez no devolvió una lista de veredictos: {parsed!r}")
+            raise ValueError(f"the judge didn't return a list of verdicts: {parsed!r}")
         return verdicts

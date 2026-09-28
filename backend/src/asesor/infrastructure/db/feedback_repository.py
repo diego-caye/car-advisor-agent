@@ -74,10 +74,10 @@ class SqlFeedbackRepository:
             return True
 
     async def delete_for_session(self, session_id: str) -> None:
-        # Igual que session_titles: el feedback vive aparte de la sesión de
-        # ADK, así que borrarla no lo arrastra solo -- si no se limpia a
-        # mano, el panel de feedback queda con filas que apuntan a una
-        # sesión que ya no existe (el clic para "ir a la conversación" no
-        # tendría a dónde ir).
+        # Same as session_titles: the feedback lives apart from the ADK
+        # session, so deleting it doesn't drag it along on its own -- if
+        # it isn't cleaned up by hand, the feedback panel ends up with rows
+        # pointing to a session that no longer exists (the "ir a la
+        # conversación" click would have nowhere to go).
         async with self._session_factory() as session, session.begin():
             await session.execute(delete(FeedbackRow).where(FeedbackRow.session_id == session_id))

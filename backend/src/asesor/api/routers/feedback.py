@@ -50,9 +50,9 @@ async def submit_feedback(
         comment=body.comment,
     )
 
-    # Best-effort: Langfuse permite adjuntar un score a un trace ya cerrado
-    # (spec 08 S4). Si falla o no está configurado, el feedback ya quedó
-    # guardado arriba -- nunca bloquea ni hace fallar el endpoint.
+    # Best-effort: Langfuse allows attaching a score to an already-closed
+    # trace (spec 08 S4). If it fails or isn't configured, the feedback was
+    # already saved above -- it never blocks or fails the endpoint.
     await send_langfuse_score(
         container.settings,
         trace_id=body.trace_id,
@@ -66,11 +66,11 @@ async def submit_feedback(
 
 @router.get("", response_model=list[FeedbackDto])
 async def list_feedback(request: Request, limit: int = 100) -> list[FeedbackDto]:
-    # Sin admin_token a propósito: el proyecto no tiene un modelo de auth de
-    # verdad en ningún otro lado (X-User-Id es un UUID que pone el propio
-    # cliente, trivial de falsear), así que pedirle un token a quien evalúa
-    # el reto solo para ver el panel de feedback era fricción sin ninguna
-    # seguridad real detrás -- a pedido del humano.
+    # No admin_token on purpose: the project doesn't have a real auth model
+    # anywhere else (X-User-Id is a UUID the client itself sets, trivial to
+    # fake), so requiring a token from whoever is evaluating the challenge
+    # just to see the feedback panel was friction with no real security
+    # behind it -- at the human's request.
     container = _container(request)
     entries = await container.feedback.list(limit)
     return [_to_dto(entry) for entry in entries]
@@ -78,9 +78,9 @@ async def list_feedback(request: Request, limit: int = 100) -> list[FeedbackDto]
 
 @router.delete("/{feedback_id}", status_code=204)
 async def delete_feedback(request: Request, feedback_id: int) -> None:
-    # Mismo criterio que el GET de arriba: sin admin_token ni X-User-Id, es
-    # un panel de revisión y el proyecto no tiene auth real en ningún otro
-    # lado. Sí lo gatearía si borrase algo más que la fila del panel dev.
+    # Same criteria as the GET above: no admin_token or X-User-Id, it's a
+    # review panel and the project doesn't have real auth anywhere else. It
+    # would gate it if it deleted more than just the dev panel's row.
     container = _container(request)
     deleted = await container.feedback.delete(feedback_id)
     if not deleted:

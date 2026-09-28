@@ -9,11 +9,11 @@ _WORD = re.compile(r"[a-z0-9]+")
 
 
 class FakeEmbeddings:
-    """Bolsa de palabras con hashing, determinista y sin red.
+    """Hashed bag-of-words, deterministic and network-free.
 
-    No es un modelo semántico: dos textos se parecen si comparten palabras. Es
-    suficiente para los tests de RAG, donde lo que se verifica es el cableado
-    (umbral, filtro por categoría, orden) y no la calidad del embedding.
+    It's not a semantic model: two texts are similar if they share words. It's
+    enough for the RAG tests, where what's being verified is the wiring
+    (threshold, category filter, ordering) and not embedding quality.
     """
 
     def __init__(self, model_name: str = "fake-embeddings") -> None:
@@ -51,7 +51,7 @@ def _normalize(text: str) -> str:
 
 
 def _bucket(word: str) -> int:
-    # Hash estable entre procesos: hash() de Python esta aleatorizado por PYTHONHASHSEED.
+    # Stable hash across processes: Python's hash() is randomized by PYTHONHASHSEED.
     value = 0
     for char in word:
         value = (value * 131 + ord(char)) % EMBEDDING_DIMENSIONS

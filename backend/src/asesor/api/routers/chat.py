@@ -82,11 +82,11 @@ async def _stream(
             }
         )
 
-        # Evaluación post-turno en background (spec 08 §5): solo si el turno
-        # terminó con texto de verdad (no HITL/error), hay un mensaje de
-        # usuario fresco que evaluar -- chat/confirmations no manda uno, así
-        # que un turno reanudado por HITL nunca se muestrea -- y el muestreo
-        # (EVAL_SAMPLE_RATE) lo eligió.
+        # Post-turn background evaluation (spec 08 §5): only if the turn
+        # ended with real text (no HITL/error) is there a fresh user message
+        # to evaluate -- chat/confirmations doesn't send one, so a turn
+        # resumed via HITL is never sampled -- and sampling
+        # (EVAL_SAMPLE_RATE) picked it.
         if (
             background is not None
             and user_message is not None
@@ -134,11 +134,11 @@ async def chat_stream(
     container: Container = request.app.state.container
     service = await _guarded_service(request, user_id, body.session_id, body.model_id)
 
-    # El header se ignora fuera de dev, aunque venga (spec 07 §4).
+    # The header is ignored outside of dev, even if it's sent (spec 07 §4).
     fault = parse_fault(x_debug_fault) if container.settings.fault_injection_active else None
 
-    # En segundo plano: titular la conversación no debe sumar latencia al turno
-    # ni romperlo si el modelo ligero falla.
+    # In the background: titling the conversation shouldn't add latency to
+    # the turn or break it if the lightweight model fails.
     background.add_task(
         container.title_service.ensure_title, user_id, body.session_id, body.message
     )

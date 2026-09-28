@@ -4,9 +4,10 @@ from contextvars import ContextVar
 
 from asesor.agent.guardrails.faults import Fault
 
-# Request-scoped: el header X-Debug-Fault llega al router, pero el modelo y las
-# tools corren varias capas más abajo. Un contextvar los alcanza sin ensuciar las
-# firmas de ADK, y se aísla solo por turno (importa con sesiones concurrentes).
+# Request-scoped: the X-Debug-Fault header reaches the router, but the model
+# and the tools run several layers below. A contextvar reaches them without
+# cluttering ADK's signatures, and it's isolated per turn (matters with
+# concurrent sessions).
 _active_fault: ContextVar[Fault | None] = ContextVar("active_fault", default=None)
 
 

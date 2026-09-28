@@ -34,10 +34,10 @@ class MessageDto(BaseModel):
     role: str
     content: str
     created_at: datetime
-    # Eco persistente de una confirmación HITL ya resuelta (spec 02, 03 §3):
-    # sin esto, recargar una conversación con handoff perdía el aviso de
-    # "derivado"/"ahora no" y quedaba como si el mensaje del agente nunca
-    # hubiera pasado por ahí.
+    # Persistent echo of an already-resolved HITL confirmation (spec 02, 03
+    # §3): without this, reloading a conversation with a handoff would lose
+    # the "derivado"/"ahora no" notice and it would look as if the agent's
+    # message had never gone through it.
     decision: MessageDecision | None = None
 
 
@@ -103,8 +103,8 @@ class ConfirmationRequest(BaseModel):
     confirmation_id: str
     approved: bool
     comment: str | None = Field(default=None, max_length=500)
-    # Reanudar con el mismo modelo que pidió la confirmación: cambiar a mitad
-    # de un turno pausado mezclaría dos modelos en la misma respuesta.
+    # Resume with the same model that requested the confirmation: switching
+    # midway through a paused turn would mix two models in the same response.
     model_id: str | None = None
 
 

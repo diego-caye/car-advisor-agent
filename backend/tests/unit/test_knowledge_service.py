@@ -84,7 +84,7 @@ async def test_modelo_coincidente_no_lanza() -> None:
 
 
 class CategoryAwareRetriever:
-    """Devuelve resultados solo cuando NO se filtra por categoría."""
+    """Returns results only when NOT filtering by category."""
 
     def __init__(self) -> None:
         self.categories_requested: list[KbCategory | None] = []

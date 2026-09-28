@@ -18,8 +18,9 @@ from asesor.agent.tools.envelope import error
 
 logger = logging.getLogger(__name__)
 
-# temp: no se persiste en la sesión; solo viaja en el state_delta del turno,
-# que es de donde el traductor de SSE lee el evento guardrail.triggered.
+# temp: not persisted in the session; it only travels in the turn's
+# state_delta, which is where the SSE translator reads the
+# guardrail.triggered event from.
 GUARDRAIL_STATE_KEY = "temp:guardrail"
 TOOL_CALLS_STATE_KEY = "temp:tool_calls"
 
@@ -33,8 +34,8 @@ def _canned(text: str, layer: str, category: str | None) -> LlmResponse:
     return LlmResponse(
         content=types.Content(role="model", parts=[types.Part.from_text(text=text)]),
         turn_complete=True,
-        # El state del callback no llega al state_delta del evento, así que el
-        # marcador viaja por custom_metadata, que ADK sí copia al Event.
+        # The callback's state doesn't reach the event's state_delta, so the
+        # marker travels via custom_metadata, which ADK does copy to the Event.
         custom_metadata={GUARDRAIL_STATE_KEY: {"layer": layer, "category": category}},
     )
 
@@ -50,10 +51,10 @@ def _last_user_text(llm_request: LlmRequest) -> str:
 
 
 class GuardrailPlugin(BasePlugin):
-    """L1 y L4 de specs/07-guardrails.md, más el tope de tool calls de L3.
+    """L1 and L4 from specs/07-guardrails.md, plus L3's tool-call cap.
 
-    L1 y L3 son deterministas y fail-closed; L4 revisa la salida completa. El
-    clasificador L2 es P1 y todavía no está implementado.
+    L1 and L3 are deterministic and fail-closed; L4 reviews the complete
+    output. The L2 classifier is P1 and not yet implemented.
     """
 
     def __init__(self, canary_token: str, max_tool_calls: int) -> None:
@@ -72,7 +73,7 @@ class GuardrailPlugin(BasePlugin):
         if not verdict.blocked:
             return None
 
-        logger.info("L1 bloqueó un mensaje: %s (%s)", verdict.category, verdict.reason)
+        logger.info("L1 blocked a message: %s (%s)", verdict.category, verdict.reason)
 
         language = detect_language(message)
         if verdict.category == "too_long":
@@ -82,8 +83,8 @@ class GuardrailPlugin(BasePlugin):
     async def after_model_callback(
         self, *, callback_context: CallbackContext, llm_response: LlmResponse
     ) -> LlmResponse | None:
-        # Los parciales se revisan enteros al final: filtrar delta por delta
-        # dejaría pasar una fuga partida entre dos fragmentos.
+        # Partials are reviewed whole at the end: filtering delta by delta
+        # would let a leak split across two fragments slip through.
         if llm_response.partial:
             return None
 
@@ -93,10 +94,10 @@ class GuardrailPlugin(BasePlugin):
 
         cleaned = strip_pseudo_tool_calls(text)
         if cleaned != text:
-            logger.warning("el modelo escribió una llamada a tool como texto")
-            # Si la respuesta ERA solo la llamada, no hay nada bueno que
-            # dejar: `_canned("")` reemplaza igual (devolver None aquí
-            # dejaba pasar el texto ORIGINAL sin recortar -- "Returning
+            logger.warning("the model wrote a tool call as text")
+            # If the response WAS just the call, there's nothing good left
+            # to keep: `_canned("")` replaces it either way (returning None
+            # here let the ORIGINAL, untrimmed text through -- "Returning
             # None allows the original response to be used", per ADK).
             return _canned(cleaned, "L4", "pseudo_tool_call")
 
@@ -104,7 +105,7 @@ class GuardrailPlugin(BasePlugin):
         if not verdict.blocked or verdict.replacement is None:
             return None
 
-        logger.warning("L4 reemplazó una respuesta: %s", verdict.category)
+        logger.warning("L4 replaced a response: %s", verdict.category)
         return _canned(verdict.replacement, "L4", verdict.category)
 
     async def before_tool_callback(
@@ -114,7 +115,7 @@ class GuardrailPlugin(BasePlugin):
         tool_context.state[TOOL_CALLS_STATE_KEY] = used
 
         if used > self._max_tool_calls:
-            logger.warning("L3 cortó un loop de tools en la llamada %s", used)
+            logger.warning("L3 cut off a tool-call loop at call %s", used)
             return error(
                 "TOOL_CALL_LIMIT",
                 f"Se alcanzó el máximo de {self._max_tool_calls} herramientas por turno",

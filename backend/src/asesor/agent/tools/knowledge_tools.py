@@ -49,8 +49,8 @@ def make_search_knowledge_base(knowledge_service: KnowledgeService) -> SearchKno
                 args.query, category=args.category, top_k=args.top_k
             )
         except Exception:
-            # RAG caído sigue el mismo camino que no_results (spec 07 §3): el turno
-            # no se rompe y el agente usa la frase honesta.
+            # A downed RAG follows the same path as no_results (spec 07 §3):
+            # the turn doesn't break and the agent uses the honest phrase.
             return no_results()
 
         if not chunks:

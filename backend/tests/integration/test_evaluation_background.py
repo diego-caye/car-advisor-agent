@@ -1,6 +1,7 @@
-"""Wiring de la evaluación post-turno (spec 08 S5): que chat/stream de verdad
-agende evaluate_turn cuando corresponde muestrear, no solo que
-EvaluationService funcione en aislado (eso lo cubre test_evaluation_service).
+"""Wiring of the post-turn evaluation (spec 08 S5): that chat/stream actually
+schedules evaluate_turn when sampling calls for it, not just that
+EvaluationService works in isolation (that's covered by
+test_evaluation_service).
 """
 
 import json
@@ -34,7 +35,7 @@ _JUDGE_VERDICTS = json.dumps(
 
 @pytest.fixture
 def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
-    # 1.0: el turno de este test siempre se muestrea, sin depender del azar.
+    # 1.0: this test's turn is always sampled, without depending on chance.
     monkeypatch.setenv("EVAL_SAMPLE_RATE", "1.0")
     get_settings.cache_clear()
     return get_settings()

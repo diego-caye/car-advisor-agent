@@ -23,7 +23,7 @@ _WHITESPACE = re.compile(r"\s+")
 
 
 def clean_title(raw: str) -> str:
-    """Los modelos pequeños añaden comillas, prefijos y explicaciones de más."""
+    """Small models add extra quotes, prefixes, and explanations."""
     first_line = next((line for line in raw.splitlines() if line.strip()), "")
     without_prefix = re.sub(r"^\s*(t[ií]tulo|title)\s*:\s*", "", first_line, flags=re.IGNORECASE)
     collapsed = _WHITESPACE.sub(" ", _QUOTES.sub("", without_prefix))
@@ -31,7 +31,7 @@ def clean_title(raw: str) -> str:
 
 
 def fallback_title(message: str) -> str:
-    """Si el modelo no da nada usable, el propio mensaje sirve de título."""
+    """If the model doesn't give anything usable, the message itself serves as the title."""
     collapsed = _WHITESPACE.sub(" ", message).strip()
     if len(collapsed) <= MAX_TITLE_CHARS:
         return collapsed
@@ -39,16 +39,18 @@ def fallback_title(message: str) -> str:
 
 
 class TitleService:
-    """Pone nombre a la conversación a partir del primer mensaje del usuario.
+    """Names the conversation from the user's first message.
 
-    Corre en segundo plano y con el modelo ligero: nunca debe sumar latencia al
-    turno ni romperlo si falla, porque es un adorno de la barra lateral.
+    Runs in the background and with the lightweight model: it must never add
+    latency to the turn or break it if it fails, because it's just a sidebar
+    decoration.
 
-    El título vive en su propia tabla (session_title_repository), no en el
-    estado de la sesión de ADK: guardarlo ahí competía por el mismo lock
-    optimista que el turno de chat, y un turno siguiente que llegara mientras
-    el título se escribía salía rechazado con StaleSessionError — un adorno
-    tumbando la respuesta real (visto en producción, no en teoría).
+    The title lives in its own table (session_title_repository), not in the
+    ADK session's state: storing it there competed for the same optimistic
+    lock as the chat turn, and a following turn that arrived while the title
+    was being written would come back rejected with StaleSessionError — a
+    decoration taking down the actual response (seen in production, not in
+    theory).
     """
 
     def __init__(self, model: BaseLlm, titles: SqlSessionTitleRepository) -> None:
@@ -84,5 +86,5 @@ class TitleService:
                 )
             return clean_title("".join(chunks))
         except Exception:
-            logger.warning("no se pudo generar el título de la conversación", exc_info=True)
+            logger.warning("could not generate the conversation title", exc_info=True)
             return ""

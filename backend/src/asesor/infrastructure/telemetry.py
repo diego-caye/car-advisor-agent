@@ -54,13 +54,13 @@ def setup_telemetry(settings: Settings) -> None:
 async def send_langfuse_score(
     settings: Settings, *, trace_id: str, name: str, value: float, comment: str | None = None
 ) -> None:
-    """Adjunta un score a un trace ya cerrado (spec 08 S4/S5, verificado en vivo
-    contra `POST /api/public/scores`: la API "legacy" de lectura de traces está
-    deprecada para orgs nuevas, pero la de escritura de scores sigue viva).
+    """Attaches a score to an already-closed trace (spec 08 S4/S5, verified live
+    against `POST /api/public/scores`: the "legacy" trace-reading API is
+    deprecated for new orgs, but the score-writing one is still alive).
 
-    No-op sin keys. Nunca lanza si Langfuse no responde: un score es un
-    adorno de observabilidad, no debe tumbar la respuesta al usuario ni el
-    turno de evaluación en background que lo dispara.
+    No-op without keys. Never raises if Langfuse doesn't respond: a score is
+    observability decoration, it shouldn't take down the response to the user
+    or the background evaluation turn that triggers it.
     """
     if not settings.telemetry_enabled:
         return
@@ -83,7 +83,7 @@ async def send_langfuse_score(
             )
             response.raise_for_status()
     except httpx.HTTPError:
-        logger.warning("no se pudo enviar el score %r a Langfuse", name, exc_info=True)
+        logger.warning("could not send score %r to Langfuse", name, exc_info=True)
 
 
 @dataclass(slots=True)

@@ -30,10 +30,11 @@ class KnowledgeService:
         accepted = self._above_floor(chunks)
 
         if not accepted and category is not None:
-            # El LLM elige la categoría y a veces se equivoca: pedir CARROCERIAS
-            # como SEGMENTOS deja fuera justo los fragmentos buenos. El filtro es
-            # una optimización, no una condición: si no da nada, se reintenta sin él.
-            logger.info("sin resultados en %s, reintentando sin filtro", category.value)
+            # The LLM picks the category and sometimes gets it wrong: asking
+            # for BODY_TYPES as SEGMENTS leaves out exactly the good
+            # chunks. The filter is an optimization, not a condition: if it
+            # returns nothing, it's retried without it.
+            logger.info("no results in %s, retrying without filter", category.value)
             chunks = await self._retriever.search(embedding, category=None, top_k=top_k)
             accepted = self._above_floor(chunks)
 
@@ -48,13 +49,13 @@ class KnowledgeService:
         """Fail fast if the KB was ingested with another model: distinct vector spaces."""
         stored = await self._retriever.stored_embedding_model()
         if stored is None:
-            logger.warning("La base de conocimiento está vacía: corre scripts/ingest_kb.py")
+            logger.warning("The knowledge base is empty: run scripts/ingest_kb.py")
             return
 
         if stored != self._embeddings.model_name:
             raise EmbeddingModelMismatchError(
-                f"La KB fue ingerida con '{stored}' pero EMBEDDINGS_MODEL es "
-                f"'{self._embeddings.model_name}'. Son espacios vectoriales distintos y sus "
-                "distancias no son comparables: vuelve a ingerir la KB "
-                "(uv run python scripts/ingest_kb.py) o restaura el modelo anterior."
+                f"The KB was ingested with '{stored}' but EMBEDDINGS_MODEL is "
+                f"'{self._embeddings.model_name}'. These are different vector spaces and "
+                "their distances aren't comparable: re-ingest the KB "
+                "(uv run python scripts/ingest_kb.py) or restore the previous model."
             )

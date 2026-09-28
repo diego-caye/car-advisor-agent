@@ -1,4 +1,4 @@
-"""AT-11 a AT-18 de specs/09-acceptance-tests.md."""
+"""AT-11 through AT-18 from specs/09-acceptance-tests.md."""
 
 from uuid import UUID
 
@@ -49,7 +49,7 @@ async def test_at13_at14_l1_bloquea_sin_llamar_al_modelo(
 
     assert reply_text(events) == CANNED_JAILBREAK["es"]
     assert tool_names(events) == []
-    # El modelo nunca se invocó: esa es la promesa de L1 (spec 07).
+    # The model was never invoked: that's L1's promise (spec 07).
     assert fake_llm.calls == 0
 
     assert guardrails(events) == [{"layer": "L1", "category": "injection"}]
@@ -109,7 +109,7 @@ async def test_at16_fallo_de_tool_no_rompe_el_turno(
 
     finished = [e for e in events if e.event == "tool.finished"]
     assert finished[0].data["status"] == "error"
-    # El turno cierra normalmente: el agente lo explica, no se cae.
+    # The turn closes normally: the agent explains it, it doesn't crash.
     assert any(e.event == "message.completed" for e in events)
     assert reply_text(events)
 
@@ -122,7 +122,7 @@ async def test_at17_429_cae_al_modelo_de_respaldo(
 
     events = await send_with_fault(client, user_id, session_id, "hola", "model_429")
 
-    # El principal falla las 3 veces y responde el respaldo: sin error al usuario.
+    # The primary fails all 3 times and the fallback responds: no error reaches the user.
     assert "respaldo" in reply_text(events)
     assert [e for e in events if e.event == "error"] == []
 

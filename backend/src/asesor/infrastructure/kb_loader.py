@@ -9,7 +9,7 @@ from asesor.domain.enums import KbCategory
 _FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _HEADING = re.compile(r"^##\s+(.+)$", re.MULTILINE)
 
-# ~4 caracteres por token en español: 400-700 tokens del spec ≈ 1600-2800 caracteres.
+# ~4 characters per token in Spanish: 400-700 tokens from the spec ≈ 1600-2800 characters.
 MAX_CHARS = 2800
 MIN_CHARS = 400
 OVERLAP_CHARS = 200
@@ -41,7 +41,7 @@ def parse_document(path: Path) -> ParsedDocument:
     raw = path.read_text(encoding="utf-8")
     match = _FRONTMATTER.match(raw)
     if match is None:
-        raise KbFormatError(f"{path.name}: falta el frontmatter con title y categoria")
+        raise KbFormatError(f"{path.name}: missing frontmatter with title and categoria")
 
     fields: dict[str, str] = {}
     for line in match.group(1).splitlines():
@@ -53,12 +53,12 @@ def parse_document(path: Path) -> ParsedDocument:
     title = fields.get("title")
     category = fields.get("categoria")
     if not title or not category:
-        raise KbFormatError(f"{path.name}: el frontmatter necesita title y categoria")
+        raise KbFormatError(f"{path.name}: frontmatter needs title and categoria")
 
     try:
         parsed_category = KbCategory(category)
     except ValueError as exc:
-        raise KbFormatError(f"{path.name}: categoria '{category}' no es válida") from exc
+        raise KbFormatError(f"{path.name}: categoria '{category}' is not valid") from exc
 
     return ParsedDocument(
         title=title,
@@ -69,7 +69,8 @@ def parse_document(path: Path) -> ParsedDocument:
 
 
 def split_by_headings(body: str) -> list[str]:
-    """Trocea por encabezados de nivel 2, uniendo los muy cortos y partiendo los largos."""
+    """Splits by level-2 headings, merging ones that are too short and
+    splitting ones that are too long."""
     positions = [match.start() for match in _HEADING.finditer(body)]
     if not positions:
         sections = [body]

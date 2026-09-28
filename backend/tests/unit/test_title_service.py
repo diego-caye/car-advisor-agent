@@ -38,9 +38,10 @@ def test_el_mensaje_largo_se_recorta_con_puntos_suspensivos() -> None:
 
 
 class _FakeTitleRepo:
-    """El mismo contrato que SqlSessionTitleRepository, en memoria: estos
-    tests son sobre la lógica de ensure_title (genera una vez, no compite por
-    nada), no sobre SQL — eso ya lo cubre test_session_title_repository.py.
+    """The same contract as SqlSessionTitleRepository, in memory: these tests
+    are about ensure_title's logic (generates once, doesn't race for
+    anything), not about SQL — that's already covered by
+    test_session_title_repository.py.
     """
 
     def __init__(self) -> None:

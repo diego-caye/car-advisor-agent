@@ -95,16 +95,16 @@ def make_save_lead(lead_service: LeadService) -> SaveLead:
             return error("VALIDATION_ERROR", _first_message(exc))
 
         if args.just_browsing:
-            # Vive en el estado de sesion (dialog state), no en la ficha del
-            # usuario: es una intencion de esta conversacion, no un dato del lead.
+            # Lives in the session state (dialog state), not in the user's
+            # record: it's an intent for this conversation, not a lead field.
             tool_context.state[SOLO_MIRANDO_KEY] = True
 
         dialog = read_dialog_state(tool_context.state)
         update = args.to_update()
 
         if args.just_browsing and update.is_empty():
-            # Se llamo solo para activar "solo mirando", sin ningun dato nuevo del
-            # lead -- valido, no debe caer en EMPTY_UPDATE.
+            # Called only to flag that the user is "just looking", with no
+            # new lead data -- valid, it shouldn't fall into EMPTY_UPDATE.
             snapshot = await lead_service.get_snapshot(UUID(tool_context.user_id), dialog.stage)
         else:
             try:
