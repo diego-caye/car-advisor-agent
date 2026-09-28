@@ -3,8 +3,8 @@ import type { ServerEvent } from './types'
 export type SseFrame = { event: string; data: string }
 
 /**
- * Acumula texto y devuelve los frames completos. Un chunk de red puede cortar
- * un frame por la mitad, así que lo incompleto queda en el buffer.
+ * Accumulates text and returns the complete frames. A network chunk can cut
+ * a frame in half, so the incomplete part stays in the buffer.
  */
 export function createSseParser(): (chunk: string) => SseFrame[] {
   let buffer = ''

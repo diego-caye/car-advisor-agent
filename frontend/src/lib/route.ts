@@ -1,9 +1,9 @@
 /**
- * Router mínimo a mano: la app solo tiene dos formas de URL, así que traer
- * una librería de rutas completa sería más código que resolver, no menos.
+ * Minimal hand-rolled router: the app only has two kinds of URLs, so pulling
+ * in a full routing library would be more code than it solves, not less.
  *
- *   /            conversación en borrador, todavía sin crear en el backend
- *   /c/:id       una conversación existente, navegable y para compartir
+ *   /            draft conversation, not yet created in the backend
+ *   /c/:id       an existing conversation, navigable and shareable
  */
 
 const SESSION_PATH_RE = /^\/c\/([^/]+)\/?$/
@@ -18,22 +18,21 @@ export function sessionPath(sessionId: string): string {
 }
 
 /**
- * Cambia la URL sin recargar la página, pero deja una URL real (para
- * compartir, marcar como favorita o usar atrás/adelante) en vez de solo
- * estado de React.
+ * Changes the URL without reloading the page, but leaves a real URL (to
+ * share, bookmark, or use back/forward) instead of just React state.
  *
- * NO dispara un 'popstate' a mano: cada quien llama a navigate() ya maneja
- * su propio estado (setSessionId actualiza sessionIdState en el mismo
- * momento; el catch de carga fallida ya hace su propio reset). Antes SÍ se
- * emitía uno sintético "para que los oyentes de la ruta se enteren", pero
- * eso disparaba efectos redundantes al propio oyente (`onPopState` en
- * useChat.ts, que ya se entera por otro lado) -- bug real, encontrado en
- * vivo: al mandar el primer mensaje de una sesión nueva, ese popstate
- * sintético relanzaba loadSessionData() para una sesión que el backend
- * todavía no tenía poblada, y su `load` con `messages: []` pisaba el
- * mensaje recién agregado de forma optimista. El listener de 'popstate'
- * sigue sirviendo para el atrás/adelante REAL del navegador, que sí dispara
- * el evento nativo por su cuenta, sin ayuda de esta función.
+ * Does NOT fire a 'popstate' by hand: whoever calls navigate() already
+ * handles its own state (setSessionId updates sessionIdState in the same
+ * moment; the failed-load catch already does its own reset). It used to
+ * emit a synthetic one "so route listeners find out", but that triggered
+ * redundant effects on the listener itself (`onPopState` in useChat.ts,
+ * which already finds out some other way) -- a real bug, found live: when
+ * sending the first message of a new session, that synthetic popstate
+ * relaunched loadSessionData() for a session the backend didn't have
+ * populated yet, and its `load` with `messages: []` stomped on the message
+ * just added optimistically. The 'popstate' listener still serves the
+ * browser's REAL back/forward, which does fire the native event on its
+ * own, without this function's help.
  */
 export function navigate(path: string): void {
   if (window.location.pathname === path) return

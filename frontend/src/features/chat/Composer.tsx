@@ -20,8 +20,9 @@ export function Composer({ disabled, onSend }: Props) {
     onSend(trimmed)
   }
 
-  // Enter envía y Shift+Enter hace salto de línea, que es lo que la gente ya
-  // espera de un chat. Con un <input> no había forma de escribir varias líneas.
+  // Enter sends and Shift+Enter makes a line break, which is what people
+  // already expect from a chat. With an <input> there was no way to write
+  // multiple lines.
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()

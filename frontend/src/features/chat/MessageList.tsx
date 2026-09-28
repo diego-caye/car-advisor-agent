@@ -13,16 +13,16 @@ type Props = {
   messages: Message[]
   activity: Activity[]
   streaming: boolean
-  // Se ofrece reintentar cuando el último turno no llegó a tener respuesta,
-  // sea por un fallo en vivo o porque se cargó así una conversación vieja.
+  // Retry is offered when the last turn didn't get a response, whether from
+  // a live failure or because an old conversation was loaded in that state.
   retryable: boolean
   onRetry: () => void
   onEdit: (text: string) => void
-  // El aviso de "el modelo local tarda" no tiene sentido con Gemini: ahí la
-  // demora es de la API, no de cargar un modelo en la GPU de esta máquina.
+  // The "local model is slow" notice doesn't make sense with Gemini: there
+  // the delay is the API's, not loading a model onto this machine's GPU.
   isLocalModel: boolean
-  // trace_id del último turno completado (spec 08 §4): sin él no hay a qué
-  // trace adjuntarle el score en Langfuse, así que no se ofrece feedback.
+  // trace_id of the last completed turn (spec 08 §4): without it there's no
+  // trace to attach the score to in Langfuse, so feedback isn't offered.
   traceId: string | null
   onFeedback: (traceId: string, score: 1 | -1, message: string) => void
 }
@@ -41,9 +41,10 @@ export function MessageList({
   const endRef = useRef<HTMLDivElement>(null)
   const lastMessage = messages.at(-1)
 
-  // El texto llega en un solo evento ya filtrado por L4, así que entre el envío
-  // y la respuesta no hay burbuja que mostrar. Sin este indicador la interfaz
-  // se ve congelada, y con un modelo local en frío eso son decenas de segundos.
+  // The text arrives as a single event already filtered by L4, so between
+  // sending and the response there's no bubble to show. Without this
+  // indicator the UI looks frozen, and with a cold local model that's tens
+  // of seconds.
   const pendingReply = streaming && lastMessage?.role !== 'agent'
 
   useEffect(() => {
@@ -64,21 +65,21 @@ export function MessageList({
             <div key={message.id} className="flex flex-col gap-1.5">
               <Bubble
                 message={message}
-                // Solo el último mensaje puede necesitar reintento: es el único
-                // que se quedó sin respuesta. Uno de en medio ya la tiene.
+                // Only the last message can need a retry: it's the only one
+                // left without a response. One in the middle already has it.
                 showRetry={retryable && isLastMessage}
                 retryDisabled={streaming}
                 onRetry={onRetry}
                 onEdit={onEdit}
-                // Mismo criterio de "es el último": solo la respuesta más reciente
-                // tiene sentido calificar, no una de en medio de la conversación.
+                // Same "it's the last one" criterion: only the most recent
+                // response makes sense to rate, not one in the middle of the conversation.
                 showFeedback={!streaming && isLastAgentMessage && Boolean(traceId)}
                 onFeedback={(score) => traceId && onFeedback(traceId, score, message.content)}
               />
-              {/* El eco vive colgado del propio mensaje (reducer), no de un
-                  campo aparte del estado: así sobrevive a los mensajes
-                  siguientes en vez de borrarse en cuanto se sigue
-                  conversando. */}
+              {/* The echo lives attached to the message itself (reducer), not
+                  a separate field of the state: this way it survives
+                  subsequent messages instead of being cleared as soon as
+                  the conversation continues. */}
               {message.decision?.kind === 'handoff' && (
                 <HandoffNotice handoff={message.decision} />
               )}
@@ -93,8 +94,8 @@ export function MessageList({
           .map((item, index) => ({ ...item, index }))
           .filter((item) => !item.done)
           .map((item) => (
-            // El mismo tool puede llamarse más de una vez en el turno (p. ej.
-            // guardar_lead dos veces): el nombre solo no es una key única.
+            // The same tool can be called more than once in a turn (e.g.
+            // save_lead twice): the name alone isn't a unique key.
             <ActivityChip key={`${item.name}-${item.index}`} name={item.name} />
           ))}
 
@@ -126,9 +127,9 @@ function Bubble({
   const isUser = message.role === 'user'
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
-  // Local: una vez calificado un turno no se puede cambiar de opinión, y el
-  // estado no necesita sobrevivir a un refresh (no es información que el
-  // usuario espere recuperar, a diferencia del propio mensaje).
+  // Local: once a turn is rated you can't change your mind, and the state
+  // doesn't need to survive a refresh (it's not information the user would
+  // expect to get back, unlike the message itself).
   const [feedbackSent, setFeedbackSent] = useState<1 | -1 | null>(null)
 
   function sendFeedback(score: 1 | -1) {
@@ -158,10 +159,10 @@ function Bubble({
     }
   }
 
-  // La edición ocurre en el propio div del mensaje: la burbuja se convierte
-  // en un campo editable en su lugar, en vez de mandar el texto al cuadro
-  // principal de abajo. Al confirmar, esta misma burbuja queda con el texto
-  // corregido (reducer 'edit-last-message') — no se agrega una aparte.
+  // Editing happens right in the message's own div: the bubble turns into
+  // an editable field in place, instead of sending the text to the main
+  // box below. On confirm, this same bubble ends up with the corrected text
+  // (reducer 'edit-last-message') — a separate one isn't added.
   if (editing) {
     return (
       <div className="flex flex-col items-end">
@@ -206,8 +207,9 @@ function Bubble({
         {message.content}
       </p>
 
-      {/* Junto al mensaje concreto que se reenvía, no un botón grande y
-          ambiguo al pie de la pantalla que no deja claro qué reintenta. */}
+      {/* Next to the specific message being resent, not a big, ambiguous
+          button at the bottom of the screen that doesn't make clear what's
+          being retried. */}
       {showRetry && (
         <div className="mt-1 flex gap-1">
           <Button
@@ -297,12 +299,12 @@ function TypingIndicator({ isLocalModel }: { isLocalModel: boolean }) {
       </span>
       {slow && (
         <span className="px-1 text-xs text-muted-foreground">
-          {/* "el modelo local tarda" no tiene sentido con Gemini: ahí la
-              demora es de la API (o de un reintento por 429), no de cargar
-              un modelo en la GPU de esta máquina. Tampoco se afirma que es
-              "la primera vez" para el caso local: no hay forma de saberlo
-              desde aquí, y decirlo en la quinta llamada del modelo ya
-              caliente confunde más de lo que tranquiliza. */}
+          {/* "local model is slow" doesn't make sense with Gemini: there the
+              delay is the API's (or a 429 retry), not loading a model onto
+              this machine's GPU. It also doesn't claim it's "the first time"
+              for the local case: there's no way to know that from here, and
+              saying it on the model's fifth call, already warmed up, is more
+              confusing than reassuring. */}
           {isLocalModel
             ? 'Los modelos locales a veces tardan más de lo normal…'
             : 'Esto puede tardar unos segundos…'}
@@ -315,9 +317,9 @@ function TypingIndicator({ isLocalModel }: { isLocalModel: boolean }) {
 function Dot({ delay }: { delay: string }) {
   return (
     <span
-      // bg-muted-foreground, no bg-muted: en modo oscuro --muted y --card
-      // son literalmente el mismo gris (#171717), así que los puntos quedaban
-      // invisibles sobre la burbuja — solo se veía el borde vacío.
+      // bg-muted-foreground, not bg-muted: in dark mode --muted and --card
+      // are literally the same gray (#171717), so the dots ended up
+      // invisible over the bubble — only the empty border was visible.
       className="size-1.5 animate-bounce rounded-full bg-muted-foreground"
       style={{ animationDelay: delay }}
       aria-hidden="true"
