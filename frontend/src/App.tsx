@@ -41,7 +41,7 @@ export default function App() {
     try {
       localStorage.setItem(DEV_PANEL_KEY, String(next))
     } catch {
-      // Preferencia accesoria: si el almacenamiento falla, solo no se recuerda.
+      // Non-essential preference: if storage fails, it just isn't remembered.
     }
   }
 
@@ -113,13 +113,13 @@ export default function App() {
             />
           )}
 
-          {/* El eco de la derivación (aceptada o declinada) vive junto al
-              mensaje del agente que la disparó (MessageList), no aquí. */}
+          {/* The handoff echo (accepted or declined) lives next to the
+              agent message that triggered it (MessageList), not here. */}
 
-          {/* El botón de reintentar vive junto al mensaje que se reenvía
-              (MessageList), no aquí: uno solo al pie de la pantalla no
-              dejaba claro qué se iba a reintentar. Esta banda solo explica
-              qué pasó. */}
+          {/* The retry button lives next to the message being resent
+              (MessageList), not here: a single one at the bottom of the
+              screen didn't make clear what was going to be retried. This
+              banner just explains what happened. */}
           {state.error && (
             <Alert
               variant="destructive"
@@ -134,10 +134,10 @@ export default function App() {
         </div>
       </main>
 
-      {/* Proveedor propio, aparte del de la sidebar de conversaciones: cada
-          panel anima su propio ancho/estado, y este solo existe desde lg
-          (igual que antes, cuando el panel ni se montaba por debajo de ese
-          punto de quiebre). */}
+      {/* Its own provider, separate from the conversations sidebar's: each
+          panel animates its own width/state, and this one only exists from
+          lg up (same as before, when the panel wasn't even mounted below
+          that breakpoint). */}
       <SidebarProvider
         open={showDevPanel}
         onOpenChange={toggleDevPanel}

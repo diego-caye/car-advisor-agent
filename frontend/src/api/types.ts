@@ -18,8 +18,9 @@ export type ModelOption = components['schemas']['ModelOption']
 export type FeedbackDto = components['schemas']['FeedbackDto']
 
 /**
- * Eventos SSE de specs/02-api-contract.md §2. No salen del OpenAPI porque el
- * stream no se describe ahí; este tipo es el contrato con el backend.
+ * SSE events from specs/02-api-contract.md §2. They don't come from the
+ * OpenAPI spec because the stream isn't described there; this type is the
+ * contract with the backend.
  */
 export type ServerEvent =
   | { type: 'message.delta'; delta: string }

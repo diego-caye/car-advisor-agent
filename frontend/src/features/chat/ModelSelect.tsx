@@ -24,8 +24,8 @@ type Props = {
 }
 
 export function ModelSelect({ models, value, disabled, onChange }: Props) {
-  // Con una sola opción el selector no aporta nada: el modelo ya se ve en el
-  // panel dev, en las métricas del turno.
+  // With only one option the selector adds nothing: the model is already
+  // visible in the dev panel, in the turn metrics.
   if (models.length < 2) return null
 
   const current = models.find((model) => model.id === value) ?? models[0]
@@ -41,24 +41,24 @@ export function ModelSelect({ models, value, disabled, onChange }: Props) {
       >
         <SelectValue />
       </SelectTrigger>
-      {/* "item-aligned" (el valor por defecto) superpone el menú sobre el
-          disparador para alinear la opción elegida, como un <select> nativo;
-          en una cabecera angosta eso tapaba el propio selector. "popper"
-          lo abre debajo, como cualquier otro menú desplegable. */}
+      {/* "item-aligned" (the default value) overlays the menu on top of the
+          trigger to align the selected option, like a native <select>; in a
+          narrow header that covered the selector itself. "popper" opens it
+          below, like any other dropdown menu. */}
       <SelectContent position="popper" align="start" sideOffset={6}>
         {models.map((model) => (
-          // Las opciones sin configurar se muestran deshabilitadas en vez de
-          // ocultarse: así se ve qué hay disponible y por qué no se puede usar.
+          // Unconfigured options are shown disabled instead of hidden: this
+          // way it's visible what's available and why it can't be used.
           <SelectItem key={model.id} value={model.id} disabled={!model.available}>
             <span className="flex items-center gap-1.5">
               {model.label}
               <Badge variant="outline" className="text-[10px]">
                 {PROVIDER_LABEL[model.provider] ?? model.provider}
               </Badge>
-              {/* Capacidades reales del modelo, descubiertas contra Ollama
-                  (/api/show) para las opciones locales — no todas las
-                  variantes del mismo modelo las tienen por igual: qwen3:4b
-                  piensa y qwen3:4b-instruct no, por ejemplo. */}
+              {/* The model's real capabilities, discovered against Ollama
+                  (/api/show) for local options — not every variant of the
+                  same model has them equally: qwen3:4b thinks and
+                  qwen3:4b-instruct doesn't, for example. */}
               {model.supports_thinking && (
                 <Brain className="text-muted-foreground size-3" aria-hidden="true">
                   <title>Puede razonar antes de responder</title>

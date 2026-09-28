@@ -167,16 +167,16 @@ export interface paths {
         };
         /**
          * List Models
-         * @description Catálogo del selector de modelos.
+         * @description Model selector catalog.
          *
-         *     Para Ollama, este catálogo no viene de configuración: se descubrió en el
-         *     arranque contra /api/tags + /api/show (ver infrastructure.container),
-         *     así que siempre refleja lo que de verdad hay instalado, con sus
-         *     capacidades reales (supports_tools, supports_thinking).
+         *     For Ollama, this catalog doesn't come from configuration: it was discovered
+         *     at startup against /api/tags + /api/show (see infrastructure.container),
+         *     so it always reflects what's actually installed, with its real
+         *     capabilities (supports_tools, supports_thinking).
          *
-         *     `available` es false para las opciones cuyo proveedor no está configurado
-         *     (Gemini sin API key, por ejemplo): la interfaz las muestra deshabilitadas en
-         *     vez de ocultarlas, para que se vea qué hay y por qué no se puede usar.
+         *     `available` is false for options whose provider isn't configured
+         *     (Gemini without an API key, for example): the UI shows them disabled
+         *     instead of hiding them, so it's visible what exists and why it can't be used.
          */
         get: operations["list_models_api_v1_models_get"];
         put?: never;

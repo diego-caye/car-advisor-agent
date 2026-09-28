@@ -8,10 +8,10 @@ import { type Message, chatReducer, initialChatState } from './reducer'
 const GENERIC_ERROR = 'No pudimos conectar con el asesor. Reintenta en unos segundos.'
 const TIMEOUT_ERROR = 'El asesor tardó demasiado en responder. Reintenta en unos segundos.'
 
-// Eventos que cierran un turno de verdad. Si el stream termina sin haber
-// emitido ninguno, la conexión se cortó a medias (crash del backend, red de
-// Docker caída): no es un turno silencioso legítimo, es un fallo que hay que
-// mostrar con un reintento en vez de dejar la interfaz colgada en "escribiendo".
+// Events that actually close a turn. If the stream ends without having
+// emitted any of these, the connection dropped halfway (backend crash,
+// Docker network down): it isn't a legitimate silent turn, it's a failure
+// that needs to be shown with a retry instead of leaving the UI stuck on "typing".
 const TERMINAL_EVENTS: ReadonlySet<ServerEvent['type']> = new Set([
   'message.completed',
   'error',
@@ -32,9 +32,10 @@ function readStoredModel(): string | null {
 export function useChat() {
   const [state, dispatch] = useReducer(chatReducer, initialChatState)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
-  // La URL es la fuente de verdad de qué conversación se ve, no un estado
-  // aparte: así "/" es siempre el borrador sin crear y "/c/:id" es siempre
-  // navegable, se puede recargar o pegar en otra pestaña sin perder el lugar.
+  // The URL is the source of truth for which conversation is shown, not a
+  // separate piece of state: this way "/" is always the uncreated draft and
+  // "/c/:id" is always navigable, can be reloaded or pasted into another tab
+  // without losing your place.
   const [sessionId, setSessionIdState] = useState<string | null>(() =>
     sessionIdFromPath(window.location.pathname),
   )
@@ -52,7 +53,7 @@ export function useChat() {
     try {
       localStorage.setItem(MODEL_KEY, id)
     } catch {
-      // Preferencia accesoria: si el almacenamiento falla, solo no se recuerda.
+      // Non-essential preference: if storage fails, it just isn't remembered.
     }
   }, [])
 
@@ -60,13 +61,13 @@ export function useChat() {
     try {
       setSessions(await api.listSessions())
     } catch {
-      // La lista es accesoria: si falla, el chat sigue usable.
+      // The list is non-essential: if it fails, chat is still usable.
     }
   }, [])
 
-  // Separado de openSession() para que tanto un clic en la barra lateral como
-  // cargar la app directamente en /c/:id (un link, un refresh, atrás/adelante
-  // del navegador) puedan reusar la misma carga de mensajes y ficha.
+  // Separate from openSession() so that both a click on the sidebar and
+  // loading the app directly at /c/:id (a link, a refresh, browser
+  // back/forward) can reuse the same message-and-lead loading logic.
   const loadSessionData = useCallback(async (id: string) => {
     const [messages, lead] = await Promise.all([api.listMessages(id), api.getLead(id)])
     const mapped = messages.map(
@@ -75,16 +76,16 @@ export function useChat() {
         role: message.role === 'user' ? 'user' : 'agent',
         content: message.content,
         streaming: false,
-        // Eco persistente de una confirmación HITL ya resuelta (spec 02): sin
-        // esto, recargar una conversación con handoff perdía el aviso de
-        // "derivado"/"ahora no" y el mensaje quedaba como uno más.
+        // Persistent echo of an already-resolved HITL confirmation (spec 02):
+        // without this, reloading a conversation with a handoff lost the
+        // "handed off"/"not now" notice and the message ended up looking like any other.
         ...(message.decision ? { decision: message.decision } : {}),
       }),
     )
-    // Si la conversación termina en un mensaje del usuario, ese turno nunca
-    // tuvo respuesta (el backend no persiste que un turno falló, solo el
-    // intercambio en sí). Se reconstruye la señal de "hay que reintentar"
-    // para que no quede ahí colgado sin ninguna explicación al recargar.
+    // If the conversation ends on a user message, that turn never got a
+    // response (the backend doesn't persist that a turn failed, only the
+    // exchange itself). The "needs retry" signal is reconstructed so it
+    // doesn't sit there with no explanation after reloading.
     const last = mapped.at(-1)
     dispatch({
       type: 'load',
@@ -116,20 +117,20 @@ export function useChat() {
     [dispatch],
   )
 
-  // Se guarda la promesa en curso, no solo un booleano: varios clics antes
-  // del primer re-render caían todos dentro de la ventana en la que un
-  // estado `creating` todavía valía false, y cada uno creaba su propia
-  // sesión. Devolver la misma promesa a todos los que llegan mientras ya hay
-  // una creación en vuelo evita la duplicación sin ignorar el clic.
+  // The in-flight promise is stored, not just a boolean: several clicks
+  // before the first re-render all fell within the window where a
+  // `creating` state was still false, and each one created its own session.
+  // Returning the same promise to everyone who arrives while a creation is
+  // already in flight avoids the duplication without ignoring the click.
   const creatingSessionRef = useRef<Promise<string> | null>(null)
   const [creatingSession, setCreatingSession] = useState(false)
 
-  // Crea la sesión en el backend. A propósito NO es lo que dispara el botón
-  // "Nueva conversación": eso llevaría a crear una fila real (y vacía) por
-  // cada clic, incluida cada vez que la página se recarga con el borrador
-  // sin usar. Solo send() la llama, y solo cuando de verdad hay un primer
-  // mensaje que enviar — así una conversación entra a la lista cuando existe
-  // algo que mostrar en ella, no antes.
+  // Creates the session in the backend. On purpose this is NOT what the
+  // "New conversation" button triggers: that would lead to creating a real
+  // (and empty) row on every click, including every time the page is
+  // reloaded with the draft unused. Only send() calls it, and only when
+  // there's actually a first message to send — this way a conversation
+  // enters the list once there's something to show in it, not before.
   const createSession = useCallback(async () => {
     if (creatingSessionRef.current) return creatingSessionRef.current
 
@@ -159,10 +160,11 @@ export function useChat() {
     [setSessionId, loadSessionData],
   )
 
-  // Lo que de verdad hace el botón "Nueva conversación": vuelve al borrador
-  // sin tocar el backend. Solo si se escribe algo ahí se crea una sesión de
-  // verdad (ver createSession). Es puramente local, así que no hay carrera
-  // posible por clics repetidos: no queda nada en vuelo que deba compartirse.
+  // What the "New conversation" button actually does: goes back to the
+  // draft without touching the backend. Only if something is typed there
+  // does a real session get created (see createSession). It's purely local,
+  // so there's no possible race from repeated clicks: nothing stays in
+  // flight that would need to be shared.
   const startNewConversation = useCallback(() => {
     abortRef.current?.abort()
     setSessionId(null)
@@ -170,19 +172,19 @@ export function useChat() {
   }, [setSessionId])
 
   const send = useCallback(
-    // Cómo reflejar el texto en la lista antes de mandarlo:
-    //   'append'       mensaje nuevo de verdad -> se agrega una burbuja (por defecto)
-    //   'silent'       reintento tal cual -> ya está en pantalla, no se toca
-    //   'replace-last' reintento editado -> corrige la última burbuja en su lugar
+    // How to reflect the text in the list before sending it:
+    //   'append'       a genuinely new message -> a bubble is added (default)
+    //   'silent'       retry as-is -> already on screen, left untouched
+    //   'replace-last' edited retry -> corrects the last bubble in place
     async (text: string, mode: 'append' | 'silent' | 'replace-last' = 'append') => {
       if (mode === 'append') dispatch({ type: 'user-sent', content: text })
       else if (mode === 'replace-last') dispatch({ type: 'edit-last-message', content: text })
-      // Feedback inmediato, antes de crear la sesión: para el primer mensaje
-      // de una conversación nueva ese POST es una espera de red de verdad, y
-      // sin esto la burbuja del usuario y el "escribiendo" no aparecían
-      // hasta que terminaba -- la pantalla se veía igual que el borrador
-      // vacío. Si alguien recargaba pensando que no había pasado nada, el
-      // turno quedaba cortado a medias (visto en vivo).
+      // Immediate feedback, before creating the session: for the first
+      // message of a new conversation that POST is a real network wait, and
+      // without this the user's bubble and the "typing" indicator didn't
+      // appear until it finished -- the screen looked just like the empty
+      // draft. If someone reloaded thinking nothing had happened, the turn
+      // was left cut off halfway (seen live).
       dispatch({ type: 'turn-start' })
 
       let id: string
@@ -207,10 +209,10 @@ export function useChat() {
       if (!sessionId || !pending) return
 
       if (!approved) {
-        // Cancelar no crea nada (spec 03 §3): a diferencia de aprobar, donde
-        // el aviso de ticket llega con el evento handoff.created, no hay
-        // ningún evento de servidor que quite la tarjeta -- se quita de
-        // inmediato en vez de esperar a que termine el turno reanudado.
+        // Declining doesn't create anything (spec 03 §3): unlike approving,
+        // where the ticket notice arrives with the handoff.created event,
+        // there's no server event that removes the card -- it's removed
+        // immediately instead of waiting for the resumed turn to finish.
         dispatch({ type: 'confirmation-declined' })
       }
 
@@ -224,8 +226,8 @@ export function useChat() {
     [sessionId, state.pendingConfirmation, modelId, consume, refreshSessions],
   )
 
-  // Cuenta las veces que se mandó feedback con éxito: el panel dev la usa
-  // como disparador para recargar su lista sola, en vez de necesitar F5.
+  // Counts how many times feedback was sent successfully: the dev panel uses
+  // it as a trigger to reload its own list, instead of needing an F5.
   const [feedbackVersion, setFeedbackVersion] = useState(0)
 
   const sendFeedback = useCallback(
@@ -256,8 +258,8 @@ export function useChat() {
     if (state.lastUserMessage) await send(state.lastUserMessage, 'silent')
   }, [state.lastUserMessage, send])
 
-  // Reintentar con el texto corregido: la burbuja se edita en su propio
-  // lugar (reducer 'edit-last-message'), no se agrega una nueva.
+  // Retry with the corrected text: the bubble is edited in place (reducer
+  // 'edit-last-message'), a new one isn't added.
   const editAndResend = useCallback(
     async (text: string) => {
       await send(text, 'replace-last')
@@ -265,10 +267,10 @@ export function useChat() {
     [send],
   )
 
-  // Vuelve a leer la URL al usar atrás/adelante del navegador: pushState (en
-  // navigate(), lib/route.ts) no dispara 'popstate' por sí solo, pero un
-  // cambio real de historial sí, y es la única forma en que la URL cambia
-  // sin pasar por nuestros propios setSessionId/startNewConversation.
+  // Re-reads the URL when using the browser's back/forward: pushState (in
+  // navigate(), lib/route.ts) doesn't fire 'popstate' on its own, but a real
+  // history change does, and that's the only way the URL changes without
+  // going through our own setSessionId/startNewConversation.
   useEffect(() => {
     function onPopState() {
       const id = sessionIdFromPath(window.location.pathname)
@@ -291,12 +293,12 @@ export function useChat() {
   useEffect(() => {
     void refreshSessions()
 
-    // Si se entra directo a /c/:id (un link, un refresh, una pestaña nueva),
-    // se carga esa conversación en vez de arrancar en el borrador vacío.
+    // If entering directly at /c/:id (a link, a refresh, a new tab), that
+    // conversation is loaded instead of starting on the empty draft.
     if (sessionId) {
       loadSessionData(sessionId).catch(() => {
-        // No existe o no es de este usuario: no tiene sentido dejar la URL
-        // apuntando a algo que nunca va a cargar.
+        // Doesn't exist or doesn't belong to this user: no point leaving the
+        // URL pointing at something that will never load.
         setSessionId(null)
         dispatch({ type: 'reset' })
       })
@@ -306,8 +308,8 @@ export function useChat() {
       .listModels()
       .then((available) => {
         setModels(available)
-        // Si el modelo recordado ya no está en el catálogo (o dejó de estar
-        // configurado), se cae al que el backend marca por defecto.
+        // If the remembered model is no longer in the catalog (or stopped
+        // being configured), it falls back to whichever the backend marks as default.
         setModelIdState((current) => {
           const usable = available.find((m) => m.id === current && m.available)
           return usable?.id ?? available.find((m) => m.is_default)?.id ?? null
@@ -316,8 +318,8 @@ export function useChat() {
       .catch(() => setModels([]))
 
     return () => abortRef.current?.abort()
-    // Solo debe correr al montar: sessionId aquí es el de la URL inicial, no
-    // algo a lo que este efecto deba reaccionar en cada cambio.
+    // Should only run on mount: sessionId here is the one from the initial
+    // URL, not something this effect should react to on every change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshSessions])
 

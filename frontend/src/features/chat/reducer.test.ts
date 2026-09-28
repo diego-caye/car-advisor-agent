@@ -162,8 +162,8 @@ describe('chatReducer', () => {
     )
     const declined = chatReducer(asked, { type: 'confirmation-declined' })
 
-    // El bug real reportado: seguir conversando borraba el eco para siempre,
-    // aunque la fila con la decisión siguiera en pantalla.
+    // The real bug reported: continuing the conversation erased the echo
+    // forever, even though the row with the decision was still on screen.
     const state = chatReducer(declined, { type: 'user-sent', content: 'otra cosa' })
 
     const declinedMessage = state.messages.find((message) => message.decision?.kind === 'declined')
@@ -206,8 +206,8 @@ describe('chatReducer', () => {
 
     expect(state.error?.retryable).toBe(true)
     expect(state.lastUserMessage).toBe('q tal?')
-    // El mensaje sigue en la lista tal cual venía del backend: la señal de
-    // "hay que reintentar" es aparte, no reemplaza el historial.
+    // The message stays in the list exactly as it came from the backend: the
+    // "needs retry" signal is separate, it doesn't replace the history.
     expect(state.messages).toHaveLength(2)
   })
 
@@ -244,7 +244,7 @@ describe('chatReducer', () => {
       content: 'q lindas son las camionetas no?',
     })
 
-    // Mismo mensaje (mismo id, misma posición), no uno nuevo agregado.
+    // Same message (same id, same position), not a new one added.
     expect(state.messages).toHaveLength(2)
     expect(state.messages[1]).toMatchObject({
       id: 'stored-1',

@@ -67,9 +67,9 @@ export function HandoffNotice({ handoff }: { handoff: Handoff }) {
   )
 }
 
-// Cancelar no crea nada (spec 03 §3), así que a diferencia de HandoffNotice
-// no hay ticket que mostrar -- solo el eco de la pregunta y la decisión,
-// para que no quede como si la tarjeta simplemente hubiera desaparecido sola.
+// Declining doesn't create anything (spec 03 §3), so unlike HandoffNotice
+// there's no ticket to show -- just the echo of the question and the
+// decision, so it doesn't look like the card simply vanished on its own.
 export function DeclinedNotice({ declined }: { declined: DeclinedConfirmation }) {
   const motivo = MOTIVO_LABEL[declined.motivo] ?? 'hablar con un asesor'
 

@@ -18,20 +18,21 @@ export function getUserId(): string {
     localStorage.setItem(USER_ID_KEY, fresh)
     return fresh
   } catch {
-    // Ventana privada o almacenamiento bloqueado: la sesión vive solo en memoria.
+    // Private window or storage blocked: the session lives in memory only.
     return crypto.randomUUID()
   }
 }
 
 const userId = getUserId()
 
-// El backend acumula la respuesta del modelo y no manda nada por el cable
-// hasta que el turno termina (spec 02 §4: L4 necesita ver el texto completo).
-// Eso significa que, para un turno sin tools, la conexión puede quedar en
-// silencio total mientras dura la generación — y con Gemini se ha medido más
-// de 2 minutos en un solo turno con reintentos de proveedor. El plazo tiene
-// que cubrir eso con margen; lo que corta de verdad es una conexión colgada
-// (el proceso del modelo murió, Docker perdió la red), no un turno lento.
+// The backend buffers the model's response and doesn't send anything over
+// the wire until the turn finishes (spec 02 §4: L4 needs to see the full
+// text). That means, for a turn without tools, the connection can stay
+// completely silent for as long as generation takes — and with Gemini we've
+// measured over 2 minutes for a single turn with provider retries. The
+// deadline has to cover that with margin; what should actually cut the
+// connection is a hung one (the model process died, Docker lost the
+// network), not a slow turn.
 const STREAM_IDLE_TIMEOUT_MS = 180_000
 
 export class StreamIdleTimeoutError extends Error {
@@ -47,9 +48,9 @@ async function readWithIdleTimeout(
 ): Promise<ReadableStreamReadResult<Uint8Array>> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const read = reader.read()
-  // Si gana el timeout, más tarde cancelamos el reader y esa lectura pendiente
-  // puede terminar rechazando igual: sin este no-op, Node la reporta como
-  // "unhandled rejection" aunque el resultado de la carrera ya se haya resuelto.
+  // If the timeout wins, we later cancel the reader and that pending read
+  // can still end up rejecting: without this no-op, Node reports it as an
+  // "unhandled rejection" even though the race's outcome has already settled.
   read.catch(() => {})
   try {
     return await Promise.race([
@@ -88,15 +89,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId, trace_id: traceId, score, message }),
     }),
-  // Sin token: el proyecto no tiene auth real en ningún otro lado (spec 02),
-  // así que gatear solo esto no daba seguridad de verdad, solo fricción.
+  // No token: the project has no real auth anywhere else (spec 02), so
+  // gating just this endpoint wouldn't add real security, only friction.
   listFeedback: (limit = 50) => request<FeedbackDto[]>(`/api/v1/feedback?limit=${limit}`),
   deleteFeedback: (id: number) => request<void>(`/api/v1/feedback/${id}`, { method: 'DELETE' }),
 }
 
-// Exportada solo para que el test del timeout pueda pasar un plazo corto y
-// usar timers reales, en vez de esperar 3 minutos o lidiar con temporizadores
-// falsos compitiendo dentro de un Promise.race.
+// Exported only so the timeout test can pass a short deadline and use real
+// timers, instead of waiting 3 minutes or dealing with fake timers racing
+// inside a Promise.race.
 export async function* streamEvents(
   path: string,
   body: unknown,
@@ -129,8 +130,8 @@ export async function* streamEvents(
       }
     }
   } catch (error) {
-    // El timeout no cierra la conexión por sí solo: sin esto, la petición
-    // colgada sigue viva en el navegador aunque ya hayamos dejado de leerla.
+    // The timeout doesn't close the connection by itself: without this, the
+    // hung request stays alive in the browser even after we've stopped reading it.
     await reader.cancel().catch(() => {})
     throw error
   }
