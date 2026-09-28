@@ -27,7 +27,7 @@ import {
 
 import type { SessionSummary } from '../../api/types'
 import { sessionPath } from '../../lib/route'
-import { ETAPA_LABEL } from '../chat/labels'
+import { STAGE_LABEL } from '../chat/labels'
 
 type Props = {
   sessions: SessionSummary[]
@@ -99,7 +99,7 @@ export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Pr
                               minute: '2-digit',
                             })}
                             {' · '}
-                            {ETAPA_LABEL[session.etapa] ?? session.etapa}
+                            {STAGE_LABEL[session.stage] ?? session.stage}
                           </span>
                         </span>
                       </a>

@@ -19,11 +19,11 @@ import { Separator } from '@/components/ui/separator'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 
 import type { FeedbackDto, LeadDto, TurnMetrics } from '../../api/types'
-import { ETAPA_LABEL, LEAD_FIELDS } from '../chat/labels'
+import { LEAD_FIELDS, STAGE_LABEL } from '../chat/labels'
 
 type Props = {
   lead: LeadDto | null
-  etapa: string
+  stage: string
   metrics: TurnMetrics | null
   onClose: () => void
   onOpenSession: (sessionId: string) => void
@@ -39,7 +39,7 @@ const LANGFUSE_PROJECT = import.meta.env['VITE_LANGFUSE_PROJECT_ID'] as string |
 const LANGFUSE_HOST =
   (import.meta.env['VITE_LANGFUSE_HOST'] as string | undefined) || 'https://cloud.langfuse.com'
 
-export function DevPanel({ lead, etapa, metrics, onClose, onOpenSession, feedbackVersion }: Props) {
+export function DevPanel({ lead, stage, metrics, onClose, onOpenSession, feedbackVersion }: Props) {
   const record = (lead ?? {}) as Record<string, unknown>
 
   return (
@@ -64,7 +64,7 @@ export function DevPanel({ lead, etapa, metrics, onClose, onOpenSession, feedbac
         <section>
           <Label>Etapa</Label>
           <Badge variant="secondary" className="mt-1.5">
-            {ETAPA_LABEL[etapa] ?? etapa}
+            {STAGE_LABEL[stage] ?? stage}
           </Badge>
         </section>
 

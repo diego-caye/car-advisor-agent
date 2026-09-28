@@ -3,7 +3,7 @@ import { CircleCheckBig, CircleX, UserRoundCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-import { CANAL_LABEL, MOTIVO_LABEL } from '../chat/labels'
+import { CHANNEL_LABEL, REASON_LABEL } from '../chat/labels'
 import type { Confirmation, DeclinedConfirmation, Handoff } from '../chat/reducer'
 
 type Props = {
@@ -13,9 +13,9 @@ type Props = {
 }
 
 export function ConfirmationCard({ confirmation, busy, onAnswer }: Props) {
-  const motivo = MOTIVO_LABEL[confirmation.motivo] ?? 'hablar con un asesor'
-  const canal = confirmation.canal_preferido
-    ? (CANAL_LABEL[confirmation.canal_preferido] ?? confirmation.canal_preferido)
+  const reason = REASON_LABEL[confirmation.reason] ?? 'hablar con un asesor'
+  const channel = confirmation.preferred_channel
+    ? (CHANNEL_LABEL[confirmation.preferred_channel] ?? confirmation.preferred_channel)
     : null
 
   return (
@@ -25,14 +25,14 @@ export function ConfirmationCard({ confirmation, busy, onAnswer }: Props) {
           <UserRoundCheck className="text-primary size-4" aria-hidden="true" />
           ¿Te derivamos con un asesor?
         </CardTitle>
-        <CardDescription>Luis quiere pasar tu caso a una persona para {motivo}.</CardDescription>
+        <CardDescription>Luis quiere pasar tu caso a una persona para {reason}.</CardDescription>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
         <p className="bg-card rounded-lg px-3 py-2 text-sm">{confirmation.resumen}</p>
 
-        {canal && (
-          <p className="text-muted-foreground text-xs">Te contactarían por {canal}.</p>
+        {channel && (
+          <p className="text-muted-foreground text-xs">Te contactarían por {channel}.</p>
         )}
 
         <div className="flex flex-wrap gap-2">
@@ -71,7 +71,7 @@ export function HandoffNotice({ handoff }: { handoff: Handoff }) {
 // no hay ticket que mostrar -- solo el eco de la pregunta y la decisión,
 // para que no quede como si la tarjeta simplemente hubiera desaparecido sola.
 export function DeclinedNotice({ declined }: { declined: DeclinedConfirmation }) {
-  const motivo = MOTIVO_LABEL[declined.motivo] ?? 'hablar con un asesor'
+  const reason = REASON_LABEL[declined.reason] ?? 'hablar con un asesor'
 
   return (
     <p
@@ -79,7 +79,7 @@ export function DeclinedNotice({ declined }: { declined: DeclinedConfirmation })
       role="status"
     >
       <CircleX className="size-4 shrink-0" aria-hidden="true" />
-      ¿Te derivamos para {motivo}? · Ahora no
+      ¿Te derivamos para {reason}? · Ahora no
     </p>
   )
 }

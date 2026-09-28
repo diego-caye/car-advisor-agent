@@ -5,14 +5,14 @@ export type LeadResponse = components['schemas']['LeadResponse']
 export type SessionSummary = components['schemas']['SessionSummary']
 export type MessageDto = components['schemas']['MessageDto']
 
-export type Etapa =
-  | 'NUEVO'
-  | 'DESCUBRIMIENTO'
-  | 'INTERES_CONCRETO'
-  | 'DERIVACION_PENDIENTE'
-  | 'DERIVADO'
+export type Stage =
+  | 'NEW'
+  | 'DISCOVERY'
+  | 'CONCRETE_INTEREST'
+  | 'HANDOFF_PENDING'
+  | 'HANDED_OFF'
 
-export type ToolName = 'guardar_lead' | 'solicitar_contacto_humano' | 'search_knowledge_base'
+export type ToolName = 'save_lead' | 'request_human_handoff' | 'search_knowledge_base'
 
 export type ModelOption = components['schemas']['ModelOption']
 export type FeedbackDto = components['schemas']['FeedbackDto']
@@ -34,20 +34,20 @@ export type ServerEvent =
     }
   | { type: 'tool.started'; name: string }
   | { type: 'tool.finished'; name: string; status: string; duration_ms: number }
-  | { type: 'lead.updated'; lead: LeadDto | null; etapa: Etapa }
+  | { type: 'lead.updated'; lead: LeadDto | null; stage: Stage }
   | {
       type: 'hitl.confirmation_required'
       confirmation_id: string
-      motivo: string
+      reason: string
       resumen: string
-      canal_preferido: string | null
-      urgencia: string | null
+      preferred_channel: string | null
+      urgency: string | null
     }
   | {
       type: 'handoff.created'
       handoff_id: number
       ticket: string
-      motivo: string
+      reason: string
       status: string
       ya_existia: boolean
     }

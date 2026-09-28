@@ -90,7 +90,7 @@ export function useChat() {
       type: 'load',
       messages: mapped,
       lead: lead.lead,
-      etapa: lead.etapa as never,
+      stage: lead.stage as never,
       unansweredMessage: last?.role === 'user' ? last.content : null,
     })
   }, [])

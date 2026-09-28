@@ -50,11 +50,11 @@ describe('chatReducer', () => {
   it('marca la actividad de una tool como terminada', () => {
     const state = apply(
       initialChatState,
-      { type: 'tool.started', name: 'guardar_lead' },
-      { type: 'tool.finished', name: 'guardar_lead', status: 'ok', duration_ms: 12 },
+      { type: 'tool.started', name: 'save_lead' },
+      { type: 'tool.finished', name: 'save_lead', status: 'ok', duration_ms: 12 },
     )
 
-    expect(state.activity).toEqual([{ name: 'guardar_lead', done: true }])
+    expect(state.activity).toEqual([{ name: 'save_lead', done: true }])
   })
 
   it('limpia la actividad cuando el turno termina', () => {
@@ -78,22 +78,22 @@ describe('chatReducer', () => {
   it('actualiza ficha y etapa con lead.updated', () => {
     const state = apply(initialChatState, {
       type: 'lead.updated',
-      lead: { nombre: 'Diego', consentimiento_contacto: false },
-      etapa: 'DESCUBRIMIENTO',
+      lead: { name: 'Diego', contact_consent: false },
+      stage: 'DISCOVERY',
     })
 
-    expect(state.lead?.nombre).toBe('Diego')
-    expect(state.etapa).toBe('DESCUBRIMIENTO')
+    expect(state.lead?.name).toBe('Diego')
+    expect(state.stage).toBe('DISCOVERY')
   })
 
   it('deja la confirmación pendiente y detiene el streaming', () => {
     const state = apply(initialChatState, {
       type: 'hitl.confirmation_required',
       confirmation_id: 'conf-1',
-      motivo: 'TEST_DRIVE',
+      reason: 'TEST_DRIVE',
       resumen: 'Quiere agendar un test drive',
-      canal_preferido: 'WHATSAPP',
-      urgencia: null,
+      preferred_channel: 'WHATSAPP',
+      urgency: null,
     })
 
     expect(state.pendingConfirmation?.confirmation_id).toBe('conf-1')
@@ -106,17 +106,17 @@ describe('chatReducer', () => {
       {
         type: 'hitl.confirmation_required',
         confirmation_id: 'conf-1',
-        motivo: 'TEST_DRIVE',
+        reason: 'TEST_DRIVE',
         resumen: 'x',
-        canal_preferido: null,
-        urgencia: null,
+        preferred_channel: null,
+        urgency: null,
       },
     )
     const state = apply(asked, {
       type: 'handoff.created',
       handoff_id: 1,
       ticket: 'TICK-00001',
-      motivo: 'TEST_DRIVE',
+      reason: 'TEST_DRIVE',
       status: 'OPEN',
       ya_existia: false,
     })
@@ -135,17 +135,17 @@ describe('chatReducer', () => {
       {
         type: 'hitl.confirmation_required',
         confirmation_id: 'conf-1',
-        motivo: 'TEST_DRIVE',
+        reason: 'TEST_DRIVE',
         resumen: 'x',
-        canal_preferido: null,
-        urgencia: null,
+        preferred_channel: null,
+        urgency: null,
       },
     )
 
     const state = chatReducer(asked, { type: 'confirmation-declined' })
 
     expect(state.pendingConfirmation).toBeNull()
-    expect(state.messages.at(-1)?.decision).toEqual({ kind: 'declined', motivo: 'TEST_DRIVE' })
+    expect(state.messages.at(-1)?.decision).toEqual({ kind: 'declined', reason: 'TEST_DRIVE' })
   })
 
   it('un mensaje nuevo NO borra el eco de una decisión anterior', () => {
@@ -154,10 +154,10 @@ describe('chatReducer', () => {
       {
         type: 'hitl.confirmation_required',
         confirmation_id: 'conf-1',
-        motivo: 'TEST_DRIVE',
+        reason: 'TEST_DRIVE',
         resumen: 'x',
-        canal_preferido: null,
-        urgencia: null,
+        preferred_channel: null,
+        urgency: null,
       },
     )
     const declined = chatReducer(asked, { type: 'confirmation-declined' })
@@ -167,7 +167,7 @@ describe('chatReducer', () => {
     const state = chatReducer(declined, { type: 'user-sent', content: 'otra cosa' })
 
     const declinedMessage = state.messages.find((message) => message.decision?.kind === 'declined')
-    expect(declinedMessage?.decision).toEqual({ kind: 'declined', motivo: 'TEST_DRIVE' })
+    expect(declinedMessage?.decision).toEqual({ kind: 'declined', reason: 'TEST_DRIVE' })
   })
 
   it('expone el error y recuerda el último mensaje para reintentar', () => {
@@ -200,7 +200,7 @@ describe('chatReducer', () => {
         { id: 'stored-1', role: 'user', content: 'q tal?', streaming: false },
       ],
       lead: null,
-      etapa: 'NUEVO',
+      stage: 'NEW',
       unansweredMessage: 'q tal?',
     })
 
@@ -219,7 +219,7 @@ describe('chatReducer', () => {
         { id: 'stored-1', role: 'agent', content: '¡Hola!', streaming: false },
       ],
       lead: null,
-      etapa: 'NUEVO',
+      stage: 'NEW',
       unansweredMessage: null,
     })
 
@@ -235,7 +235,7 @@ describe('chatReducer', () => {
         { id: 'stored-1', role: 'user', content: 'q tal?', streaming: false },
       ],
       lead: null,
-      etapa: 'NUEVO',
+      stage: 'NEW',
       unansweredMessage: 'q tal?',
     })
 
