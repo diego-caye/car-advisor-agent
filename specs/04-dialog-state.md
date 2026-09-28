@@ -1,45 +1,45 @@
-# 04 · Estados del diálogo
+# 04 · Dialog states
 
-La etapa vive en el dominio (no la decide el LLM) y se recalcula cada vez que cambia el lead o se ejecuta una tool relevante. Se persiste junto al estado de sesión (spec 06) y se expone en `lead.updated` (spec 02).
+The stage lives in the domain (the LLM doesn't decide it) and is recalculated every time the lead changes or a relevant tool runs. It's persisted alongside the session state (spec 06) and exposed in `lead.updated` (spec 02).
 
-## 1. Diagrama
+## 1. Diagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NUEVO
-    NUEVO --> DESCUBRIMIENTO: nombre conocido
-    DESCUBRIMIENTO --> INTERES_CONCRETO: uso_principal + (tipo_vehiculo_interes | motorizacion_interes) o nivel_interes=ALTO
-    NUEVO --> DERIVACION_PENDIENTE: solicitar_contacto_humano propuesta
-    DESCUBRIMIENTO --> DERIVACION_PENDIENTE: solicitar_contacto_humano propuesta
-    INTERES_CONCRETO --> DERIVACION_PENDIENTE: solicitar_contacto_humano propuesta
-    DERIVACION_PENDIENTE --> DERIVADO: usuario confirma
-    DERIVACION_PENDIENTE --> DESCUBRIMIENTO: usuario cancela (si venía de DESCUBRIMIENTO)
-    DERIVACION_PENDIENTE --> INTERES_CONCRETO: usuario cancela (si venía de INTERES_CONCRETO)
-    DERIVACION_PENDIENTE --> NUEVO: usuario cancela (si venía de NUEVO)
-    DERIVADO --> [*]
+    [*] --> NEW
+    NEW --> DISCOVERY: name known
+    DISCOVERY --> CONCRETE_INTEREST: primary_use + (vehicle_type_interest | powertrain_interest) or interest_level=HIGH
+    NEW --> HANDOFF_PENDING: request_human_handoff proposed
+    DISCOVERY --> HANDOFF_PENDING: request_human_handoff proposed
+    CONCRETE_INTEREST --> HANDOFF_PENDING: request_human_handoff proposed
+    HANDOFF_PENDING --> HANDED_OFF: user confirms
+    HANDOFF_PENDING --> DISCOVERY: user cancels (if it came from DISCOVERY)
+    HANDOFF_PENDING --> CONCRETE_INTEREST: user cancels (if it came from CONCRETE_INTEREST)
+    HANDOFF_PENDING --> NEW: user cancels (if it came from NEW)
+    HANDED_OFF --> [*]
 ```
 
-Solo avanza, salvo la cancelación de `DERIVACION_PENDIENTE`, que vuelve a la etapa previa exacta (se guarda `etapa_previa` al entrar a `DERIVACION_PENDIENTE`). No hay retroceso desde `DERIVADO`.
+It only ever moves forward, except for canceling out of `HANDOFF_PENDING`, which returns to the exact previous stage (`previous_stage` is saved on entering `HANDOFF_PENDING`). There's no going back from `HANDED_OFF`.
 
-**Monotonía (aclarado en F2).** La máquina es monótona: recalcula la etapa derivada del lead y se queda con la mayor entre esa y la actual. Eso significa que puede **saltarse `DESCUBRIMIENTO`** si el usuario da uso y tipo de vehículo antes que su nombre — pasa de `NUEVO` directo a `INTERES_CONCRETO`. Es intencional: bloquear el salto dejaría el diálogo trabado en una etapa que ya no describe la conversación.
+**Monotonicity (clarified in F2).** The state machine is monotonic: it recalculates the stage derived from the lead and keeps the higher of that and the current one. This means it can **skip `DISCOVERY`** if the user gives their intended use and vehicle type before their name — it goes straight from `NEW` to `CONCRETE_INTEREST`. This is intentional: blocking the jump would leave the dialog stuck at a stage that no longer describes the conversation.
 
-## 2. Tabla de transiciones
+## 2. Transition table
 
-| # | Transición | Trigger | Guard | Acción | Tool | Evento SSE |
+| # | Transition | Trigger | Guard | Action | Tool | SSE event |
 |---|---|---|---|---|---|---|
-| 1 | `NUEVO → DESCUBRIMIENTO` | `guardar_lead` con `nombre` | `lead.nombre is not null` | recalcular etapa | `guardar_lead` | `lead.updated` |
-| 2 | `DESCUBRIMIENTO → INTERES_CONCRETO` | `guardar_lead` | `uso_principal` y (`tipo_vehiculo_interes` o `motorizacion_interes`), **o** `nivel_interes = ALTO` | recalcular etapa | `guardar_lead` | `lead.updated` |
-| 3 | `* → DERIVACION_PENDIENTE` | el agente propone `solicitar_contacto_humano` | ninguna etapa previa excluida | guardar `etapa_previa`; abrir confirmación | `solicitar_contacto_humano` (propuesta, aún sin ejecutar) | `hitl.confirmation_required` |
-| 4 | `DERIVACION_PENDIENTE → DERIVADO` | usuario confirma | `approved = true` | ejecutar `solicitar_contacto_humano`; crear handoff `OPEN` | `solicitar_contacto_humano` (confirmada) | `lead.updated`, `tool.finished` |
-| 5 | `DERIVACION_PENDIENTE → etapa_previa` | usuario cancela | `approved = false` | descartar confirmación, restaurar `etapa_previa` | — | `lead.updated` |
+| 1 | `NEW → DISCOVERY` | `save_lead` with `name` | `lead.name is not null` | recalculate stage | `save_lead` | `lead.updated` |
+| 2 | `DISCOVERY → CONCRETE_INTEREST` | `save_lead` | `primary_use` and (`vehicle_type_interest` or `powertrain_interest`), **or** `interest_level = HIGH` | recalculate stage | `save_lead` | `lead.updated` |
+| 3 | `* → HANDOFF_PENDING` | the agent proposes `request_human_handoff` | no previous stage excluded | save `previous_stage`; open confirmation | `request_human_handoff` (proposed, not yet executed) | `hitl.confirmation_required` |
+| 4 | `HANDOFF_PENDING → HANDED_OFF` | user confirms | `approved = true` | execute `request_human_handoff`; create `OPEN` handoff | `request_human_handoff` (confirmed) | `lead.updated`, `tool.finished` |
+| 5 | `HANDOFF_PENDING → previous_stage` | user cancels | `approved = false` | discard confirmation, restore `previous_stage` | — | `lead.updated` |
 
-## 3. Banderas auxiliares
+## 3. Auxiliary flags
 
-- `solo_mirando: bool` — se activa cuando el usuario dice la frase equivalente a "solo estoy mirando" (spec 05, 07 L1 no aplica aquí; es intención, no inyección). Mientras esté activa, el agente reduce preguntas proactivas pero las transiciones de etapa siguen funcionando igual si el usuario decide avanzar. Se activa vía `guardar_lead(solo_mirando=true)` — puede ir solo, sin ningún otro campo, y no cuenta como `EMPTY_UPDATE` (spec 03 §2) — que escribe `SOLO_MIRANDO_KEY` en el estado de sesión (`agent/state.py`), igual que `guardar_lead` ya escribía la etapa. Verificado en vivo contra el modelo real (F9): el mensaje "por ahora solo estoy mirando" dispara la tool, la frase canned y `GET /sessions/{id}/lead` refleja `solo_mirando: true`. AT-05 (spec 09) tiene test propio (`test_at_agent_core.py`).
-- `handoff_abierto: bool` (derivada de `handoffs.status = OPEN` para la sesión) — si ya es `true` y el agente detecta un nuevo motivo de derivación, `solicitar_contacto_humano` es idempotente (spec 03 §3) y la etapa permanece en `DERIVADO`, no hay segunda `DERIVACION_PENDIENTE`.
+- `just_browsing: bool` — turned on when the user says the equivalent of "I'm just browsing" (spec 05; spec 07 L1 doesn't apply here, this is an intent, not an injection). While active, the agent cuts back on proactive questions, but stage transitions keep working the same way if the user decides to move forward. Turned on via `save_lead(just_browsing=true)` — it can be sent alone, with no other field, and doesn't count as `EMPTY_UPDATE` (spec 03 §2) — which writes `SOLO_MIRANDO_KEY` to the session state (`agent/state.py`), the same way `save_lead` already wrote the stage. Verified live against the real model (F9): the message "por ahora solo estoy mirando" ("just browsing for now") triggers the tool, the canned phrase, and `GET /sessions/{id}/lead` reflects `just_browsing: true`. AT-05 (spec 09) has its own test (`test_at_agent_core.py`).
+- `handoff_abierto: bool` (derived from `handoffs.status = OPEN` for the session) — if it's already `true` and the agent detects a new reason for a handoff, `request_human_handoff` is idempotent (spec 03 §3) and the stage stays at `HANDED_OFF`, with no second `HANDOFF_PENDING`.
 
-## 4. Notas de implementación
+## 4. Implementation notes
 
-- La máquina de estados vive en `domain/` como función pura `next_stage(current: Stage, lead: Lead) -> Stage` (`domain/stages.py`), sin dependencias externas — testeable con `FakeLlm` ausente por completo (no necesita LLM). No recibe un `event` explícito: la etapa siguiente se deriva del propio `Lead` resultante.
-- El `Agent` ADK nunca escribe la etapa; solo la lee (inyectada en la instrucción, spec 05) y la observa en el resultado de las tools.
-- Confirmación de `DERIVACION_PENDIENTE`: ver spec 03 §3 y ADR-002 para el mecanismo primario (confirmación nativa de tools ADK) y el fallback (`pending_confirmation` en estado + confirmación por UI).
+- The state machine lives in `domain/` as the pure function `next_stage(current: Stage, lead: Lead) -> Stage` (`domain/stages.py`), with no external dependencies — testable with `FakeLlm` entirely absent (it needs no LLM). It doesn't receive an explicit `event`: the next stage is derived from the resulting `Lead` itself.
+- The ADK `Agent` never writes the stage; it only reads it (injected into the instruction, spec 05) and observes it in the tools' results.
+- `HANDOFF_PENDING` confirmation: see spec 03 §3 and ADR-002 for the primary mechanism (native ADK tool confirmation) and the fallback (`pending_confirmation` in state + UI-driven confirmation).

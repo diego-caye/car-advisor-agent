@@ -1,26 +1,26 @@
-# Notas · API de ADK 2.x verificada
+# Notes · Verified ADK 2.x API
 
-Verificado por introspección del paquete instalado el 2026-09-15. **Versión: `google-adk==2.9.1`** (pineada exacta en `backend/pyproject.toml`). No escribir ADK de memoria: si se sube de versión, re-verificar esta tabla.
+Verified by introspecting the installed package on 2026-09-15. **Version: `google-adk==2.9.1`** (pinned exactly in `backend/pyproject.toml`). Don't write ADK from memory: if the version is bumped, re-verify this table.
 
-## 1. Agente
+## 1. Agent
 
 ```python
 from google.adk.agents import Agent  # Agent is LlmAgent
 ```
 
-| Campo | Tipo verificado |
+| Field | Verified type |
 |---|---|
 | `instruction` | `str \| Callable[[ReadonlyContext], str \| Awaitable[str]]` |
-| `global_instruction` | igual que `instruction` |
+| `global_instruction` | same as `instruction` |
 | `model` | `str \| BaseLlm` |
 | `tools` | `list[Callable \| BaseTool \| BaseToolset]` |
 | `generate_content_config` | `genai_types.GenerateContentConfig \| None` |
 
-**Decisión:** usamos `instruction` **como callable**, no como string con `{state_key}`. Razón: la ficha del lead se inyecta como JSON y las llaves `{}` del JSON colisionan con el templating de placeholders de ADK. El callable recibe `ReadonlyContext` y arma el texto (spec 05 §1).
+**Decision:** we use `instruction` **as a callable**, not as a string with `{state_key}` placeholders. Reason: the lead record is injected as JSON, and JSON's `{}` braces collide with ADK's placeholder templating. The callable receives `ReadonlyContext` and assembles the text (spec 05 §1).
 
-`ReadonlyContext` expone: `state`, `user_id`, `session`, `invocation_id`, `agent_name`, `user_content`, `run_config`.
+`ReadonlyContext` exposes: `state`, `user_id`, `session`, `invocation_id`, `agent_name`, `user_content`, `run_config`.
 
-## 2. Runner y streaming
+## 2. Runner and streaming
 
 ```python
 Runner(*, app=None, app_name=None, agent=None, plugins=None, session_service, ...)
@@ -29,36 +29,36 @@ Runner.run_async(*, user_id, session_id, invocation_id=None, new_message=None,
     -> AsyncGenerator[Event, None]
 ```
 
-- Todos los parámetros son **keyword-only**.
-- `state_delta` permite inyectar estado en el turno sin escribir en la sesión antes — útil para pasar la etapa recalculada.
-- Usamos siempre `run_async`, nunca `run` (gotcha: con `run` el contexto de OTel no llega a los spans hijos).
-- **Streaming parcial:** `RunConfig(streaming_mode=StreamingMode.SSE)`. `StreamingMode` verificado: `NONE`, `SSE`, `BIDI`.
-- `RunConfig.max_llm_calls` existe y acota las llamadas al modelo por invocación (relacionado con `MAX_TOOL_CALLS_PER_TURN`, spec 07 L3).
+- All parameters are **keyword-only**.
+- `state_delta` lets state be injected into the turn without writing to the session beforehand — useful for passing the recalculated stage.
+- We always use `run_async`, never `run` (gotcha: with `run` the OTel context doesn't reach the child spans).
+- **Partial streaming:** `RunConfig(streaming_mode=StreamingMode.SSE)`. `StreamingMode` verified: `NONE`, `SSE`, `BIDI`.
+- `RunConfig.max_llm_calls` exists and caps model calls per invocation (related to `MAX_TOOL_CALLS_PER_TURN`, spec 07 L3).
 
-Construimos el Runner con `app=App(...)` (no con `agent=`), porque `App` es lo que acepta `plugins` y `events_compaction_config`.
+We build the Runner with `app=App(...)` (not `agent=`), because `App` is what accepts `plugins` and `events_compaction_config`.
 
-## 3. Eventos
+## 3. Events
 
 ```python
 from google.adk.events import Event
 ```
 
-| Campo/método | Uso en nuestro SSE (spec 02) |
+| Field/method | Use in our SSE (spec 02) |
 |---|---|
-| `event.partial: bool \| None` | `True` en los deltas de texto → `message.delta` |
-| `event.content: genai_types.Content \| None` | texto en `content.parts[*].text` |
+| `event.partial: bool \| None` | `True` on text deltas → `message.delta` |
+| `event.content: genai_types.Content \| None` | text in `content.parts[*].text` |
 | `event.get_function_calls()` | → `tool.started` |
 | `event.get_function_responses()` | → `tool.finished` |
-| `event.usage_metadata` | tokens in/out del turno → `message.completed` |
-| `event.is_final_response()` | cierre del turno |
-| `event.turn_complete`, `event.finish_reason` | fin de turno / motivo |
+| `event.usage_metadata` | the turn's tokens in/out → `message.completed` |
+| `event.is_final_response()` | closes the turn |
+| `event.turn_complete`, `event.finish_reason` | turn end / reason |
 | `event.error_code`, `event.error_message` | → SSE `error` |
-| `event.actions: EventActions` | ver abajo |
-| `event.invocation_id`, `event.author`, `event.id`, `event.timestamp` | correlación y trazas |
+| `event.actions: EventActions` | see below |
+| `event.invocation_id`, `event.author`, `event.id`, `event.timestamp` | correlation and traces |
 
-`EventActions` (campos relevantes): `state_delta`, `escalate`, `skip_summarization`, `transfer_to_agent`, `requested_tool_confirmations`, `compaction`.
+`EventActions` (relevant fields): `state_delta`, `escalate`, `skip_summarization`, `transfer_to_agent`, `requested_tool_confirmations`, `compaction`.
 
-## 4. Sesiones y estado
+## 4. Sessions and state
 
 ```python
 from google.adk.sessions import DatabaseSessionService
@@ -66,24 +66,24 @@ from google.adk.sessions import DatabaseSessionService
 DatabaseSessionService(db_url: str | None = None, db_engine: AsyncEngine | None = None, **kwargs)
 ```
 
-Métodos verificados: `create_session(*, app_name, user_id, state=None, session_id=None) -> Session`, `get_session(*, app_name, user_id, session_id, config=None) -> Session | None`, `list_sessions(*, app_name, user_id=None) -> ListSessionsResponse`, `append_event(session, event)`, `get_user_state(*, app_name, user_id) -> dict[str, Any]`, `prepare_tables()`, `delete_session`, `close`, `flush`.
+Verified methods: `create_session(*, app_name, user_id, state=None, session_id=None) -> Session`, `get_session(*, app_name, user_id, session_id, config=None) -> Session | None`, `list_sessions(*, app_name, user_id=None) -> ListSessionsResponse`, `append_event(session, event)`, `get_user_state(*, app_name, user_id) -> dict[str, Any]`, `prepare_tables()`, `delete_session`, `close`, `flush`.
 
-- `db_url` debe ser `postgresql+asyncpg://...` (spec 06 §1).
-- `prepare_tables()` crea el esquema de sesiones de ADK: se llama en el lifespan de la app.
-- **`get_user_state`** es la forma soportada de leer el estado de alcance usuario sin abrir una sesión: es lo que permite saludar por nombre en una sesión nueva (AT-02).
+- `db_url` must be `postgresql+asyncpg://...` (spec 06 §1).
+- `prepare_tables()` creates ADK's session schema: called during the app's lifespan.
+- **`get_user_state`** is the supported way to read user-scoped state without opening a session: it's what makes greeting by name in a new session possible (AT-02).
 
-### Prefijos de scope de estado (resuelve la duda abierta de spec 06 §1)
+### State scope prefixes (resolves the open question from spec 06 §1)
 
-| Prefijo | Alcance |
+| Prefix | Scope |
 |---|---|
-| *(sin prefijo)* | solo esa sesión |
-| `user:` | **persistente entre sesiones del mismo `user_id`** |
-| `app:` | todos los usuarios |
-| `temp:` | solo la invocación actual |
+| *(no prefix)* | that session only |
+| `user:` | **persists across sessions for the same `user_id`** |
+| `app:` | every user |
+| `temp:` | current invocation only |
 
-La etapa y las banderas van sin prefijo (por sesión). El lead **no** se replica bajo `user:`: la tabla `leads` es la única fuente de verdad y el proveedor de instrucción la consulta en cada turno (spec 06 §1). `user:` queda disponible por si alguna bandera futura necesita alcance de usuario.
+The stage and the flags go with no prefix (per session). The lead is **not** replicated under `user:`: the `leads` table is the single source of truth and the instruction provider queries it on every turn (spec 06 §1). `user:` remains available should some future flag need user-level scope.
 
-## 5. Compactación de memoria (resuelve la duda abierta de spec 06 §2)
+## 5. Memory compaction (resolves the open question from spec 06 §2)
 
 ```python
 from google.adk.apps import App
@@ -96,34 +96,34 @@ App(
     events_compaction_config=EventsCompactionConfig(
         token_threshold=...,        # MEMORY_COMPACTION_TOKEN_THRESHOLD
         event_retention_size=...,   # MEMORY_COMPACTION_KEEP_RECENT
-        summarizer=None,            # opcional: LlmEventSummarizer(llm=Gemini(model=...))
+        summarizer=None,            # optional: LlmEventSummarizer(llm=Gemini(model=...))
     ),
 )
 ```
 
-Campos verificados de `EventsCompactionConfig`: `summarizer`, `compaction_interval`, `overlap_size`, `token_threshold`, `event_retention_size`.
+Verified fields of `EventsCompactionConfig`: `summarizer`, `compaction_interval`, `overlap_size`, `token_threshold`, `event_retention_size`.
 
-## 6. Tools y HITL
+## 6. Tools and HITL
 
 ```python
 from google.adk.tools import ToolContext
 ```
 
-`ToolContext` expone (verificado): `state`, `user_id`, `session`, `invocation_id`, `actions`, `function_call_id`, `agent_name`, **`request_confirmation`**, **`tool_confirmation`**, `search_memory`, `save_artifact`, …
+`ToolContext` exposes (verified): `state`, `user_id`, `session`, `invocation_id`, `actions`, `function_call_id`, `agent_name`, **`request_confirmation`**, **`tool_confirmation`**, `search_memory`, `save_artifact`, …
 
-- **`tool_context.user_id`** y **`tool_context.session.id`** son la fuente de `user_id`/`session_id` en las tools: nunca parámetros del LLM (spec 03, brecha #4 del baseline).
-- Reglas de function tools: docstring claro (se manda al LLM), type hints obligatorios, **sin valores por defecto**, devolver `dict` serializable, no mencionar `tool_context` en el docstring.
-- **HITL (F3):** `tool_context.request_confirmation(...)` + `EventActions.requested_tool_confirmations` es el camino primario. Sigue marcado como experimental → el spike de F3 decide, y ADR-002 documenta el resultado.
+- **`tool_context.user_id`** and **`tool_context.session.id`** are the source of `user_id`/`session_id` in the tools: never LLM parameters (spec 03, baseline gap #4).
+- Function-tool rules: a clear docstring (sent to the LLM), mandatory type hints, **no default values**, return a serializable `dict`, never mention `tool_context` in the docstring.
+- **HITL (F3):** `tool_context.request_confirmation(...)` + `EventActions.requested_tool_confirmations` is the primary path. Still marked experimental → the F3 spike settled it, and ADR-002 documents the result.
 
-## 7. Modelos
+## 7. Models
 
 ```python
-from google.adk.models import Gemini   # campos: model, client, client_kwargs, base_url, api_version, ...
+from google.adk.models import Gemini   # fields: model, client, client_kwargs, base_url, api_version, ...
 ```
 
-- Gemini se puede pasar como `str` (el ID del modelo) directamente en `Agent(model=...)`; usamos el string de env (`AGENT_MODEL`).
-- AI Studio: `GOOGLE_API_KEY` (también acepta `GEMINI_API_KEY`). Vertex: `GOOGLE_GENAI_USE_VERTEXAI=True` + `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION`.
-- **`LiteLlm` no viene en la instalación base:** `from google.adk.models.lite_llm import LiteLlm` falla con `ImportError: LiteLLM support requires: pip install google-adk[extensions]`. F8 (Ollama, P2) tendrá que agregar el extra `google-adk[extensions]` a `pyproject.toml`.
+- Gemini can be passed as a `str` (the model ID) directly in `Agent(model=...)`; we use the env string (`AGENT_MODEL`).
+- AI Studio: `GOOGLE_API_KEY` (also accepts `GEMINI_API_KEY`). Vertex: `GOOGLE_GENAI_USE_VERTEXAI=True` + `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION`.
+- **`LiteLlm` doesn't ship in the base install:** `from google.adk.models.lite_llm import LiteLlm` fails with `ImportError: LiteLLM support requires: pip install google-adk[extensions]`. F8 (Ollama, P2) would need to add the `google-adk[extensions]` extra to `pyproject.toml`.
 
 ## 8. Plugins (F6)
 
@@ -132,9 +132,9 @@ from google.adk.plugins.base_plugin import BasePlugin
 App(name=..., root_agent=..., plugins=[MyPlugin()])
 ```
 
-Los plugins corren **antes** que los callbacks de agente y aplican a todos los sub-agentes. Hooks por keyword (los nombres de parámetro deben coincidir exactamente), p. ej. `async def before_model_callback(self, *, callback_context, llm_request)`. Devolver `None` observa; devolver un valor interviene. Es la capa donde viven L1/L2/L4 (spec 07).
+Plugins run **before** the agent's own callbacks and apply to every sub-agent. Keyword-based hooks (parameter names must match exactly), e.g. `async def before_model_callback(self, *, callback_context, llm_request)`. Returning `None` observes; returning a value intervenes. This is the layer where L1/L2/L4 live (spec 07).
 
-## 9. Evaluación (F7)
+## 9. Evaluation (F7)
 
 ```python
 from google.adk.evaluation.eval_case import EvalCase, Invocation, IntermediateData
@@ -142,10 +142,10 @@ from google.adk.evaluation.eval_metrics import EvalMetric, EvalStatus, ToolTraje
 from google.adk.evaluation.trajectory_evaluator import TrajectoryEvaluator
 ```
 
-- **`google.adk.evaluation.local_eval_service.LocalEvalService`** (el runner "oficial" de un `EvalSet`) **no se usa aquí a propósito.** Importarlo dispara, en cadena, `metric_evaluator_registry` → `multi_turn_task_success_evaluator` → `vertex_ai_eval_facade` → `import vertexai`, que **no está instalado** (requiere el extra `google-adk[eval]`, que arrastra `google-cloud-aiplatform[evaluation]`, `pandas`, `nltk`, `rouge-score`, `gepa`, `tabulate`, `openpyxl`, `xlrd`, `google-cloud-texttospeech` — pesado y orientado a Vertex, en las antípodas del "sin ninguna API key" de este proyecto). El error real, para quien lo reproduzca: `ModuleNotFoundError: No module named 'vertexai'`.
-- **Alternativa usada (`backend/tests/evalset/`):** los evaluadores individuales sí importan limpio sin ese extra — `trajectory_evaluator`, `llm_as_judge`, `rubric_based_evaluator`, `final_response_match_v2` (solo `response_evaluator`/`final_response_match_v1` necesitan `rouge_score`, y no se usan). Se orquestan a mano contra el `Runner` real vía HTTP/SSE (mismo patrón que el resto de la suite, `tests/support/sse.py`), sin `LocalEvalService`.
-- **`Invocation`** (uno por turno): `user_content: Content`, `final_response: Content | None`, `intermediate_data: IntermediateData(tool_uses: list[FunctionCall], ...)`. `EvalCase.conversation: list[Invocation]`.
-- **`TrajectoryEvaluator(eval_metric=EvalMetric(criterion=ToolTrajectoryCriterion(threshold, match_type, ignore_args)))`**: determinista, sin LLM. `ToolTrajectoryCriterion.MatchType` (nested enum) es `EXACT | IN_ORDER | ANY_ORDER`. `evaluate_invocations(actual, expected)` exige listas de igual longitud (una por turno) — no hace falta `LocalEvalService` para nada de esto.
-- **El juez de cualquier evaluador LLM-as-judge (`JudgeModelOptions.judge_model: str`) se resuelve exactamente igual que un modelo de agente**: `LLMRegistry().resolve(model_id)` — verificado en vivo que `"ollama_chat/qwen3:4b-instruct"` resuelve a `LiteLlm`, igual que `AGENT_MODEL`. Es decir, `EVAL_MODEL` puede ser Ollama sin ninguna key, y así se usa en `backend/tests/evalset/`.
-- **`RubricBasedFinalResponseQualityV1Evaluator` (rubric_based_final_response_quality_v1.py) es la única clase de rúbricas totalmente concreta** (`RubricBasedEvaluator` en sí queda abstracta, le falta `format_auto_rater_prompt`) — **pero se descartó tras probarla en vivo**: su prompt interno pide "evidencia" (de tools/fuentes) para dar una rúbrica por cumplida, y marcó como incumplida la rúbrica "saluda de forma breve y cordial" sobre un saludo perfectamente correcto, solo porque el turno no había llamado ninguna tool — está pensada para fidelidad a evidencia recuperada (RAG), no para reglas de tono/política de un turno sin tools. Además, con `num_samples=1` (el default de ADK es 5, pensado para un juez en la nube) el mismo par pregunta/respuesta dio veredictos distintos en dos corridas — ruido esperable de un juez local de 4B, no algo exclusivo de esta clase, pero confirma que un solo sample puede ser inestable para casos límite.
-- **Decisión:** `backend/tests/evalset/` usa su propio juez de una sola llamada (`LlmRequest` + `judge_model.generate_content_async`, el mismo mecanismo de bajo nivel que `TitleService`) pidiendo un veredicto JSON por regla en español, en vez de las clases de rúbricas de ADK. Menos código, sin la semántica de "evidencia requerida", y con control total del prompt del juez.
+- **`google.adk.evaluation.local_eval_service.LocalEvalService`** (the "official" runner for an `EvalSet`) **is deliberately not used here.** Importing it triggers, in a chain, `metric_evaluator_registry` → `multi_turn_task_success_evaluator` → `vertex_ai_eval_facade` → `import vertexai`, which **isn't installed** (it requires the `google-adk[eval]` extra, which drags in `google-cloud-aiplatform[evaluation]`, `pandas`, `nltk`, `rouge-score`, `gepa`, `tabulate`, `openpyxl`, `xlrd`, `google-cloud-texttospeech` — heavy and Vertex-oriented, the opposite of this project's "no API key at all"). The actual error for anyone reproducing it: `ModuleNotFoundError: No module named 'vertexai'`.
+- **Alternative used (`backend/tests/evalset/`):** the individual evaluators do import cleanly without that extra — `trajectory_evaluator`, `llm_as_judge`, `rubric_based_evaluator`, `final_response_match_v2` (only `response_evaluator`/`final_response_match_v1` need `rouge_score`, and those aren't used). They're orchestrated by hand against the real `Runner` via HTTP/SSE (the same pattern as the rest of the suite, `tests/support/sse.py`), without `LocalEvalService`.
+- **`Invocation`** (one per turn): `user_content: Content`, `final_response: Content | None`, `intermediate_data: IntermediateData(tool_uses: list[FunctionCall], ...)`. `EvalCase.conversation: list[Invocation]`.
+- **`TrajectoryEvaluator(eval_metric=EvalMetric(criterion=ToolTrajectoryCriterion(threshold, match_type, ignore_args)))`**: deterministic, no LLM involved. `ToolTrajectoryCriterion.MatchType` (nested enum) is `EXACT | IN_ORDER | ANY_ORDER`. `evaluate_invocations(actual, expected)` requires lists of equal length (one per turn) — none of this needs `LocalEvalService`.
+- **Any LLM-as-judge evaluator's judge (`JudgeModelOptions.judge_model: str`) resolves exactly like an agent model does**: `LLMRegistry().resolve(model_id)` — verified live that `"ollama_chat/qwen3:4b-instruct"` resolves to `LiteLlm`, just like `AGENT_MODEL`. In other words, `EVAL_MODEL` can be Ollama with no key at all, and that's how it's used in `backend/tests/evalset/`.
+- **`RubricBasedFinalResponseQualityV1Evaluator` (rubric_based_final_response_quality_v1.py) is the only fully concrete rubric class** (`RubricBasedEvaluator` itself stays abstract, missing `format_auto_rater_prompt`) — **but it was dropped after testing it live**: its internal prompt asks for "evidence" (from tools/sources) to mark a rubric as met, and it flagged the rubric "greets briefly and warmly" as unmet on a perfectly correct greeting, just because the turn hadn't called any tool — it's built for faithfulness to retrieved evidence (RAG), not for tone/policy rules on a tool-free turn. On top of that, with `num_samples=1` (ADK's default is 5, meant for a cloud-hosted judge) the same question/answer pair produced different verdicts across two runs — noise to be expected from a local 4B judge, not unique to this class, but it confirms a single sample can be unstable for edge cases.
+- **Decision:** `backend/tests/evalset/` uses its own single-call judge (`LlmRequest` + `judge_model.generate_content_async`, the same low-level mechanism as `TitleService`) asking for a JSON verdict per rule in Spanish, instead of ADK's rubric classes. Less code, no "evidence required" semantics, and full control over the judge's prompt.

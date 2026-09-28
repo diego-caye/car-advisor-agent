@@ -1,47 +1,47 @@
-# 00 · Análisis del baseline n8n
+# 00 · n8n baseline analysis
 
-> Fuente: `.local/baseline_n8n.json` (workflow "Asesor Automotriz Virtual - Baseline Challenge"). Este archivo no se versiona; este documento parafrasea su contenido para que el repo público no dependa de él.
+> Source: `.local/baseline_n8n.json` (workflow "Asesor Automotriz Virtual - Baseline Challenge"). This file is not versioned; this document paraphrases its content so the public repo doesn't depend on it.
 
-## 1. Mapa de nodos n8n → componente ADK
+## 1. n8n node → ADK component map
 
-| Nodo n8n | Tipo | Componente ADK / propio |
+| n8n node | Type | ADK / custom component |
 |---|---|---|
 | `When chat message received` | `chatTrigger` | `POST /api/v1/chat/stream` (FastAPI + SSE) |
-| `Postgres Chat Memory` | `memoryPostgresChat` (`sessionKey` custom, tabla `workflow.auto_chat_histories`) | `DatabaseSessionService` de ADK sobre Postgres (spec 06) |
-| `Google Vertex Chat Model` | `lmChatGoogleVertex`, `gemini-1.5-pro`, `temperature 0.2` | Puerto `LlmProvider` → adaptador Gemini, modelo por `AGENT_MODEL` (spec 11) |
-| `guardar_lead` | `toolCode` (JS inline) | Tool `guardar_lead`, adaptador delgado sobre `LeadService` (spec 03) |
-| `solicitar_contacto_humano` | `toolCode` (JS inline, ticket con `Math.random`) | Tool `solicitar_contacto_humano` + `HandoffService` + confirmación de tools ADK (spec 03, 04, ADR-002) |
-| `base_conocimientos_autos` | `toolVectorStore` | Tool `search_knowledge_base` (spec 03) |
-| `PGVector Auto Knowledge` | `vectorStorePGVector`, tabla `workflow.rag_auto_knowledge` | pgvector en el mismo Postgres, tabla `kb_chunks` (spec 06) |
-| `Google Vertex Embeddings` | `embeddingsGoogleVertex`, `text-embedding-004` | Puerto `Embeddings` → adaptador Gemini, `gemini-embedding-001`/`-2` (spec 11) |
-| `AGENTE_LUIS` | `agent` (system message completo, `retryOnFail`, `maxTries: 3`, `waitBetweenTries: 3000`) | `Agent` ADK "Luis" (spec 05) + backoff exponencial en el adaptador LLM (spec 07) |
+| `Postgres Chat Memory` | `memoryPostgresChat` (custom `sessionKey`, table `workflow.auto_chat_histories`) | ADK's `DatabaseSessionService` over Postgres (spec 06) |
+| `Google Vertex Chat Model` | `lmChatGoogleVertex`, `gemini-1.5-pro`, `temperature 0.2` | `LlmProvider` port → Gemini adapter, model via `AGENT_MODEL` (spec 11) |
+| `guardar_lead` | `toolCode` (inline JS) | `save_lead` tool, thin adapter over `LeadService` (spec 03) |
+| `solicitar_contacto_humano` | `toolCode` (inline JS, ticket via `Math.random`) | `request_human_handoff` tool + `HandoffService` + ADK tool confirmation (specs 03, 04, ADR-002) |
+| `base_conocimientos_autos` | `toolVectorStore` | `search_knowledge_base` tool (spec 03) |
+| `PGVector Auto Knowledge` | `vectorStorePGVector`, table `workflow.rag_auto_knowledge` | pgvector on the same Postgres instance, table `kb_chunks` (spec 06) |
+| `Google Vertex Embeddings` | `embeddingsGoogleVertex`, `text-embedding-004` | `Embeddings` port → Gemini adapter, `gemini-embedding-001`/`-2` (spec 11) |
+| `AGENTE_LUIS` | `agent` (full system message, `retryOnFail`, `maxTries: 3`, `waitBetweenTries: 3000`) | ADK `Agent` "Luis" (spec 05) + exponential backoff in the LLM adapter (spec 07) |
 
-## 2. Instrucción del baseline (resumen fiel)
+## 2. Baseline instruction (faithful summary)
 
-Secciones del `systemMessage` original: ROL, VOZ, SALUDO Y APERTURA (dos variantes: sin/con nombre), GUARDAR DATOS DEL CONTACTO, CONSULTA DE INFORMACIÓN, DERIVACIÓN A ESPECIALISTA, EL ARTE DE NO HOSTIGAR Y CONTINUIDAD (una pregunta por turno, anti-loop, "solo estoy mirando"), LÍMITES Y SEGURIDAD (fuera de tópico, jailbreak).
+Sections of the original `systemMessage`: ROL (ROLE), VOZ (VOICE), SALUDO Y APERTURA (GREETING AND OPENING) (two variants: with/without name), GUARDAR DATOS DEL CONTACTO (SAVE CONTACT DATA), CONSULTA DE INFORMACIÓN (INFORMATION LOOKUP), DERIVACIÓN A ESPECIALISTA (HANDOFF TO A SPECIALIST), EL ARTE DE NO HOSTIGAR Y CONTINUIDAD (THE ART OF NOT PESTERING, AND CONTINUITY) (one question per turn, anti-loop, "just browsing"), LÍMITES Y SEGURIDAD (LIMITS AND SAFETY) (off-topic, jailbreak).
 
-Frases canned que se conservan literalmente (fuente de verdad para spec 05 y 07):
-- Saludo sin nombre: *"Hola 👋 Soy Luis, tu asesor automotriz. ¿Con quién tengo el gusto?"*
-- Saludo con nombre: *"¡Hola [Nombre]! 👋 ¿En qué te puedo asesorar hoy con tu próximo auto?"*
-- Sin datos en KB: *"Por el momento no cuento con el detalle técnico exacto sobre ese modelo, pero puedo anotarlo para que un especialista te dé el dato preciso 😊"*
-- "Solo estoy mirando": *"¡Perfecto! Aquí estoy si quieres comparar modelos o resolver dudas 😊"*
-- Fuera de tópico: *"Mi especialidad es ayudarte a encontrar el auto ideal y resolver dudas sobre vehículos 😊 Cuéntame si te puedo guiar con algún modelo."*
-- Jailbreak / inyección: *"No puedo realizar esa acción 😊 ¿En qué te ayudo respecto a tu búsqueda de auto?"*
+Canned phrases preserved verbatim (source of truth for specs 05 and 07) — these are the bot's actual Spanish replies, kept as-is since that's literally what the deployed bot says in Peru Spanish:
+- Greeting without a name: *"Hola 👋 Soy Luis, tu asesor automotriz. ¿Con quién tengo el gusto?"*
+- Greeting with a name: *"¡Hola [Nombre]! 👋 ¿En qué te puedo asesorar hoy con tu próximo auto?"*
+- No data in the KB: *"Por el momento no cuento con el detalle técnico exacto sobre ese modelo, pero puedo anotarlo para que un especialista te dé el dato preciso 😊"*
+- "Just browsing": *"¡Perfecto! Aquí estoy si quieres comparar modelos o resolver dudas 😊"*
+- Off-topic: *"Mi especialidad es ayudarte a encontrar el auto ideal y resolver dudas sobre vehículos 😊 Cuéntame si te puedo guiar con algún modelo."*
+- Jailbreak / injection: *"No puedo realizar esa acción 😊 ¿En qué te ayudo respecto a tu búsqueda de auto?"*
 
-Reglas de negocio a preservar: una pregunta por turno, anti-loop ("si un dato ya fue entregado, no lo vuelvas a pedir"), no precios/cotizaciones/stock, derivación ante test drive / compra inmediata / disconformidad / fuera de alcance.
+Business rules to preserve: one question per turn, anti-loop ("if a piece of data was already given, don't ask for it again"), no prices/quotes/stock, handoff on test drive / immediate purchase / dissatisfaction / out of scope.
 
-## 3. Brechas verificadas contra el JSON
+## 3. Gaps verified against the JSON
 
-1. **Modelos descontinuados.** `modelName: "gemini-1.5-pro"` (Chat Model) y `modelName: "text-embedding-004"` (Embeddings) ya no están disponibles como IDs vigentes de la API de Gemini. → los IDs se fijan solo por env (`AGENT_MODEL`, `EMBEDDINGS` en spec 11) y se verifican contra la documentación oficial antes de cada fase.
-2. **`sessionKey` con fallback inseguro.** `"={{ $json.sessionId || 'session_default' }}"`: si el frontend no manda `sessionId`, todas las conversaciones sin id comparten la misma fila de memoria — fuga de historial entre usuarios. → sesiones creadas explícitamente por el backend (`POST /api/v1/sessions`), sin fallback compartido (spec 02, 06).
-3. **Tools de código sin contrato.** Los `toolCode` de `guardar_lead` y `solicitar_contacto_humano` no declaran input schema (n8n infiere los parámetros del LLM sin validación), no persisten nada real (el "guardado" es un `JSON.stringify` en memoria del propio nodo) y el ticket se genera con `"TICK-" + Math.floor(Math.random() * 90000 + 10000)` — no persistente, colisionable, no auditable. → Pydantic schemas explícitos, persistencia real en `leads`/`handoffs`, ids por PK de base de datos (spec 03).
-4. **Inconsistencia de campos entre prompt y código.** El `systemMessage` le pide al modelo guardar `canal_contacto`, pero el código de `guardar_lead` lee `session_id`, `nombre`, `tipo_vehiculo_interes`, `uso_principal`, `etapa` — `canal_contacto` no se usa en ningún lado. Además `session_id` (un identificador técnico) queda expuesto como argumento que el LLM debe rellenar. → `session_id`/`user_id` nunca son argumentos del LLM: llegan por `ToolContext` (spec 03).
-5. **Estado no inyectado.** El prompt dice *"Si el contexto NO tiene Nombre"* / *"Si el contexto YA tiene Nombre"*, pero no hay ningún nodo que arme ese contexto antes del agente — el LLM debe inferirlo del historial crudo, lo que rompe con memoria compactada o entre sesiones. → la ficha del lead y la etapa se inyectan explícitamente en la instrucción en cada turno (spec 05, 06).
-6. **HITL sin ciclo real.** `solicitar_contacto_humano` termina en el `JSON.stringify` del propio código; no hay pausa del workflow, cola humana, ni confirmación del usuario antes de ejecutar — el "ticket" nunca llega a nadie. → confirmación de tools ADK + tabla `handoffs` con estados y endpoints admin (spec 03, 04, ADR-002).
-7. **Guardrails solo por prompt.** Las instrucciones de LÍMITES Y SEGURIDAD dependen enteramente de que el modelo las respete; no hay capa determinista, clasificador, ni filtro de salida — vulnerable a variaciones de la instrucción de jailbreak que el modelo no reconozca. → L1–L4 (spec 07).
-8. **RAG y memoria sin gobierno.** `PGVector Auto Knowledge` no tiene proceso de ingesta visible, umbral de similitud, ni metadatos de fuente; `Postgres Chat Memory` no tiene límite de tokens ni compactación; no hay trazas, spans ni métricas de latencia/tokens en ningún nodo. → ingesta idempotente + `RAG_MIN_SCORE` (spec 06), `EventsCompactionConfig` (spec 06), OTel + Langfuse (spec 08).
-9. **`temperature: 0.2`.** Configurado en el nodo `lmChatGoogleVertex`. No aplica igual a la familia Gemini 3.x: Google recomienda dejar el default (1.0); valores bajos pueden inducir loops de tool-calling. Desviación intencional documentada, no un bug a replicar (spec 05).
+1. **Discontinued models.** `modelName: "gemini-1.5-pro"` (Chat Model) and `modelName: "text-embedding-004"` (Embeddings) are no longer valid, current IDs in the Gemini API. → IDs are set only via env vars (`AGENT_MODEL`, `EMBEDDINGS` in spec 11) and verified against the official documentation before every phase.
+2. **`sessionKey` with an unsafe fallback.** `"={{ $json.sessionId || 'session_default' }}"`: if the frontend doesn't send a `sessionId`, every conversation without one shares the same memory row — a history leak across users. → sessions are created explicitly by the backend (`POST /api/v1/sessions`), with no shared fallback (specs 02, 06).
+3. **Code tools with no contract.** The `toolCode` blocks for `guardar_lead` and `solicitar_contacto_humano` declare no input schema (n8n infers the parameters from the LLM without validation), persist nothing real (the "save" is a `JSON.stringify` held in the node's own memory), and the ticket is generated with `"TICK-" + Math.floor(Math.random() * 90000 + 10000)` — not persistent, collision-prone, not auditable. → explicit Pydantic schemas, real persistence in `leads`/`handoffs`, ids from database PKs (spec 03).
+4. **Field mismatch between the prompt and the code.** The `systemMessage` asks the model to save `canal_contacto`, but the `guardar_lead` code reads `session_id`, `nombre`, `tipo_vehiculo_interes`, `uso_principal`, `etapa` — `canal_contacto` is never used anywhere. On top of that, `session_id` (a technical identifier) is exposed as an argument the LLM is expected to fill in. → `session_id`/`user_id` are never LLM arguments: they arrive via `ToolContext` (spec 03).
+5. **State never injected.** The prompt says *"If the context does NOT have a Name"* / *"If the context ALREADY has a Name"*, but no node ever assembles that context before the agent runs — the LLM has to infer it from the raw history, which breaks down once memory gets compacted or across sessions. → the lead record and the stage are explicitly injected into the instruction on every turn (specs 05, 06).
+6. **HITL with no real loop.** `solicitar_contacto_humano` ends in the node's own `JSON.stringify`; there's no workflow pause, no human queue, and no user confirmation before it executes — the "ticket" never reaches anyone. → ADK tool confirmation + a `handoffs` table with statuses and admin endpoints (specs 03, 04, ADR-002).
+7. **Guardrails by prompt only.** The LÍMITES Y SEGURIDAD instructions depend entirely on the model honoring them; there's no deterministic layer, no classifier, no output filter — vulnerable to jailbreak-instruction variations the model doesn't recognize. → L1–L4 (spec 07).
+8. **Ungoverned RAG and memory.** `PGVector Auto Knowledge` has no visible ingestion process, similarity threshold, or source metadata; `Postgres Chat Memory` has no token limit or compaction; no traces, spans, or latency/token metrics anywhere. → idempotent ingestion + `RAG_MIN_SCORE` (spec 06), `EventsCompactionConfig` (spec 06), OTel + Langfuse (spec 08).
+9. **`temperature: 0.2`.** Configured on the `lmChatGoogleVertex` node. It doesn't carry over cleanly to the Gemini 3.x family: Google recommends leaving the default (1.0); low values can induce tool-calling loops. Intentional, documented deviation, not a bug to replicate (spec 05).
 
-## 4. Qué se conserva sin cambios de fondo
+## 4. What stays unchanged in substance
 
-Rol y voz de "Luis", las seis frases canned de la sección 2, las tres tools (mismo propósito, contrato nuevo), la fuente de conocimiento (documentación automotriz general vía RAG), y la política de no dar precios/cotizaciones/stock.
+Luis's role and voice, the six canned phrases from section 2, the three tools (same purpose, new contract), the knowledge source (general automotive documentation via RAG), and the policy of never giving prices/quotes/stock.

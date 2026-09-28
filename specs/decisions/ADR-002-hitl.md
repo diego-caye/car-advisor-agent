@@ -1,45 +1,45 @@
-# ADR-002 · Mecanismo de HITL
+# ADR-002 · HITL mechanism
 
-## Estado
-Aceptado — camino primario confirmado por spike el 2026-09-15 (F3).
+## Status
+Accepted — primary path confirmed by a spike on 2026-09-15 (F3).
 
-## Contexto
+## Context
 
-El reto exige HITL real: interrupción, derivación y confirmación asistida (spec 03 §3, spec 04 §2). El baseline n8n no tenía ninguno de los tres: su `solicitar_contacto_humano` terminaba en un `JSON.stringify` con un ticket de `Math.random`, sin pausa, sin cola humana y sin confirmación del usuario (brecha #6 de `00-baseline-analysis.md`).
+The challenge requires real HITL: interruption, handoff, and assisted confirmation (spec 03 §3, spec 04 §2). The n8n baseline had none of the three: its `solicitar_contacto_humano` ended in a `JSON.stringify` with a `Math.random` ticket, with no pause, no human queue, and no user confirmation (gap #6 of `00-baseline-analysis.md`).
 
-`00-master-build.md` §8 marcaba la confirmación nativa de tools de ADK como **experimental** y pedía empezar F3 con un spike corto a través de nuestro propio SSE; si no quedaba limpio, había que caer a un fallback (`pending_confirmation` en estado de sesión, turno terminado, y la UI creando el handoff al confirmar).
+`00-master-build.md` §8 flagged ADK's native tool confirmation as **experimental** and called for starting F3 with a short spike through our own SSE; if it didn't come out clean, we'd fall back to a custom mechanism (`pending_confirmation` in session state, the turn ending, and the UI creating the handoff on confirmation).
 
-## Opciones
+## Options
 
-### A. Confirmación nativa de tools de ADK (elegida)
-La tool llama `tool_context.request_confirmation(hint=..., payload=...)`. ADK pausa el turno y emite una function call sintética `adk_request_confirmation` cuyos args llevan `originalFunctionCall` y el `toolConfirmation` con nuestro payload. Para reanudar, se manda una function response de rol `user`, con ese mismo nombre y el id de la llamada de confirmación, y ADK re-ejecuta la tool original con `tool_context.tool_confirmation` poblado.
+### A. Native ADK tool confirmation (chosen)
+The tool calls `tool_context.request_confirmation(hint=..., payload=...)`. ADK pauses the turn and emits a synthetic `adk_request_confirmation` function call whose args carry `originalFunctionCall` and the `toolConfirmation` with our payload. To resume, a function response with role `user` is sent, with that same name and the confirmation call's id, and ADK re-executes the original tool with `tool_context.tool_confirmation` populated.
 
-### B. Fallback propio
-La tool deja `pending_confirmation` en el estado de sesión y devuelve; el turno termina normal. `POST /chat/confirmations` crea el handoff directamente desde el servicio, sin volver a pasar por el agente, y arranca un turno nuevo para que el agente lo comunique.
+### B. Custom fallback
+The tool leaves `pending_confirmation` in the session state and returns; the turn ends normally. `POST /chat/confirmations` creates the handoff directly from the service, without going back through the agent, and starts a new turn so the agent can communicate it.
 
 ## Spike
 
-Se montó un `Runner` propio con `InMemorySessionService`, un `FakeAdkLlm` con guion y una tool de derivación, y se ejecutaron dos turnos:
+A custom `Runner` was set up with `InMemorySessionService`, a scripted `FakeAdkLlm`, and a handoff tool, running two turns:
 
-1. **Turno 1.** El modelo llama `solicitar_contacto_humano`. La tool pide confirmación y devuelve. Observado: ADK emite la function call `adk_request_confirmation` con `originalFunctionCall` + `toolConfirmation` (incluyendo el payload con motivo y resumen), la tool responde `pending_confirmation`, y **el handoff no se crea**.
-2. **Turno 2.** Se manda la function response con `confirmed=True` y el id de la confirmación. Observado: ADK **re-ejecuta la tool** con `tool_confirmation` poblado, la tool crea el handoff, y el agente produce su texto de cierre.
+1. **Turn 1.** The model calls `request_human_handoff`. The tool requests confirmation and returns. Observed: ADK emits the `adk_request_confirmation` function call with `originalFunctionCall` + `toolConfirmation` (including the payload with the reason and summary), the tool responds with `pendiente_de_confirmacion`, and **no handoff is created**.
+2. **Turn 2.** The function response is sent with `confirmed=True` and the confirmation's id. Observed: ADK **re-executes the tool** with `tool_confirmation` populated, the tool creates the handoff, and the agent produces its closing text.
 
-Resultado: el camino primario funciona sobre nuestro SSE, sin `adk api_server` y sin tocar el historial a mano.
+Result: the primary path works over our own SSE, without `adk api_server` and without touching the history by hand.
 
-Requisito descubierto en el spike: el `App` necesita `resumability_config=ResumabilityConfig(is_resumable=True)`; sin eso el turno no puede reanudarse.
+Requirement discovered during the spike: the `App` needs `resumability_config=ResumabilityConfig(is_resumable=True)`; without it the turn can't be resumed.
 
-## Decisión
+## Decision
 
-**Opción A.** No se implementa el fallback: añadiría un segundo camino de código para el mismo caso de uso sin resolver nada que el primario no cubra.
+**Option A.** No fallback is implemented: it would add a second code path for the same use case without solving anything the primary path doesn't already cover.
 
-Traducción a nuestro contrato (spec 02):
-- `adk_request_confirmation` → SSE `hitl.confirmation_required {confirmation_id, motivo, resumen, canal_preferido, urgencia}`, donde `confirmation_id` es el id de esa function call y el resto sale del `payload` que la tool eligió.
-- `POST /api/v1/chat/confirmations {session_id, confirmation_id, approved}` arma la function response y reanuda el stream con los mismos eventos que un turno normal.
-- Aprobar ejecuta la tool y la etapa pasa a `DERIVADO`; cancelar (`approved=false`) devuelve la etapa a `stage_previa` y no crea nada.
+Translation into our contract (spec 02):
+- `adk_request_confirmation` → SSE `hitl.confirmation_required {confirmation_id, reason, resumen, preferred_channel, urgency}`, where `confirmation_id` is that function call's id and the rest comes from the payload the tool chose.
+- `POST /api/v1/chat/confirmations {session_id, confirmation_id, approved}` builds the function response and resumes the stream with the same events as a normal turn.
+- Approving executes the tool and the stage moves to `HANDED_OFF`; canceling (`approved=false`) returns the stage to the previous stage and creates nothing.
 
-## Consecuencias
+## Consequences
 
-- Dependemos de una feature marcada experimental por ADK. El riesgo está acotado: los AT-08, AT-09 y AT-10 cubren los tres caminos (confirmar, cancelar, segundo pedido idempotente), así que una regresión al subir de versión se detecta en CI, no en la demo.
-- El formato de la respuesta de confirmación (`name = adk_request_confirmation`, el id de la llamada, `ToolConfirmation.model_dump()`) es un detalle interno de ADK 2.9.1. Está aislado en `ChatService.resume_with_confirmation` y documentado en `specs/notes/adk-api.md` §6, que es el único punto a tocar si cambia.
-- La idempotencia del handoff no la da ADK: es un índice único parcial en Postgres (`ux_handoffs_one_open_per_session`, `WHERE status = 'OPEN'`) más el `open_or_get` del servicio, así que dos confirmaciones concurrentes no pueden crear dos tickets abiertos.
-- Si ADK retirara la feature, la opción B sigue siendo viable y el punto de cambio está localizado; por eso no se descarta en este ADR, solo no se implementa hoy.
+- We depend on a feature ADK marks as experimental. The risk is bounded: AT-08, AT-09, and AT-10 cover all three paths (confirm, cancel, idempotent second request), so a regression on a version bump is caught in CI, not at the demo.
+- The shape of the confirmation response (`name = adk_request_confirmation`, the call's id, `ToolConfirmation.model_dump()`) is an internal detail of ADK 2.9.1. It's isolated in `ChatService.resume_with_confirmation` and documented in `specs/notes/adk-api.md` §6, the only place to touch if it changes.
+- Handoff idempotency doesn't come from ADK: it's a partial unique index in Postgres (`ux_handoffs_one_open_per_session`, `WHERE status = 'OPEN'`) plus the service's `open_or_get`, so two concurrent confirmations can't create two open tickets.
+- If ADK ever pulled the feature, option B remains viable and the change point is localized; that's why it isn't discarded in this ADR, just not implemented today.

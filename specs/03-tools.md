@@ -1,69 +1,69 @@
-# 03 · Tools del agente
+# 03 · Agent tools
 
-Las tools son adaptadores delgados en `agent/tools/`: parsean argumentos con Pydantic, llaman a un servicio de `application/`, y devuelven el envelope común. `session_id` y `user_id` se leen del `ToolContext` de ADK — **nunca** son parámetros que el LLM deba rellenar (brecha #4 del baseline, spec 00).
+The tools are thin adapters in `agent/tools/`: they parse arguments with Pydantic, call an `application/` service, and return the common envelope. `session_id` and `user_id` are read from ADK's `ToolContext` — they are **never** parameters the LLM has to fill in (baseline gap #4, spec 00).
 
-## 1. Envelope común
+## 1. Common envelope
 
 ```json
 {"status": "ok" | "no_results" | "error", "data": {...}, "error": {"code": str, "message": str, "retryable": bool}}
 ```
-`data` presente si `status="ok"`/`"no_results"`; `error` presente si `status="error"`. Un error de validación Pydantic se captura y se convierte en `status="error"`, `error.code="VALIDATION_ERROR"` — el agente lo lee y pide el dato de forma natural, nunca expone el traceback.
+`data` is present if `status="ok"`/`"no_results"`; `error` is present if `status="error"`. A Pydantic validation error is caught and turned into `status="error"`, `error.code="VALIDATION_ERROR"` — the agent reads it and asks for the data naturally, never exposing the traceback.
 
-## 2. `guardar_lead`
+## 2. `save_lead`
 
-Upsert parcial de la ficha del lead del `user_id` actual (no de la sesión: el lead vive a nivel usuario, spec 06).
+Partial upsert of the current `user_id`'s lead record (not the session's: the lead lives at the user level, spec 06).
 
 **Input**
-| Campo | Tipo | Regla |
+| Field | Type | Rule |
 |---|---|---|
-| `nombre` | `str?` | 1–80 caracteres |
-| `telefono` | `str?` | normalizado a 9 dígitos Perú o E.164 |
+| `name` | `str?` | 1–80 characters |
+| `phone` | `str?` | normalized to 9 Peruvian digits or E.164 |
 | `email` | `EmailStr?` | |
-| `canal_preferido` | `enum?` | `WHATSAPP \| LLAMADA \| EMAIL \| CHAT` |
-| `consentimiento_contacto` | `bool?` | obligatorio `true` si `telefono` o `email` vienen en la misma llamada; si no → `error.code=CONSENT_REQUIRED` y no se persiste el dato de contacto |
-| `uso_principal` | `enum?` | `CIUDAD \| TRABAJO \| FAMILIA \| VIAJES \| MIXTO` |
-| `tipo_vehiculo_interes` | `enum?` | `SUV \| SEDAN \| HATCHBACK \| PICKUP \| VAN \| CROSSOVER \| OTRO` |
-| `motorizacion_interes` | `enum?` | `GASOLINA \| DIESEL \| HIBRIDO \| ELECTRICO \| GLP_GNV \| NO_DEFINIDO` |
-| `nivel_interes` | `enum?` | `BAJO \| MEDIO \| ALTO`, lo infiere el LLM de señales conversacionales |
-| `solo_mirando` | `bool?` | `true` la primera vez que el usuario dice que solo está mirando/comparando (spec 04). No es un dato del lead: no se persiste en `leads`, se escribe en el estado de sesión (dialog state). Puede ir solo, sin ningún otro campo |
+| `preferred_channel` | `enum?` | `WHATSAPP \| CALL \| EMAIL \| CHAT` |
+| `contact_consent` | `bool?` | required to be `true` if `phone` or `email` are sent in the same call; if not → `error.code=CONSENT_REQUIRED` and the contact data isn't persisted |
+| `primary_use` | `enum?` | `CITY \| WORK \| FAMILY \| TRAVEL \| MIXED` |
+| `vehicle_type_interest` | `enum?` | `SUV \| SEDAN \| HATCHBACK \| PICKUP \| VAN \| CROSSOVER \| OTHER` |
+| `powertrain_interest` | `enum?` | `GASOLINE \| DIESEL \| HYBRID \| ELECTRIC \| LPG_CNG \| UNDEFINED` |
+| `interest_level` | `enum?` | `LOW \| MEDIUM \| HIGH`, inferred by the LLM from conversational cues |
+| `just_browsing` | `bool?` | `true` the first time the user says they're just browsing/comparing (spec 04). Not a lead field: it isn't persisted in `leads`, it's written to the session state (dialog state). It can be sent alone, with no other field |
 
-Todos los campos son opcionales (upsert parcial: solo se actualiza lo que llega). Al menos un campo debe estar presente, si no → `error.code=EMPTY_UPDATE` — `solo_mirando=true` por sí solo cuenta como presente, no dispara ese error.
+All fields are optional (partial upsert: only what's sent gets updated). At least one field must be present, otherwise → `error.code=EMPTY_UPDATE` — `just_browsing=true` on its own counts as present and doesn't trigger that error.
 
-**Comportamiento:** persiste vía `LeadService.upsert(user_id, ...)`; la **etapa se recalcula en el dominio** (máquina de estados, spec 04) a partir del lead resultante — el LLM nunca la asigna directamente. Devuelve `{status: "ok", data: {lead: {...}, etapa: str}}` y el backend emite SSE `lead.updated`.
+**Behavior:** persists via `LeadService.upsert(user_id, ...)`; the **stage is recalculated in the domain** (state machine, spec 04) from the resulting lead — the LLM never assigns it directly. Returns `{status: "ok", data: {lead: {...}, stage: str}}` and the backend emits the `lead.updated` SSE event.
 
-## 3. `solicitar_contacto_humano`
+## 3. `request_human_handoff`
 
 **Input**
-| Campo | Tipo | Regla |
+| Field | Type | Rule |
 |---|---|---|
-| `motivo` | `enum` | `TEST_DRIVE \| COTIZACION_FORMAL \| COMPRA_INMEDIATA \| DISCONFORMIDAD \| FUERA_DE_ALCANCE` |
-| `resumen_requerimiento` | `str` | 10–500 caracteres |
-| `canal_preferido` | `enum?` | mismo enum que `guardar_lead` |
-| `urgencia` | `enum?` | `BAJA \| MEDIA \| ALTA` |
+| `reason` | `enum` | `TEST_DRIVE \| FORMAL_QUOTE \| IMMEDIATE_PURCHASE \| DISSATISFACTION \| OUT_OF_SCOPE` |
+| `requirement_summary` | `str` | 10–500 characters |
+| `preferred_channel` | `enum?` | same enum as `save_lead` |
+| `urgency` | `enum?` | `LOW \| MEDIUM \| HIGH` |
 
-**Comportamiento:**
-1. Requiere confirmación del usuario antes de ejecutarse — vía confirmación nativa de tools de ADK (`tool_context.request_confirmation`). El spike de F3 confirmó que funciona sobre nuestro SSE, así que **no se implementa fallback**: ver ADR-002.
-2. **Idempotente por sesión:** máximo un handoff `OPEN` por `session_id`, garantizado por un índice único parcial en Postgres (`WHERE status = 'OPEN'`) además de la comprobación del servicio. Si ya existe uno abierto, la tool no crea otro: devuelve el existente con `ya_existia: true` y el agente lo comunica ("ya tienes una solicitud en curso").
-3. Al confirmarse, crea el handoff en estado `OPEN` (transiciones `OPEN → IN_PROGRESS → CLOSED` gestionadas por `PATCH /api/v1/handoffs/{id}`, spec 02) y la etapa del diálogo pasa a `DERIVADO` (spec 04).
-   Al cancelarse, no crea nada y la etapa vuelve a `stage_previa`.
-4. Devuelve `{status: "ok", data: {handoff_id, ticket, motivo, status: "OPEN", ya_existia}}`. El `ticket` es `TICK-` más el id de la tabla con padding: persistente y auditable, a diferencia del `Math.random` del baseline (brecha #3).
+**Behavior:**
+1. Requires user confirmation before it executes — via ADK's native tool confirmation (`tool_context.request_confirmation`). The F3 spike confirmed it works over our SSE, so **no fallback is implemented**: see ADR-002.
+2. **Idempotent per session:** at most one `OPEN` handoff per `session_id`, guaranteed by a partial unique index in Postgres (`WHERE status = 'OPEN'`) in addition to the service-level check. If one is already open, the tool doesn't create another: it returns the existing one with `ya_existia: true` and the agent communicates that ("you already have a request in progress").
+3. Once confirmed, it creates the handoff in `OPEN` state (transitions `OPEN → IN_PROGRESS → CLOSED` are managed by `PATCH /api/v1/handoffs/{id}`, spec 02) and the dialog stage moves to `HANDED_OFF` (spec 04).
+   If canceled, nothing is created and the stage reverts to the previous stage.
+4. Returns `{status: "ok", data: {handoff_id, ticket, reason, status: "OPEN", ya_existia}}`. The `ticket` is `TICK-` plus the table's id with padding: persistent and auditable, unlike the baseline's `Math.random` (gap #3).
 
 ## 4. `search_knowledge_base`
 
-Equivalente al nodo `base_conocimientos_autos` del baseline, ahora con umbral y fuente explícitos.
+Equivalent to the baseline's `base_conocimientos_autos` node, now with an explicit threshold and source.
 
 **Input**
-| Campo | Tipo | Regla |
+| Field | Type | Rule |
 |---|---|---|
-| `query` | `str` | 1–300 caracteres |
-| `categoria` | `enum?` | `CARROCERIAS \| SEGMENTOS \| MOTORIZACION \| TRANSMISION \| CONSUMO \| MANTENIMIENTO \| SEGURIDAD \| USO \| GLOSARIO` |
+| `query` | `str` | 1–300 characters |
+| `category` | `enum?` | `BODY_TYPES \| SEGMENTS \| POWERTRAIN \| TRANSMISSION \| FUEL_ECONOMY \| MAINTENANCE \| SAFETY \| USAGE \| GLOSSARY` |
 | `top_k` | `int` | 1–8, default 4 |
 
-**Comportamiento:** embebe `query` con el `Embeddings` configurado, busca por coseno en `kb_chunks` (filtrando por `categoria` si viene), ordena por score. Si el mejor score < `RAG_MIN_SCORE` (env) → `status: "no_results"`, `data: null` — el agente usa la frase honesta del baseline (spec 05, 07). Si hay resultados: `data: {"resultados": [{"chunk_id", "title", "categoria", "source", "score", "content"}]}`, longitud `top_k`.
+**Behavior:** embeds `query` with the configured `Embeddings`, searches by cosine similarity in `kb_chunks` (filtering by `category` if given), and sorts by score. If the best score is below `RAG_MIN_SCORE` (env) → `status: "no_results"`, `data: null` — the agent uses the baseline's honest phrase (specs 05, 07). If there are results: `data: {"resultados": [{"chunk_id", "title", "category", "source", "score", "content"}]}`, of length `top_k`.
 
-## 5. Guardrails de tools (L3, ver spec 07)
+## 5. Tool guardrails (L3, see spec 07)
 
-- Validación Pydantic estricta antes de tocar `application/` — cualquier campo fuera de enum o rango rechaza sin llegar a la DB.
-- `session_id`/`user_id` siempre desde `ToolContext`, nunca del LLM.
-- Máximo N llamadas a tools por turno (env `MAX_TOOL_CALLS_PER_TURN`, default 4) — evita loops; al superarse, la tool siguiente devuelve `status: "error"`, `error.code=TOOL_CALL_LIMIT`.
-- PII (`telefono`, `email`) enmascarada en spans/logs de telemetría (spec 08), nunca en claro.
+- Strict Pydantic validation before touching `application/` — any field outside its enum or range is rejected before it ever reaches the DB.
+- `session_id`/`user_id` always come from `ToolContext`, never from the LLM.
+- Maximum N tool calls per turn (env `MAX_TOOL_CALLS_PER_TURN`, default 4) — prevents loops; once exceeded, the next tool call returns `status: "error"`, `error.code=TOOL_CALL_LIMIT`.
+- PII (`phone`, `email`) is masked in telemetry spans/logs (spec 08), never in the clear.

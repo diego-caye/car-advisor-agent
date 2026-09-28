@@ -1,66 +1,66 @@
-# Asesor automotriz virtual
+# Virtual automotive advisor
 
-Migración de un workflow de n8n a un backend propio con **Google ADK 2.x + FastAPI + React**: un agente conversacional ("Luis") que orienta a un cliente en la compra de un auto — sin asociarse a marcas ni a sistemas de financiamiento específicos — con captura de leads, derivación asistida a un humano (HITL), consulta a una base de conocimiento (RAG) y guardrails en capas.
+Migration of an n8n workflow into a custom backend with **Google ADK 2.x + FastAPI + React**: a conversational agent ("Luis") that guides a customer through buying a car — without tying itself to any brand or specific financing scheme — with lead capture, assisted human handoff (HITL), knowledge-base lookup (RAG), and layered guardrails.
 
-**Corre sin ninguna API key**: el perfil por defecto usa modelos locales vía Ollama, empaquetados en el mismo `docker-compose.yml`. Gemini sigue disponible como alternativa cambiando dos variables de entorno.
+**Runs with no API key at all**: the default profile uses local models via Ollama, bundled in the same `docker-compose.yml`. Gemini is still available as an alternative by changing two environment variables.
 
-## Índice
+## Table of contents
 
-- [Características](#características)
-- [Arquitectura](#arquitectura)
-- [Qué cambia respecto al baseline de n8n](#qué-cambia-respecto-al-baseline-de-n8n)
+- [Features](#features)
+- [Architecture](#architecture)
+- [What changes from the n8n baseline](#what-changes-from-the-n8n-baseline)
 - [Quick start](#quick-start)
-- [Estructura del proyecto](#estructura-del-proyecto)
-- [Comandos](#comandos)
-- [Tests y evaluación](#tests-y-evaluación)
-- [Documentación](#documentación)
-- [Estado del proyecto](#estado-del-proyecto)
-- [Licencia](#licencia)
+- [Project structure](#project-structure)
+- [Commands](#commands)
+- [Tests and evaluation](#tests-and-evaluation)
+- [Documentation](#documentation)
+- [Project status](#project-status)
+- [License](#license)
 
-## Características
+## Features
 
-- **Agente conversacional** ("Luis") con voz e instrucción propias, en español de Perú, tuteando — construido sobre `google-adk` (`Agent`/`Runner`/`App`), no un scaffold genérico.
-- **3 tools con contrato propio** (spec 03): `guardar_lead` (captura estructurada del lead), `solicitar_contacto_humano` (deriva a un humano con confirmación previa) y `search_knowledge_base` (RAG sobre una base de conocimiento automotriz general).
-- **Human-in-the-loop real**: pedir un test drive o una cotización formal pausa el turno con una tarjeta de confirmación en la UI antes de crear un ticket — no un `JSON.stringify` que no llega a nadie.
-- **RAG con umbral y fuente**: `pgvector` sobre el mismo Postgres, ingesta idempotente por hash, y una frase honesta cuando no hay dato ("no tengo el detalle exacto, pero anoto para que un especialista te lo confirme") en vez de inventar.
-- **Guardrails en capas** (spec 07): L1 determinista (inyección de prompt, longitud, caracteres invisibles) sin llamar al modelo, L3 sobre cada tool call, L4 sobre la salida (fuga de un token canario, precios/cotizaciones/stock nunca llegan al usuario). L2 (clasificador con fail-open) queda diseñado pero no implementado — P1, no bloqueaba los AT del reto.
-- **Fallbacks de infraestructura**: backoff + modelo de respaldo si el principal falla, degradación honesta si la KB o la base de datos no responden — nunca un stack trace en pantalla.
-- **Observabilidad real**: OpenTelemetry → Langfuse (no-op sin keys, la app funciona igual), traza completa por turno, feedback 👍/👎, y evaluación de calidad post-turno en background con un LLM juez.
-- **Golden dataset de conversaciones** (`backend/tests/evalset/`): casos on-topic y fuera de guion (inyección de prompt, pedido de precio, fondos colectivos) corridos contra el modelo real, no simulados.
-- **Modelos locales de verdad, no una demo**: catálogo de Ollama descubierto en vivo (nunca declarado a mano), selector de modelo por turno en la UI, capacidades reales (razonamiento/tools) mostradas como íconos.
-- **Frontend propio** en React + Vite + TypeScript estricto + Tailwind (shadcn/ui), tipado de extremo a extremo desde el OpenAPI del backend.
+- **Conversational agent** ("Luis") with its own voice and instruction, in Peru Spanish, using "tú" — built on `google-adk` (`Agent`/`Runner`/`App`), not a generic scaffold.
+- **3 tools with their own contract** (spec 03): `save_lead` (structured lead capture), `request_human_handoff` (hands off to a human with prior confirmation), and `search_knowledge_base` (RAG over a general automotive knowledge base).
+- **Real human-in-the-loop**: asking for a test drive or a formal quote pauses the turn with a confirmation card in the UI before a ticket is created — not a `JSON.stringify` that reaches no one.
+- **RAG with a threshold and a source**: `pgvector` on the same Postgres instance, hash-based idempotent ingestion, and an honest phrase when there's no data ("I don't have the exact detail, but I'll note it down so a specialist can confirm it for you") instead of making things up.
+- **Layered guardrails** (spec 07): deterministic L1 (prompt injection, length, invisible characters) with no model call, L3 on every tool call, L4 on the output (a canary token leak, prices/quotes/stock never reach the user). L2 (a fail-open classifier) is designed but not implemented — P1, it didn't block the challenge's ATs.
+- **Infrastructure fallbacks**: backoff + a backup model if the primary one fails, honest degradation if the KB or the database don't respond — never a stack trace on screen.
+- **Real observability**: OpenTelemetry → Langfuse (no-op without keys, the app works the same), a full trace per turn, 👍/👎 feedback, and background post-turn quality evaluation with an LLM judge.
+- **Golden dataset of conversations** (`backend/tests/evalset/`): on-topic and off-script cases (prompt injection, price requests, group-savings schemes) run against the real model, not simulated.
+- **Real local models, not just a demo**: an Ollama catalog discovered live (never declared by hand), a per-turn model selector in the UI, real capabilities (reasoning/tools) shown as icons.
+- **Custom frontend** in React + Vite + strict TypeScript + Tailwind (shadcn/ui), typed end-to-end from the backend's OpenAPI.
 
-## Arquitectura
+## Architecture
 
-### Por qué Google ADK
+### Why Google ADK
 
-`google-adk` da `Runner`, `DatabaseSessionService` (memoria por sesión sobre Postgres) y confirmación de tools nativa (HITL) sin reinventar esa infraestructura, y separa el núcleo decisional de la UI — el requisito explícito del reto. Se evaluó LangGraph y se descartó por mayor esfuerzo de integración con Postgres y HITL para el alcance y plazo disponibles; mantener n8n se descartó por no cumplir "desacoplado de la UI" ni permitir tests ni observabilidad de grado producción. Detalle completo y trade-offs en [`specs/decisions/ADR-001-framework.md`](specs/decisions/ADR-001-framework.md).
+`google-adk` provides `Runner`, `DatabaseSessionService` (per-session memory over Postgres), and native tool confirmation (HITL) without reinventing that infrastructure, and it separates the decision-making core from the UI — an explicit requirement of the challenge. LangGraph was evaluated and ruled out due to the greater integration effort with Postgres and HITL given the available scope and timeline; keeping n8n was ruled out for not satisfying "decoupled from the UI" nor allowing production-grade tests or observability. Full detail and trade-offs in [`specs/decisions/ADR-001-framework.md`](specs/decisions/ADR-001-framework.md).
 
-### Vista de componentes
+### Component view
 
 ```mermaid
 flowchart LR
-    subgraph Cliente
+    subgraph Client
         FE["React + Vite\nSSE + REST"]
     end
 
     subgraph Backend["FastAPI (backend/src/asesor)"]
         API["api/\nrouters + SSE"]
         APP["application/\nChatService, LeadService,\nHandoffService, KnowledgeService,\nTitleService, EvaluationService"]
-        DOM["domain/\npuro: entidades,\nmáquina de estados, Protocols"]
+        DOM["domain/\npure: entities,\nstate machine, Protocols"]
         AGT["agent/\nAgent Luis + 3 tools\n+ guardrails L1-L4"]
-        INFRA["infrastructure/\nrepositorios SQL, pgvector,\nadaptadores LLM/embeddings"]
+        INFRA["infrastructure/\nSQL repositories, pgvector,\nLLM/embeddings adapters"]
     end
 
-    DB[("PostgreSQL + pgvector\nsesiones ADK, leads, handoffs,\nkb_chunks, feedback, evaluations")]
-    LLM{{"Gemini u Ollama\n(vía LiteLLM)"}}
+    DB[("PostgreSQL + pgvector\nADK sessions, leads, handoffs,\nkb_chunks, feedback, evaluations")]
+    LLM{{"Gemini or Ollama\n(via LiteLLM)"}}
     OTEL["OpenTelemetry"]
-    LANGFUSE[("Langfuse\n(no-op sin keys)")]
+    LANGFUSE[("Langfuse\n(no-op without keys)")]
 
     FE <-->|"HTTPS / SSE"| API
     API --> APP
     APP --> DOM
-    INFRA -.->|implementa Protocols de| DOM
+    INFRA -.->|implements Protocols from| DOM
     AGT --> APP
     API --> AGT
     APP --> INFRA
@@ -69,78 +69,78 @@ flowchart LR
     API --> OTEL --> LANGFUSE
 ```
 
-**Regla de dependencia:** `api → application → domain ← infrastructure`. `domain/` no importa ADK, FastAPI ni SQLAlchemy — es código puro, testeable sin red. `agent/` depende de `application/`, nunca al revés: las tools son adaptadores delgados. Detalle completo, trade-offs y qué revisar si escala en [`specs/01-architecture.md`](specs/01-architecture.md).
+**Dependency rule:** `api → application → domain ← infrastructure`. `domain/` imports neither ADK, FastAPI, nor SQLAlchemy — it's pure code, testable with no network. `agent/` depends on `application/`, never the other way around: the tools are thin adapters. Full detail, trade-offs, and what to revisit at scale in [`specs/01-architecture.md`](specs/01-architecture.md).
 
-### Flujo de un turno (memoria, tools, HITL y guardrails)
+### Flow of a turn (memory, tools, HITL, and guardrails)
 
 ```mermaid
 flowchart LR
-    U(("Usuario")) -->|mensaje| G1["Guardrail L1\ndeterminista\n(inyección, longitud)"]
-    G1 -.->|bloqueado| U
+    U(("User")) -->|message| G1["Guardrail L1\ndeterministic\n(injection, length)"]
+    G1 -.->|blocked| U
     G1 -->|ok| AG["Agent Luis"]
 
-    AG <-->|lee ficha del lead\ny etapa del diálogo| MEM[("Memoria\nDatabaseSessionService\n+ compactación de eventos")]
+    AG <-->|reads the lead record\nand dialog stage| MEM[("Memory\nDatabaseSessionService\n+ event compaction")]
 
-    AG --> T1["Tool guardar_lead"]
-    AG --> T2["Tool search_knowledge_base\n(RAG sobre pgvector)"]
-    AG --> T3["Tool solicitar_contacto_humano"]
+    AG --> T1["Tool save_lead"]
+    AG --> T2["Tool search_knowledge_base\n(RAG over pgvector)"]
+    AG --> T3["Tool request_human_handoff"]
 
-    T3 --> HITL{"HITL\ntarjeta de confirmación\nen la UI"}
-    HITL -->|aprueba| HO[("handoff\nOPEN → IN_PROGRESS → CLOSED")]
-    HITL -->|cancela| AG
+    T3 --> HITL{"HITL\nconfirmation card\nin the UI"}
+    HITL -->|approves| HO[("handoff\nOPEN → IN_PROGRESS → CLOSED")]
+    HITL -->|cancels| AG
 
-    AG --> G4["Guardrail L4\nsobre la salida\n(canary / precios)"]
-    G4 -->|filtrado si hace falta| U
+    AG --> G4["Guardrail L4\non the output\n(canary / prices)"]
+    G4 -->|filtered if needed| U
 ```
 
-## Qué cambia respecto al baseline de n8n
+## What changes from the n8n baseline
 
 ```mermaid
 flowchart TB
-    subgraph n8n["Baseline n8n (referencia del reto)"]
+    subgraph n8n["n8n baseline (challenge reference)"]
         direction TB
         T1["chatTrigger"] --> A1["AGENTE_LUIS\n(system message + retry)"]
-        A1 --> M1["Postgres Chat Memory\nsessionKey con fallback compartido"]
-        A1 --> TC1["toolCode inline\nguardar_lead / solicitar_contacto_humano\nsin schema, sin persistencia real"]
-        A1 --> V1["PGVector\nsin umbral ni metadatos de fuente"]
-        A1 -.->|"nada verifica esto"| G1["Reglas de negocio\nsolo en el prompt"]
+        A1 --> M1["Postgres Chat Memory\nsessionKey with a shared fallback"]
+        A1 --> TC1["inline toolCode\nguardar_lead / solicitar_contacto_humano\nno schema, no real persistence"]
+        A1 --> V1["PGVector\nno threshold or source metadata"]
+        A1 -.->|"nothing verifies this"| G1["Business rules\nprompt-only"]
     end
 ```
 
 ```mermaid
 flowchart TB
-    subgraph adk["Este proyecto"]
+    subgraph adk["This project"]
         direction TB
-        T2["POST /chat/stream\nsesión explícita por X-User-Id"] --> A2["Agent ADK Luis\n+ plugin de guardrails"]
-        A2 --> M2["DatabaseSessionService\ncompactación con modelo liviano"]
-        A2 --> TC2["3 tools con Pydantic\n+ persistencia real (leads/handoffs)\n+ ids desde ToolContext, nunca del LLM"]
-        A2 --> V2["pgvector + RAG_MIN_SCORE\n+ fuente y score por resultado"]
-        A2 --> G2["L1-L4 deterministas/clasificador\n+ fallback de modelo + evalset real"]
+        T2["POST /chat/stream\nexplicit session via X-User-Id"] --> A2["ADK Agent Luis\n+ guardrails plugin"]
+        A2 --> M2["DatabaseSessionService\ncompaction with a lightweight model"]
+        A2 --> TC2["3 tools with Pydantic\n+ real persistence (leads/handoffs)\n+ ids from ToolContext, never the LLM"]
+        A2 --> V2["pgvector + RAG_MIN_SCORE\n+ source and score per result"]
+        A2 --> G2["L1-L4 deterministic/classifier\n+ model fallback + real evalset"]
     end
 ```
 
-| Brecha del baseline (detalle en [`specs/00-baseline-analysis.md`](specs/00-baseline-analysis.md)) | Cómo se cerró |
+| Baseline gap (detail in [`specs/00-baseline-analysis.md`](specs/00-baseline-analysis.md)) | How it was closed |
 |---|---|
-| `sessionKey` con fallback `'session_default'`: conversaciones sin id comparten memoria entre usuarios | Sesión creada explícitamente por el backend, sin fallback compartido |
-| Tools sin schema, "guardado" en memoria del propio nodo, ticket con `Math.random()` | Pydantic estricto, persistencia real en Postgres, ids por PK de base de datos |
-| `session_id` expuesto como argumento que el LLM debía rellenar | `session_id`/`user_id` llegan por `ToolContext`, nunca del LLM |
-| Handoff sin ciclo real: el "ticket" nunca llega a nadie | Confirmación de tools + tabla `handoffs` con estados y endpoints admin |
-| Guardrails solo por prompt, sin capa determinista | L1-L4: determinista, clasificador, sobre tools, y sobre la salida |
-| RAG sin umbral ni ingesta gobernada; memoria sin compactación ni trazas | `RAG_MIN_SCORE`, ingesta idempotente, `EventsCompactionConfig` afinado, OTel + Langfuse |
-| Modelos de Vertex AI ya descontinuados hardcodeados | IDs solo por env, verificados contra documentación vigente; además, perfil 100% local sin API key |
+| `sessionKey` with a `'session_default'` fallback: sessions with no id share memory across users | Session created explicitly by the backend, no shared fallback |
+| Tools with no schema, "saved" in the node's own memory, ticket via `Math.random()` | Strict Pydantic, real persistence in Postgres, ids from database PKs |
+| `session_id` exposed as an argument the LLM had to fill in | `session_id`/`user_id` arrive via `ToolContext`, never from the LLM |
+| Handoff with no real loop: the "ticket" never reaches anyone | Tool confirmation + a `handoffs` table with statuses and admin endpoints |
+| Guardrails prompt-only, no deterministic layer | L1-L4: deterministic, classifier, on tools, and on the output |
+| RAG with no threshold or governed ingestion; memory with no compaction or traces | `RAG_MIN_SCORE`, idempotent ingestion, tuned `EventsCompactionConfig`, OTel + Langfuse |
+| Hardcoded, already-discontinued Vertex AI models | IDs only via env, verified against current documentation; plus a fully local, API-key-free profile |
 
 ## Quick start
 
-Requiere Docker y Docker Compose. Nada más — el perfil por defecto no necesita ninguna API key.
+Requires Docker and Docker Compose. Nothing else — the default profile needs no API key.
 
 ```bash
-git clone <este-repositorio>
+git clone <this-repository>
 cd asesor
 cp .env.example .env
 docker compose up -d
 ```
 
-La primera vez tarda lo que tarden las descargas de los modelos de Ollama (varios GB); el volumen los conserva entre reinicios, así que arranques posteriores son instantáneos. Cuando `docker compose ps` muestre los 4 servicios `healthy`, falta un paso: ingestar la base de conocimiento (RAG) — sin esto, `search_knowledge_base` responde `no_results` siempre.
+The first run takes as long as the Ollama model downloads do (several GB); the volume keeps them across restarts, so later startups are instant. Once `docker compose ps` shows all 4 services as `healthy`, one step remains: ingesting the knowledge base (RAG) — without this, `search_knowledge_base` always returns `no_results`.
 
 ```bash
 docker compose exec backend uv run python scripts/ingest_kb.py
@@ -149,73 +149,73 @@ docker compose exec backend uv run python scripts/ingest_kb.py
 - Frontend: <http://localhost:5190>
 - Backend (OpenAPI): <http://localhost:8090/docs>
 
-Para usar Gemini en vez de los modelos locales, cambia `LLM_PROVIDER=gemini` y `EMBEDDINGS_PROVIDER=gemini` en `.env`, agrega tu `GOOGLE_API_KEY` (ver el comentario en `.env.example` para el resto de variables del perfil) y vuelve a levantar el backend.
+To use Gemini instead of the local models, change `LLM_PROVIDER=gemini` and `EMBEDDINGS_PROVIDER=gemini` in `.env`, add your `GOOGLE_API_KEY` (see the comment in `.env.example` for the rest of that profile's variables), and restart the backend.
 
-Puertos por defecto (**8090** backend, **5190** frontend, **5490** Postgres) elegidos fuera de los habituales a propósito, para convivir con otros proyectos en la misma máquina — configurables por `BACKEND_PORT`/`FRONTEND_PORT`/`POSTGRES_PORT`.
+Default ports (**8090** backend, **5190** frontend, **5490** Postgres) were deliberately chosen outside the usual ones, to coexist with other projects on the same machine — configurable via `BACKEND_PORT`/`FRONTEND_PORT`/`POSTGRES_PORT`.
 
-## Estructura del proyecto
+## Project structure
 
 ```
 backend/src/asesor/
-├── api/              # Routers FastAPI, DTOs, SSE, manejo de errores
-├── application/      # Casos de uso: ChatService, LeadService, HandoffService,
+├── api/              # FastAPI routers, DTOs, SSE, error handling
+├── application/      # Use cases: ChatService, LeadService, HandoffService,
 │                     # KnowledgeService, TitleService, EvaluationService
-├── domain/           # Entidades y máquina de estados puras, Protocols
-├── agent/            # Agent ADK "Luis", las 3 tools, guardrails L1-L4
-└── infrastructure/   # Repositorios SQLAlchemy, pgvector, adaptadores
-                      # de LLM/embeddings, telemetría, fault injection
+├── domain/           # Pure entities and state machine, Protocols
+├── agent/            # ADK Agent "Luis", the 3 tools, guardrails L1-L4
+└── infrastructure/   # SQLAlchemy repositories, pgvector, LLM/embeddings
+                      # adapters, telemetry, fault injection
 
 backend/tests/
-├── unit/             # Dominio y aplicación, sin red
-├── integration/      # API + Postgres real, FakeLlm
-├── acceptance/        # Los AT de specs/09
-└── evalset/           # Golden dataset de conversaciones contra el modelo real
+├── unit/             # Domain and application, no network
+├── integration/      # API + real Postgres, FakeLlm
+├── acceptance/        # The ATs from specs/09
+└── evalset/           # Golden dataset of conversations against the real model
 
 frontend/src/
-├── features/         # chat, sesiones, HITL, panel dev
+├── features/         # chat, sessions, HITL, dev panel
 ├── components/ui/    # shadcn/ui
-└── api/              # Cliente tipado desde el OpenAPI del backend
+└── api/              # Client typed from the backend's OpenAPI
 
-specs/                # Fuente de verdad del diseño (00-11, decisions/, notes/)
-docs/                 # UI, guion de pruebas manuales, guion de demo
-kb/                   # Documentos fuente de la base de conocimiento (RAG)
+specs/                # Source of truth for the design (00-11, decisions/, notes/)
+docs/                 # UI, manual test script, demo script
+kb/                   # Source documents for the knowledge base (RAG)
 ```
 
-## Comandos
+## Commands
 
-`make` no está instalado en Windows; estos son los equivalentes directos (`Makefile` es la interfaz canónica en CI/Linux/macOS):
+`make` isn't installed on Windows; these are the direct equivalents (the `Makefile` is the canonical interface in CI/Linux/macOS):
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check .   # lint
 cd backend && uv run mypy                                          # typecheck
-cd backend && uv run pytest                                        # tests (191, excluye live/evalset)
-cd backend && uv run pytest tests/evalset -m evalset                # golden dataset contra el modelo real (~4 min)
+cd backend && uv run pytest                                        # tests (191, excludes live/evalset)
+cd backend && uv run pytest tests/evalset -m evalset                # golden dataset against the real model (~4 min)
 cd frontend && npm run typecheck && npm run build                  # frontend
-docker compose exec backend uv run python scripts/ingest_kb.py     # (re)ingesta de la KB, dentro del contenedor
-docker compose up -d                                                # levanta todo, recarga en caliente
+docker compose exec backend uv run python scripts/ingest_kb.py     # (re)ingest the KB, inside the container
+docker compose up -d                                                # brings everything up, hot-reloads
 ```
 
-## Tests y evaluación
+## Tests and evaluation
 
-- **191 tests de backend** (unit, integration, acceptance) + tests de frontend (vitest), mypy strict y ruff limpios.
-- **Tests de aceptación** (`backend/tests/acceptance/`) cubren los AT de [`specs/09-acceptance-tests.md`](specs/09-acceptance-tests.md): saludo, captura de lead, anti-loop, RAG, HITL (confirmar/cancelar/idempotencia), guardrails y fallbacks.
-- **Evalset** (`backend/tests/evalset/luis.cases.json`): conversaciones on-topic y fuera de guion corridas contra el modelo real con dos mecanismos — trayectoria de tools (determinista) y un juez LLM contra reglas en español. Editable a mano, sin tocar código.
-- **`docs/pruebas-manuales.md`**: guion para probar a mano en el navegador, con qué esperar en espíritu (no texto exacto — un LLM no responde siempre igual), incluyendo el flujo HITL completo.
+- **191 backend tests** (unit, integration, acceptance) + frontend tests (vitest), clean mypy strict and ruff.
+- **Acceptance tests** (`backend/tests/acceptance/`) cover the ATs from [`specs/09-acceptance-tests.md`](specs/09-acceptance-tests.md): greeting, lead capture, anti-loop, RAG, HITL (confirm/cancel/idempotency), guardrails, and fallbacks.
+- **Evalset** (`backend/tests/evalset/luis.cases.json`): on-topic and off-script conversations run against the real model with two mechanisms — tool trajectory (deterministic) and an LLM judge against rules written in Spanish. Editable by hand, no code changes needed.
+- **`docs/pruebas-manuales.md`**: a script for testing by hand in the browser, describing what to expect in spirit (not exact text — an LLM doesn't always answer the same way), including the full HITL flow.
 
-## Documentación
+## Documentation
 
-| Pregunta | Dónde |
+| Question | Where |
 |---|---|
-| Specs completas (arquitectura, contrato de API, tools, guardrails, etc.) | [`specs/`](specs/) — índice en [`CLAUDE.md`](CLAUDE.md) |
-| Decisiones de diseño (por qué ADK, HITL, modelos locales) | [`specs/decisions/`](specs/decisions/) |
-| Firmas de ADK verificadas contra el paquete instalado | [`specs/notes/adk-api.md`](specs/notes/adk-api.md) |
-| Checklist de fases y hallazgos de cada ronda | [`PROGRESS.md`](PROGRESS.md) |
-| Guion de pruebas manuales | [`docs/pruebas-manuales.md`](docs/pruebas-manuales.md) |
+| Full specs (architecture, API contract, tools, guardrails, etc.) | [`specs/`](specs/) — indexed in [`CLAUDE.md`](CLAUDE.md) |
+| Design decisions (why ADK, HITL, local models) | [`specs/decisions/`](specs/decisions/) |
+| ADK signatures verified against the installed package | [`specs/notes/adk-api.md`](specs/notes/adk-api.md) |
+| Phase checklist and findings from each round | [`PROGRESS.md`](PROGRESS.md) |
+| Manual test script | [`docs/pruebas-manuales.md`](docs/pruebas-manuales.md) |
 
-## Estado del proyecto
+## Project status
 
-Proyecto personal construido con desarrollo dirigido por especificaciones (Spec-Driven Development): 10 fases (F0–F9), cada una en su propia rama con su propio merge commit — detalle y hallazgos de cada una en [`PROGRESS.md`](PROGRESS.md).
+Personal project built with Spec-Driven Development: 10 phases (F0–F9), each in its own branch with its own merge commit — details and findings for each in [`PROGRESS.md`](PROGRESS.md).
 
-## Licencia
+## License
 
 [MIT](LICENSE).

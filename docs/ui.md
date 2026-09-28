@@ -1,68 +1,68 @@
-# Spec de UI · Asesor automotriz
+# UI spec · Automotive advisor
 
-Plan de diseño previo al código (F4), actualizado en F6 al adoptar shadcn/ui y de nuevo al pasar de una paleta azul + ámbar a blanco y negro con modo claro/oscuro. El objetivo es que se lea como una herramienta de asesoría con la que un peruano conversaría con confianza, no como una demo genérica de IA.
+Design plan written before the code (F4), updated in F6 when adopting shadcn/ui and again when moving from a blue + amber palette to black and white with light/dark mode. The goal is for it to read like an advisory tool a Peruvian would confidently chat with, not like a generic AI demo.
 
-## 0. Base de componentes
+## 0. Component base
 
-Los componentes vienen de **shadcn/ui** (preset `radix-nova`, primitivas de Radix, iconos de Lucide), instalados en `src/components/ui/` y versionados con el repo: no es una dependencia opaca, es código propio que se puede leer y modificar. Lo que aporta y no íbamos a rehacer bien a mano es el comportamiento accesible de los overlays — el `Select` del selector de modelo y el `AlertDialog` de borrado necesitan foco atrapado, cierre con Escape, navegación con teclado y `aria-*` correctos.
+Components come from **shadcn/ui** (`radix-nova` preset, Radix primitives, Lucide icons), installed in `src/components/ui/` and versioned with the repo: it isn't an opaque dependency, it's our own code that can be read and modified. What it provides — and what we weren't going to redo well by hand — is the accessible overlay behavior: the model selector's `Select` and the delete `AlertDialog` need focus trapping, Escape-to-close, keyboard navigation, and correct `aria-*` attributes.
 
-La paleta de la sección 2 **no** se mantiene aparte: se expresa directamente en los tokens semánticos de shadcn (`--primary`, `--muted-foreground`, `--border`…), de modo que cualquier componente que se añada después salga ya con la identidad del producto. Tener dos sistemas de color conviviendo era la forma segura de que se desincronizaran.
+The palette from section 2 **isn't** kept separate: it's expressed directly in shadcn's semantic tokens (`--primary`, `--muted-foreground`, `--border`…), so that any component added later comes out already matching the product's identity. Having two color systems coexist was the surest way for them to drift apart.
 
-Un componente propio, no de shadcn, controla el modo: `ThemeToggle` alterna la clase `.dark` en `<html>` y persiste la elección en `localStorage`. Un script inline en `index.html` la aplica antes del primer render para no mostrar un parpadeo del tema equivocado, y hasta que la persona no toca el botón la app sigue el tema del sistema operativo.
+A custom component, not from shadcn, controls the mode: `ThemeToggle` toggles the `.dark` class on `<html>` and persists the choice in `localStorage`. An inline script in `index.html` applies it before the first render so there's no flash of the wrong theme, and until the person touches the button the app follows the OS theme.
 
-## 1. Principios
+## 1. Principles
 
-1. **La conversación manda.** El chat ocupa el centro y el ancho cómodo de lectura (~68 caracteres). Todo lo demás es soporte y puede plegarse.
-2. **El trabajo del agente es visible, no ruidoso.** Cuando Luis consulta la guía técnica o guarda datos, se ve un chip discreto en la línea de tiempo, no un modal ni un spinner a pantalla completa.
-3. **Nada se decide por el usuario.** La derivación a un asesor humano siempre pasa por una tarjeta de confirmación con botones explícitos.
-4. **Los errores dicen qué pasó y qué hacer.** Nunca un código crudo ni un stack trace.
-5. **Peso visual bajo.** Una sola familia tipográfica, bordes de 1px, sombras casi ausentes. La jerarquía viene del color y del espacio, no de cajas.
+1. **The conversation leads.** Chat occupies the center and a comfortable reading width (~68 characters). Everything else is support and can collapse.
+2. **The agent's work is visible, not noisy.** When Luis checks the technical guide or saves data, a discreet chip shows up in the timeline, not a modal or a full-screen spinner.
+3. **Nothing gets decided for the user.** Handing off to a human advisor always goes through a confirmation card with explicit buttons.
+4. **Errors say what happened and what to do.** Never a raw code or a stack trace.
+5. **Low visual weight.** One typeface family, 1px borders, almost no shadows. Hierarchy comes from color and space, not from boxes.
 
-### Anti-patrones que evitamos a propósito
+### Anti-patterns we deliberately avoid
 
-Fondo crema con acento terracota; negro con acento neón; kit de tarjetas SaaS idénticas con la misma sombra; etiquetas en mayúsculas sobre cada título; flechas "→" decorativas en los botones; gradientes morados; ilustraciones de robot.
+A cream background with a terracotta accent; black with a neon accent; a kit of identical SaaS cards with the same shadow; all-caps labels above every heading; decorative "→" arrows on buttons; purple gradients; robot illustrations.
 
 ## 2. Color
 
-Blanco y negro puros, sin acento de color: el propio contraste tipográfico hace de jerarquía y nada compite por la atención con lo que dice Luis. `--primary` se invierte entre modos (negro sobre blanco en claro, blanco sobre negro en oscuro) en vez de ser un tono fijo, que es como shadcn resuelve un "botón principal" en una paleta neutra. El éxito de un handoff y los errores conservan un color discreto porque son estado, no decoración — perderlos del todo le habría costado claridad a la interfaz.
+Pure black and white, with no color accent: typographic contrast alone provides hierarchy, and nothing competes for attention with what Luis says. `--primary` inverts between modes (black on white in light mode, white on black in dark mode) instead of being a fixed hue, which is how shadcn resolves a "primary button" in a neutral palette. A successful handoff and errors keep a discreet color because they're state, not decoration — dropping them entirely would have cost the interface clarity.
 
-| Token | Claro | Oscuro | Rol |
+| Token | Light | Dark | Role |
 |---|---|---|---|
-| `--background` | `#FFFFFF` | `#0A0A0A` | Fondo de la aplicación |
-| `--card` | `#FFFFFF` | `#171717` | Burbuja del agente, panel dev |
-| `--sidebar` | `#FAFAFA` | `#141414` | Barra lateral |
-| `--popover` / `--secondary` | `#F2F2F2` | `#262626` | Menú del selector, tarjeta HITL |
-| `--border` / `--input` | `#E2E2E2` | `#2B2B2B` | Separadores y bordes de 1px |
-| `--foreground` | `#0A0A0A` | `#F2F2F2` | Texto principal |
-| `--muted-foreground` | `#6B6B6B` | `#A3A3A3` | Metadatos, timestamps, chips |
-| `--primary` / `--ring` | `#171717` | `#F2F2F2` | Botón primario, punto de actividad, foco |
-| `--primary-foreground` | `#FAFAFA` | `#171717` | Texto sobre el botón primario |
-| `--color-accent-soft`, `--color-user-bubble` | = `--secondary` | = `--secondary` | Fondo de chip de actividad, burbuja del usuario |
-| `--color-ok` | `#1A7A42` | `#4ADE80` | Handoff confirmado |
-| `--destructive` | `#C0362C` | `#E5645A` | Errores y borrado |
+| `--background` | `#FFFFFF` | `#0A0A0A` | App background |
+| `--card` | `#FFFFFF` | `#171717` | Agent bubble, dev panel |
+| `--sidebar` | `#FAFAFA` | `#141414` | Sidebar |
+| `--popover` / `--secondary` | `#F2F2F2` | `#262626` | Selector menu, HITL card |
+| `--border` / `--input` | `#E2E2E2` | `#2B2B2B` | 1px separators and borders |
+| `--foreground` | `#0A0A0A` | `#F2F2F2` | Primary text |
+| `--muted-foreground` | `#6B6B6B` | `#A3A3A3` | Metadata, timestamps, chips |
+| `--primary` / `--ring` | `#171717` | `#F2F2F2` | Primary button, activity dot, focus |
+| `--primary-foreground` | `#FAFAFA` | `#171717` | Text on the primary button |
+| `--color-accent-soft`, `--color-user-bubble` | = `--secondary` | = `--secondary` | Activity chip background, user bubble |
+| `--color-ok` | `#1A7A42` | `#4ADE80` | Handoff confirmed |
+| `--destructive` | `#C0362C` | `#E5645A` | Errors and deletion |
 
-`:root` lleva el tema claro y `.dark` el oscuro; cuál de los dos se aplica lo decide `ThemeToggle` (sección 0), no una media query — así una elección explícita no queda pisada por el sistema operativo.
+`:root` carries the light theme and `.dark` the dark one; which one applies is decided by `ThemeToggle` (section 0), not a media query — so an explicit choice never gets overridden by the OS.
 
-Contraste en ambos modos: `--foreground` sobre `--background` ≈ 19:1 (claro) y ≈ 17:1 (oscuro); `--muted-foreground` sobre `--card`/`--sidebar` por encima de 4.5:1. El botón primario usa `--primary-foreground` sobre `--primary`, nunca texto de un tono sobre fondo del mismo tono.
+Contrast in both modes: `--foreground` on `--background` ≈ 19:1 (light) and ≈ 17:1 (dark); `--muted-foreground` on `--card`/`--sidebar` stays above 4.5:1. The primary button uses `--primary-foreground` on `--primary`, never a shade of text on a background of the same shade.
 
-## 3. Tipografía
+## 3. Typography
 
-Una sola familia, **Geist Variable**, servida desde el propio bundle (`@fontsource-variable/geist`) y no desde un CDN, para que no dependa de la red ni filtre visitas a terceros. Cae al stack del sistema si por lo que sea no carga:
+A single family, **Geist Variable**, served from the bundle itself (`@fontsource-variable/geist`) rather than a CDN, so it doesn't depend on the network or leak visits to a third party. Falls back to the system stack if it fails to load for any reason:
 
 ```
 font-family: "Geist Variable", "Segoe UI", system-ui, sans-serif
 ```
 
-| Rol | Tamaño / peso |
+| Role | Size / weight |
 |---|---|
-| Nombre del agente en la cabecera | 15px / 600 |
-| Texto de conversación | 15px / 400, interlineado 1.55 |
-| Chips de actividad y metadatos | 12px / 500 |
-| Selector de modelo | 12px / 500 |
-| Etiquetas del panel dev | 11px / 500, `letter-spacing: .04em` |
-| Números del panel dev (latencia, tokens) | 12px / 500, tabular (`font-variant-numeric: tabular-nums`) para que no bailen al actualizarse |
+| Agent name in the header | 15px / 600 |
+| Conversation text | 15px / 400, 1.55 line height |
+| Activity chips and metadata | 12px / 500 |
+| Model selector | 12px / 500 |
+| Dev panel labels | 11px / 500, `letter-spacing: .04em` |
+| Dev panel numbers (latency, tokens) | 12px / 500, tabular (`font-variant-numeric: tabular-nums`) so they don't jitter on update |
 
-Sin mayúsculas forzadas salvo en las etiquetas del panel dev, donde ayudan a separar dato de valor.
+No forced uppercase except in the dev panel's labels, where it helps separate the label from the value.
 
 ## 4. Layout
 
@@ -84,79 +84,83 @@ Sin mayúsculas forzadas salvo en las etiquetas del panel dev, donde ayudan a se
    240px            flexible              280px
 ```
 
-- **Sidebar (240px).** Botón "Nueva conversación" y lista de sesiones. Cada fila muestra el **título de la conversación** en la primera línea y fecha + etapa en la segunda; el título lo genera el modelo ligero en segundo plano a partir del primer mensaje, así que hasta que llega se lee "Conversación nueva". El icono de papelera aparece al pasar el cursor (y con foco de teclado) y abre un `AlertDialog` que aclara que se pierden los mensajes pero no la ficha del lead. Se colapsa bajo 900px a un botón en la cabecera.
-- **Panel de chat (flexible).** Cabecera fina con el nombre del agente y el estado de conexión; lista de mensajes; campo de entrada anclado abajo.
-- **Panel dev (280px, plegable).** Ficha del lead y etapa en vivo, latencia y tokens del último turno, link a la traza en Langfuse. Se pliega con un botón y su estado se recuerda en `localStorage`.
+(the mockup above shows the actual Spanish copy the UI renders, since the product's interface is in Spanish)
+
+- **Sidebar (240px).** A "New conversation" button and the session list. Each row shows the **conversation title** on the first line and date + stage on the second; the title is generated by the lightweight model in the background from the first message, so until it arrives it reads "New conversation." The trash icon appears on hover (and on keyboard focus) and opens an `AlertDialog` clarifying that the messages are lost but not the lead record. It collapses under 900px into a header button.
+- **Chat panel (flexible).** A thin header with the agent's name and connection status; the message list; the input field anchored at the bottom.
+- **Dev panel (280px, collapsible).** The lead record and stage live, the last turn's latency and tokens, a link to the trace in Langfuse. Collapses with a button and its state is remembered in `localStorage`.
 
 ### Responsive
 
-Bajo 900px el panel dev se oculta por completo y la sidebar pasa a un drawer. Bajo 600px las burbujas ocupan el 92% del ancho. El campo de entrada nunca se despega del borde inferior.
+Below 900px the dev panel is fully hidden and the sidebar becomes a drawer. Below 600px bubbles take up 92% of the width. The input field never detaches from the bottom edge.
 
-## 5. Componentes clave
+## 5. Key components
 
-### Burbuja de mensaje
-Agente a la izquierda sobre `--card`, usuario a la derecha sobre `--color-user-bubble`. Radio 14px con la esquina del lado del hablante a 4px. Sin avatar: el alineamiento ya distingue quién habla.
+### Message bubble
+Agent on the left over `--card`, user on the right over `--color-user-bubble`. 14px radius with the speaker's corner at 4px. No avatar: alignment alone distinguishes who's speaking.
 
-**Sobre el streaming (revisado en F6).** El texto del agente llega en un solo evento, no token a token. No es una simplificación: el filtro de salida L4 necesita ver la respuesta completa antes de que salga, y un delta ya transmitido no se puede retirar del navegador — razonado en `specs/02-api-contract.md` §4. Lo que sí ocurre en vivo, y es de donde viene la sensación de que el asesor está trabajando, son los chips de actividad de las tools, la ficha del lead y la tarjeta HITL.
+**On streaming (revisited in F6).** The agent's text arrives in a single event, not token by token. This isn't a simplification: the L4 output filter needs to see the complete response before it goes out, and a delta that's already been sent can't be retracted from the browser — reasoned through in `specs/02-api-contract.md` §4. What does happen live, and is where the feeling that the advisor is working comes from, are the tool activity chips, the lead record, and the HITL card.
 
-**Indicador de escritura.** Como la burbuja del agente no existe hasta que llega la respuesta completa, entre el envío y la respuesta no habría nada en pantalla: con un modelo local en frío eso son decenas de segundos y la interfaz parece colgada. Tres puntos animados ocupan ese hueco desde el primer instante, y a los 8 segundos se añade una línea de texto. Consciente del proveedor del modelo elegido en el selector: con uno de Ollama dice que los modelos locales a veces tardan más de lo normal; con uno de la API (Gemini) el texto es genérico ("esto puede tardar unos segundos"), porque ahí la demora no tiene nada que ver con cargar un modelo en la GPU de esta máquina. Respeta `prefers-reduced-motion`.
+**Typing indicator.** Since the agent's bubble doesn't exist until the complete response arrives, there would otherwise be nothing on screen between sending and the response: with a cold local model that's tens of seconds, and the UI would look frozen. Three animated dots fill that gap from the very first instant, and at 8 seconds a line of text is added. Aware of the model provider selected: with an Ollama one it says local models sometimes take longer than usual; with an API one (Gemini) the text is generic ("this can take a few seconds"), because there the delay has nothing to do with loading a model onto this machine's GPU. Respects `prefers-reduced-motion`.
 
-**Reintentar y editar (bajo el mensaje, no al pie de la pantalla).** Cuando el último mensaje se quedó sin respuesta, el mensaje del usuario que corresponde muestra dos botones de texto pequeños justo debajo — nunca en medio de la conversación, solo en el último, porque es el único que puede necesitarlo:
+**Retry and edit (under the message, not at the bottom of the screen).** When the last message went unanswered, the corresponding user message shows two small text buttons right below it — never in the middle of the conversation, only on the last one, because it's the only one that can ever need it:
 
-- **"↻ Reintentar"** reenvía ese mismo texto sin duplicar la burbuja.
-- **"✎ Editar"** convierte esa misma burbuja en un campo editable, con foco puesto ahí — no manda el texto al campo de entrada principal de abajo. Al confirmar ("Guardar y enviar"), la burbuja queda con el texto corregido y se reenvía; no se agrega un mensaje aparte. "Cancelar" o Escape descartan el cambio sin tocar nada.
+- **"↻ Retry"** resends that same text without duplicating the bubble.
+- **"✎ Edit"** turns that same bubble into an editable field, focused right there — it doesn't send the text to the main input field below. On confirming ("Save and send"), the bubble keeps the corrected text and is resent; no separate message is added. "Cancel" or Escape discards the change without touching anything.
 
-Antes vivía como un botón grande al pie de la pantalla junto al banner de error; con más de un mensaje en la conversación no quedaba claro qué iba a reintentar, así que se movió a pegado al mensaje concreto.
+It used to live as a large button at the bottom of the screen next to the error banner; with more than one message in the conversation it wasn't clear what would be retried, so it was moved to sit right against the specific message.
 
-### Chip de actividad
-Línea propia, fondo `--color-accent-soft`, texto `--muted-foreground`, punto en `--primary` a la izquierda. Aparece al recibir `tool.started` y se resuelve al llegar `tool.finished`.
+### Activity chip
+Its own line, `--color-accent-soft` background, `--muted-foreground` text, a `--primary` dot on the left. Appears on `tool.started` and resolves when `tool.finished` arrives.
 
-| Tool | Texto |
+| Tool | Text |
 |---|---|
 | `search_knowledge_base` | "Consultando la guía técnica…" |
-| `guardar_lead` | "Guardando tus datos…" |
-| `solicitar_contacto_humano` | "Preparando tu solicitud…" |
+| `save_lead` | "Guardando tus datos…" |
+| `request_human_handoff` | "Preparando tu solicitud…" |
 
-### Tarjeta HITL
-Se dispara con `hitl.confirmation_required`. Fondo elevado, borde `--primary` de 1px. Muestra motivo en lenguaje natural (no el enum), el resumen del requerimiento y el canal si se conoce. Dos botones: **"Confirmar solicitud"** (primario) y **"Ahora no"** (fantasma). Al confirmar, la tarjeta se reemplaza por una línea de éxito en `--color-ok`: "Solicitud enviada · TICK-00042".
+(these activity texts are shown in Spanish since that's the product's actual UI copy)
 
-Motivos en lenguaje natural: `TEST_DRIVE` → "agendar un test drive"; `COTIZACION_FORMAL` → "una cotización formal"; `COMPRA_INMEDIATA` → "avanzar con la compra"; `DISCONFORMIDAD` → "atender un reclamo"; `FUERA_DE_ALCANCE` → "hablar con un especialista".
+### HITL card
+Triggered by `hitl.confirmation_required`. Elevated background, 1px `--primary` border. Shows the reason in natural language (not the enum), the requirement summary, and the channel if known. Two buttons: **"Confirmar solicitud"** (primary) and **"Ahora no"** (ghost). On confirming, the card is replaced by a success line in `--color-ok`: "Solicitud enviada · TICK-00042."
 
-### Selector de modelo
-En la cabecera, a la izquierda del botón del panel dev. Un `Select` que lista el catálogo de `GET /api/v1/models` con una insignia por proveedor ("local" o "API"). El modelo elegido se manda en cada turno y se recuerda en `localStorage`; **no** se ata a la conversación, de modo que se puede cambiar de modelo a media charla sin perder el historial ni la ficha del lead — es la forma más directa de enseñar la misma conversación con Gemma 4, Qwen3 y Gemini. Se oculta si solo hay una opción configurada y se deshabilita mientras un turno está en vuelo. Las opciones cuyo proveedor no está configurado (Gemini sin API key) salen deshabilitadas con la nota "sin configurar" en vez de ocultarse, para que se vea qué hay y por qué no se puede usar.
+Reasons in natural language: `TEST_DRIVE` → "agendar un test drive"; `FORMAL_QUOTE` → "una cotización formal"; `IMMEDIATE_PURCHASE` → "avanzar con la compra"; `DISSATISFACTION` → "atender un reclamo"; `OUT_OF_SCOPE` → "hablar con un especialista".
 
-### Título de la conversación
-Lo genera `GUARDRAIL_MODEL` (el modelo pequeño) a partir del primer mensaje del usuario, en segundo plano y después del turno, para no sumarle latencia a la respuesta. De tres a seis palabras, máximo 48 caracteres. Si el modelo devuelve algo inservible se usa el propio mensaje recortado: una conversación siempre tiene que poder distinguirse de las demás en la lista.
+### Model selector
+In the header, to the left of the dev-panel button. A `Select` listing the catalog from `GET /api/v1/models` with a per-provider badge ("local" or "API"). The chosen model is sent on every turn and remembered in `localStorage`; it's **not** tied to the conversation, so the model can be switched mid-chat without losing the history or the lead record — it's the most direct way to teach the same conversation with Gemma 4, Qwen3, and Gemini. Hidden if only one option is configured, and disabled while a turn is in flight. Options whose provider isn't configured (Gemini with no API key) come out disabled with a "not configured" note instead of being hidden, so it's visible what exists and why it can't be used.
+
+### Conversation title
+Generated by `GUARDRAIL_MODEL` (the small model) from the user's first message, in the background and after the turn, so it doesn't add latency to the response. Three to six words, 48 characters max. If the model returns something unusable, the user's own message is used, truncated: a conversation always has to be distinguishable from the others in the list.
 
 ### Error
-Banda sobre el campo de entrada, borde `--destructive`, solo con el texto de qué pasó — sin botón propio. El botón "Reintentar" vive junto al mensaje concreto que se reenvía (ver Burbuja de mensaje), no aquí: uno solo al pie de la pantalla no dejaba claro qué se iba a reintentar cuando ya había varios mensajes en la conversación. Se dispara en tres casos: el backend manda un evento `error`; la conexión SSE se corta sin ningún evento de cierre (crash del backend, red caída — no hay forma de distinguirlo de un turno legítimo salvo notando que nunca llegó nada definitivo); o el turno queda en silencio total más de tres minutos, que es el timeout de inactividad del lado del cliente. Los tres casos usan la misma señal porque desde el punto de vista de quien espera una respuesta son el mismo problema: no llegó nada y hay que poder reintentar sin recargar la página.
+A band above the input field, `--destructive` border, just the text of what happened — no button of its own. The "Retry" button lives next to the specific message being resent (see Message bubble), not here: a single one at the bottom of the screen didn't make clear what would be retried once there were several messages in the conversation. Triggered in three cases: the backend sends an `error` event; the SSE connection drops with no closing event at all (backend crash, network down — there's no way to tell it apart from a legitimate turn except that nothing conclusive ever arrives); or the turn stays completely silent for more than three minutes, the client-side inactivity timeout. All three cases use the same signal because, from the point of view of someone waiting for a response, they're the same problem: nothing arrived, and there has to be a way to retry without reloading the page.
 
-### Panel dev
-Ficha del lead campo por campo (los vacíos en `--muted-foreground` con un guion), etapa como insignia, y del último turno: latencia en ms, tokens in/out y link a la traza si hay `LANGFUSE_PROJECT_ID`. El selector de fault injection se añade en F6, junto con la funcionalidad que lo respalda.
+### Dev panel
+The lead record field by field (empty ones in `--muted-foreground` with a dash), the stage as a badge, and, for the last turn: latency in ms, tokens in/out, and a link to the trace if `LANGFUSE_PROJECT_ID` is set. The fault-injection selector was added in F6, along with the functionality behind it.
 
-### Rutas y creación diferida de la sesión
-Cada conversación vive en su propia URL, `/c/:id`, navegable de verdad: se puede recargar, pegar en otra pestaña o abrir con Ctrl/Cmd+clic sin perder el lugar. `/` es el borrador — la conversación todavía sin crear en el backend.
+### Routes and deferred session creation
+Every conversation lives at its own URL, `/c/:id`, genuinely navigable: it can be reloaded, pasted into another tab, or opened with Ctrl/Cmd+click without losing your place. `/` is the draft — the conversation not yet created in the backend.
 
-El botón "Nueva conversación" solo vuelve al borrador (`/`) y limpia el estado local; no llama a la API. La sesión se crea recién cuando se envía el primer mensaje de verdad, así que un clic repetido en el botón no dejaba una fila vacía por clic — ni tampoco al recargar la página con el borrador sin usar, que era la causa real de la acumulación de "Conversación nueva" en la barra lateral (dos correcciones previas habían tapado sólo dos síntomas del mismo problema: los clics simultáneos y los clics normales repetidos, pero no la creación anticipada en sí).
+The "New conversation" button only returns to the draft (`/`) and clears local state; it doesn't call the API. The session is only created once the first real message is sent, so a repeated click on the button no longer left an empty row per click — nor did reloading the page with the unused draft, which was the real cause of "New conversation" piling up in the sidebar (two earlier fixes had only patched two symptoms of the same underlying problem: simultaneous clicks and repeated normal clicks, but not the early session creation itself).
 
-Al entrar directo a `/c/:id` (un link, un refresh, atrás/adelante del navegador) se carga esa conversación; si el `id` no existe o no es de este usuario, se cae al borrador en vez de dejar la pantalla colgada.
+Going straight to `/c/:id` (a link, a refresh, browser back/forward) loads that conversation; if the `id` doesn't exist or doesn't belong to this user, it falls back to the draft instead of leaving the screen stuck.
 
-### Conversación que se quedó sin respuesta
-El backend no persiste que un turno falló, solo el intercambio en sí (guardar un "esto no funcionó" complicaría el modelo de datos por algo que ADK ya resuelve dejando, sencillamente, nada escrito). Si al cargar una conversación el último mensaje guardado es del usuario, no hubo respuesta — el modelo falló, la conexión se cortó a medias, lo que sea. Se reconstruye la misma señal de reintento que un fallo en vivo: aparece el ícono "Reintentar" bajo ese mensaje y reenvía su texto a la misma conversación, sin duplicar la burbuja que ya está en pantalla.
+### A conversation left without a response
+The backend doesn't persist that a turn failed, only the exchange itself (recording "this didn't work" would complicate the data model for something ADK already resolves by simply leaving nothing written). If, on loading a conversation, the last saved message is from the user, there was no response — the model failed, the connection dropped mid-way, whatever it was. The same retry signal as a live failure is reconstructed: the "Retry" icon shows up under that message and resends its text to the same conversation, without duplicating the bubble already on screen.
 
-Motivo real detrás de esto, encontrado inspeccionando la base de datos en vivo: un turno cuya conexión se corta a medias hace que ADK cancele la tarea del agente (`Root node <agent> was cancelled`) antes de escribir ningún evento — ni siquiera uno de error. Antes de este arreglo, recargar una conversación así dejaba el mensaje del usuario ahí colgado sin ninguna pista de que se podía reintentar.
+The real reason behind this, found by inspecting the database live: a turn whose connection drops mid-way makes ADK cancel the agent's task (`Root node <agent> was cancelled`) before writing any event at all — not even an error one. Before this fix, reloading a conversation like that left the user's message just sitting there with no hint that it could be retried.
 
-## 6. Accesibilidad y calidad
+## 6. Accessibility and quality
 
-- Foco visible en todo elemento interactivo: anillo `--ring`, que se invierte con el tema igual que el resto de la paleta. Nunca `outline: none` sin reemplazo.
-- El campo de entrada es un `textarea`: Enter envía y Shift+Enter hace salto de línea, que es lo que ya se espera de un chat.
-- La lista de mensajes es `aria-live="polite"` para que un lector de pantalla anuncie las respuestas conforme llegan.
-- Los chips de actividad y el estado de conexión se anuncian con `role="status"`.
-- `prefers-reduced-motion`: desaparecen el parpadeo del cursor y las transiciones de entrada de burbuja.
-- Objetivos táctiles de 40px mínimo en los botones de la tarjeta HITL.
-- TypeScript strict con `noUncheckedIndexedAccess`; los tipos de la API se generan del `/openapi.json` del backend, no se escriben a mano.
-- Tests con vitest del parser de SSE y del reducer del chat: son la lógica con estado real de la UI y donde un bug sería invisible a simple vista.
+- Visible focus on every interactive element: a `--ring` ring that inverts with the theme like the rest of the palette. Never `outline: none` with no replacement.
+- The input field is a `textarea`: Enter sends and Shift+Enter breaks the line, which is already what's expected from a chat.
+- The message list is `aria-live="polite"` so a screen reader announces responses as they arrive.
+- Activity chips and the connection status are announced with `role="status"`.
+- `prefers-reduced-motion`: the cursor blink and bubble-entry transitions disappear.
+- Minimum 40px touch targets on the HITL card's buttons.
+- TypeScript strict with `noUncheckedIndexedAccess`; API types are generated from the backend's `/openapi.json`, never written by hand.
+- Vitest tests for the SSE parser and the chat reducer: they're the UI's real stateful logic, and where a bug would be invisible at a glance.
 
-## 7. Qué queda fuera de F4
+## 7. What's out of scope for F4
 
-Botones de feedback 👍/👎 (llegan en F7, junto con el endpoint que los respalda) y el selector de fault injection (F6). Se documentan aquí para que el diseño ya les reserve lugar: el feedback va bajo cada respuesta del agente y el selector, al pie del panel dev.
+👍/👎 feedback buttons (arriving in F7, together with the endpoint backing them) and the fault-injection selector (F6). Documented here so the design already reserves room for them: feedback goes under each agent response, and the selector at the bottom of the dev panel.

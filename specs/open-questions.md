@@ -1,48 +1,48 @@
 # Open questions
 
-Bloqueos, decisiones que los specs no cubren del todo, y prerrequisitos pendientes del humano. Se resuelven antes de que la fase correspondiente los necesite; no bloquean F0.
+Blockers, decisions the specs don't fully cover, and prerequisites still pending from the human. These get resolved before the relevant phase needs them; they don't block F0.
 
-## Prerrequisitos · estado
+## Prerequisites · status
 
-Detectado al arrancar F0 (2026-09-15) y actualizado al cerrar F1.
+Detected when starting F0 (2026-09-15) and updated when closing F1.
 
-### Resuelto
+### Resolved
 
-- **Repositorio git.** Se inicializó localmente en F0 (`git init -b main`) con `main`, `develop` y una rama por fase.
-- **Python 3.12.** Sí existe, aunque no en PATH: `uv` resuelve `cpython-3.12.11`. El proyecto lo pinea con `requires-python = ">=3.12,<3.13"` y `uv sync` lo usa automáticamente. No hace falta instalar nada más.
-- **`google-adk`.** Instalado y verificado en F1: **2.9.1** (pineado exacto en `backend/pyproject.toml`), importa correctamente en Python 3.12.11.
-- **IDs de modelos Gemini.** Confirmados contra la documentación oficial el 2026-09-15 y fijados en `.env.example`: `gemini-3.8-flash` (agente), `gemini-3.5-flash-lite` (guardrail L2), `gemini-3.5-flash` (eval), `gemini-3.7-flash` (fallback, a propósito de otra generación que el principal), `gemini-embedding-001` (768 dims, estable; `gemini-embedding-2-preview` sigue en preview y es el que no acepta `task_type`).
+- **Git repository.** Initialized locally in F0 (`git init -b main`) with `main`, `develop`, and one branch per phase.
+- **Python 3.12.** It does exist, though not on PATH: `uv` resolves `cpython-3.12.11`. The project pins it with `requires-python = ">=3.12,<3.13"` and `uv sync` picks it up automatically. Nothing else needs installing.
+- **`google-adk`.** Installed and verified in F1: **2.9.1** (pinned exactly in `backend/pyproject.toml`), imports correctly under Python 3.12.11.
+- **Gemini model IDs.** Confirmed against the official documentation on 2026-09-15 and fixed in `.env.example`: `gemini-3.8-flash` (agent), `gemini-3.5-flash-lite` (guardrail L2), `gemini-3.5-flash` (eval), `gemini-3.7-flash` (fallback, deliberately a different generation from the main one), `gemini-embedding-001` (768 dims, stable; `gemini-embedding-2-preview` is still in preview and is the one that doesn't accept `task_type`).
 - **Docker, uv, Node.** Docker 29.8.0 / Compose v5.5.1, uv 0.10.12, Node 24.14.1.
-- `.local/baseline_n8n.json` presente y cubierto por `.gitignore`; `.env` local creado en F1 y también ignorado (verificado con `git check-ignore`).
+- `.local/baseline_n8n.json` present and covered by `.gitignore`; the local `.env` was created in F1 and is also ignored (verified with `git check-ignore`).
 
-### Abierto
+### Open
 
-- **`gh` CLI no instalado** y sin repo remoto en GitHub. Los merges de fase se están haciendo localmente con `git merge --no-ff`, usando el cuerpo del merge commit como descripción de PR (qué, por qué, cómo probar, AT cubiertos). **Acción del humano:** crear el repo público, `gh auth login`, `git remote add origin ...` y `git push` de `main` y `develop`. Sin esto, el CI de GitHub Actions (`.github/workflows/ci.yml`) nunca corre y el entregable "repo público" queda pendiente.
-- **Skills de ADK no instalados** (`npx skills add google/agents-cli`). Necesario al empezar F2 para verificar firmas de ADK 2.x.
-- **`GOOGLE_API_KEY` real — bloquea el DoD de F4.** El `.env` local tiene un placeholder que solo satisface la validación de arranque. Con él, el backend responde `error` en cada turno, así que en el navegador solo se puede ejercer el camino de fallo, no el de streaming, chips de actividad y tarjeta HITL. Todo eso sí está cubierto por tests contra el `FakeAdkLlm`, pero el DoD de F4 pide verlo end-to-end en el navegador, y el video de entrega lo necesita igual. También hace falta para la ingesta real de la KB en F5 (embeddings).
-- **GNU `make` no está instalado en Windows** (sí Chocolatey). El `Makefile` es la interfaz canónica y funciona en CI, Docker y Linux/macOS. En esta máquina los comandos se corren directamente (`cd backend && uv run pytest`, etc.). **Opcional:** `choco install make -y` desde una consola con privilegios de administrador.
-- **Puertos ocupados en esta máquina.** Otros contenedores del usuario ya usan 8000 y 5173. `docker-compose.yml` publica puertos configurables (`BACKEND_PORT`, `FRONTEND_PORT`, `POSTGRES_PORT`) y el `.env` local los desplaza a 8008 y 5174. Los defaults del repo siguen siendo 8000/5173 para quien lo clone.
+- **`gh` CLI not installed** and no remote repo on GitHub. Phase merges are being done locally with `git merge --no-ff`, using the merge commit's body as the PR description (what, why, how to test, ATs covered). **Action for the human:** create the public repo, `gh auth login`, `git remote add origin ...`, and `git push` both `main` and `develop`. Without this, the GitHub Actions CI (`.github/workflows/ci.yml`) never runs, and the "public repo" deliverable stays pending.
+- **ADK skills not installed** (`npx skills add google/agents-cli`). Needed at the start of F2 to verify ADK 2.x signatures.
+- **A real `GOOGLE_API_KEY` — blocks F4's DoD.** The local `.env` has a placeholder that only satisfies the startup validation. With it, the backend returns `error` on every turn, so the only path exercisable in the browser is the failure path, not streaming, activity chips, and the HITL card. All of that is covered by tests against `FakeAdkLlm`, but F4's DoD calls for seeing it end-to-end in the browser, and the delivery video needs it too. It's also needed for real KB ingestion in F5 (embeddings).
+- **GNU `make` isn't installed on Windows** (Chocolatey is). The `Makefile` is the canonical interface and works in CI, Docker, and Linux/macOS. On this machine the commands are run directly (`cd backend && uv run pytest`, etc.). **Optional:** `choco install make -y` from an elevated console.
+- **Ports already in use on this machine.** Other containers of the user's already use 8000 and 5173. `docker-compose.yml` publishes configurable ports (`BACKEND_PORT`, `FRONTEND_PORT`, `POSTGRES_PORT`) and this machine's local `.env` moves them to 8008 and 5174. The repo's defaults stay at 8000/5173 for whoever clones it.
 
-- **Otro Postgres nativo en el host.** Hay un servicio `postgresql-x64-18` escuchando en 0.0.0.0:5432, así que el contenedor del proyecto solo pudo bindear IPv6 y `localhost:5432` iba al Postgres nativo (fallaba la autenticación). El compose ahora publica `POSTGRES_PORT=5442` vía `.env`. En CI y en una máquina limpia el default sigue siendo 5432.
+- **Another native Postgres on the host.** A `postgresql-x64-18` service is listening on 0.0.0.0:5432, so the project's container could only bind IPv6, and `localhost:5432` was hitting the native Postgres (authentication failed). The compose file now publishes `POSTGRES_PORT=5442` via `.env`. In CI and on a clean machine, the default stays 5432.
 
-## Resuelto en F2 (documentado en `specs/notes/adk-api.md`)
+## Resolved in F2 (documented in `specs/notes/adk-api.md`)
 
-- Prefijo de scope de usuario: es `user:` (también existen `app:` y `temp:`). Decisión tomada: **no** se usa para el lead — la tabla `leads` es la única fuente de verdad (spec 06 §1).
-- `EventsCompactionConfig(token_threshold=..., event_retention_size=..., summarizer=...)`, verificado. Está cableado; falta afinar umbrales con conversaciones largas (F7).
-- Inyección de estado en la instrucción: `instruction` acepta un callable `(ReadonlyContext) -> str | Awaitable[str]`. Se usa esa vía en lugar de placeholders `{state_key}`, porque la ficha del lead es JSON y sus llaves colisionan con el templating.
+- User-scope prefix: it's `user:` (there are also `app:` and `temp:`). Decision made: it's **not** used for the lead — the `leads` table is the single source of truth (spec 06 §1).
+- `EventsCompactionConfig(token_threshold=..., event_retention_size=..., summarizer=...)`, verified. It's wired up; thresholds still need tuning with long conversations (F7).
+- State injection into the instruction: `instruction` accepts a callable `(ReadonlyContext) -> str | Awaitable[str]`. That path is used instead of `{state_key}` placeholders, because the lead record is JSON and its braces collide with the templating.
 
-## Sigue abierto para F3 y más adelante
+## Still open for F3 and beyond
 
-- Estabilidad de la confirmación nativa de tools de ADK 2.x (`ToolContext.request_confirmation`, `EventActions.requested_tool_confirmations` — ambos existen) sobre nuestro streaming SSE. Spike de F3 y ADR-002.
-- Si el SDK de ADK 2.x expone un nivel de "thinking" configurable por env para el modelo del agente (spec 05 §3). No se investigó en F2: no bloquea, es una optimización de latencia.
-- `App(name=...)` debe coincidir con el directorio del agente para que `adk eval` encuentre las sesiones. Nuestra estructura no sigue la convención de directorios de ADK; revisar al montar el evalset en F7.
+- Stability of ADK 2.x's native tool confirmation (`ToolContext.request_confirmation`, `EventActions.requested_tool_confirmations` — both exist) over our SSE streaming. F3 spike and ADR-002.
+- Whether the ADK 2.x SDK exposes a "thinking" level configurable via env for the agent's model (spec 05 §3). Not investigated in F2: it doesn't block anything, it's a latency optimization.
+- `App(name=...)` has to match the agent's directory for `adk eval` to find the sessions. Our structure doesn't follow ADK's directory convention; revisit when setting up the evalset in F7.
 
-## Encontrado en la sincronización spec↔código de F9
+## Found during the F9 spec↔code sync
 
-- **`solo_mirando` nunca se activaba — resuelto.** El flag existía de punta a punta (frase canned, inyectado en la instrucción) pero ningún código lo escribía. El humano eligió cerrarlo antes de la entrega: `guardar_lead` ganó un campo opcional `solo_mirando: bool` que escribe `SOLO_MIRANDO_KEY` en el estado de sesión (igual patrón que ya usaba para la etapa), con AT-05 real (`test_at_agent_core.py`) y verificado en vivo contra el modelo real.
-- **`GUARDRAIL_MODEL` no guarda relación con ningún guardrail.** El nombre sugiere el clasificador L2 (nunca implementado, sigue P1), pero en el código real ese modelo lo usan `TitleService` y el resumidor de `EventsCompactionConfig` (spec 06 §2) — el nombre de la variable quedó desalineado de su uso real. No se renombró en F9 por el costo de tocar `config.py`/`.env.example`/`docker-compose.yml`/tests a días de la entrega; documentado en spec 07 §5 y aquí para quien retome esto.
+- **`just_browsing` was never actually triggered — resolved.** The flag existed end-to-end (canned phrase, injected into the instruction) but no code ever wrote it. The human chose to close this before delivery: `save_lead` gained an optional `just_browsing: bool` field that writes `SOLO_MIRANDO_KEY` to the session state (the same pattern already used for the stage), with a real AT-05 (`test_at_agent_core.py`) and verified live against the real model.
+- **`GUARDRAIL_MODEL` has nothing to do with any guardrail.** The name suggests the L2 classifier (never implemented, still P1), but in the real code that model is used by `TitleService` and the `EventsCompactionConfig` summarizer (spec 06 §2) — the variable's name drifted from its actual use. It wasn't renamed in F9 given the cost of touching `config.py`/`.env.example`/`docker-compose.yml`/tests days before delivery; documented in spec 07 §5 and here for whoever picks this up.
 
-## Otras decisiones abiertas, no bloqueantes
+## Other open decisions, non-blocking
 
-- Formato exacto de `ADMIN_TOKEN` (bearer estático simple vs. algo más elaborado) — se define en F3 junto con los endpoints admin; un bearer estático por env basta para el alcance del reto.
-- Librería de normalización de teléfono peruano (9 dígitos) vs. E.164 — se define en F2 al implementar `guardar_lead`; probablemente una función propia simple, sin dependencia nueva.
+- Exact format of `ADMIN_TOKEN` (a simple static bearer vs. something more elaborate) — defined in F3 alongside the admin endpoints; a static env-based bearer is enough for the challenge's scope.
+- Peruvian phone-number normalization library vs. E.164 — defined in F2 while implementing `save_lead`; probably a simple custom function, no new dependency.
