@@ -18,7 +18,12 @@ SAFE_PRICING_REPLY = {
 }
 
 _PRICING_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\b(s/\.?|pen|usd|us\$|\$)\s?\d"),
+    # `$` alone can't get a `\b` boundary check the way the word-forms can: `$`
+    # is a non-word char, so `\b` never fires when it's preceded by whitespace
+    # or sits at the start of the string ("costs $25,000" silently failed to
+    # match) -- a bare `$` followed by a digit is unambiguous enough to check
+    # for on its own, no boundary needed.
+    re.compile(r"(?:\b(?:s/\.?|pen|usd|us\$)|\$)\s?\d"),
     re.compile(r"\b\d[\d.,]{2,}\s?(soles|dolares|dollars|usd|pen)\b"),
     re.compile(
         r"\b(cuesta|costs?)\s+(aproximadamente\s+|cerca\s+de\s+|unos\s+|about\s+|around\s+)?\d"
