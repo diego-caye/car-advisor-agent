@@ -43,7 +43,7 @@ async def create_session(request: Request, user_id: UserId) -> CreateSessionResp
 async def list_sessions(request: Request, user_id: UserId) -> list[SessionSummary]:
     container = _container(request)
     sessions = await _chat_service(request).list_sessions(user_id)
-    # Un solo round-trip para todos los títulos, no uno por sesión (spec 06).
+    # A single round trip for all titles, not one per session (spec 06).
     titles = await container.session_titles.get_many([session.id for session in sessions])
     summaries = [
         SessionSummary(
@@ -63,8 +63,9 @@ async def delete_session(request: Request, user_id: UserId, session_id: str) -> 
         await _chat_service(request).delete_session(user_id, session_id)
     except SessionNotFoundError as exc:
         raise NotFoundError("Session not found") from exc
-    # El título y el feedback viven aparte de la sesión de ADK: borrar la
-    # sesión no los arrastra solos, hay que limpiarlos a mano.
+    # The title and the feedback live apart from the ADK session: deleting
+    # the session doesn't drag them along on its own, they have to be
+    # cleaned up by hand.
     container = _container(request)
     await container.session_titles.delete(session_id)
     await container.feedback.delete_for_session(session_id)
@@ -78,11 +79,12 @@ async def list_messages(request: Request, user_id: UserId, session_id: str) -> l
         raise NotFoundError("Session not found") from exc
 
     messages: list[MessageDto] = []
-    # El motivo del handoff no viaja en su respuesta final (ver
-    # handoff_tools.py: "cancelado" no lo incluye), pero sí en los args de la
-    # llamada original a la tool -- misma id que su(s) respuesta(s), la
-    # pendiente y la final (verificado contra una sesión real, no de memoria:
-    # ADK 2.x no se escribe sin comprobar el paquete instalado).
+    # The handoff's reason doesn't travel in its final response (see
+    # handoff_tools.py: "cancelado" doesn't include it), but it does in the
+    # args of the original call to the tool -- same id as its response(s),
+    # the pending one and the final one (verified against a real session,
+    # not from memory: ADK 2.x isn't written without checking the installed
+    # package).
     motivo_by_call_id: dict[str, str] = {}
 
     for event in session.events:
@@ -106,8 +108,8 @@ async def list_messages(request: Request, user_id: UserId, session_id: str) -> l
                     ticket=data["ticket"], ya_existia=bool(data.get("ya_existia", False))
                 )
             elif data.get("cancelado"):
-                # Motivo desconocido (no debería pasar, ver comentario arriba):
-                # la propia tarjeta del frontend cae a una etiqueta genérica.
+                # Reason unknown (shouldn't happen, see comment above): the
+                # frontend's own card falls back to a generic label.
                 motivo = motivo_by_call_id.get(response.id or "", "")
                 messages[-1].decision = DeclinedDecision(motivo=motivo)
 

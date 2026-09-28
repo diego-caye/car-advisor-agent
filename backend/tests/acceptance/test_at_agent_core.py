@@ -1,4 +1,4 @@
-"""AT-01, AT-02, AT-03, AT-05 y AT-19 de specs/09-acceptance-tests.md."""
+"""AT-01, AT-02, AT-03, AT-05, and AT-19 from specs/09-acceptance-tests.md."""
 
 import asyncio
 from uuid import UUID, uuid4
@@ -110,7 +110,7 @@ async def test_at05_solo_estoy_mirando_activa_el_modo_y_persiste(
         f"/api/v1/sessions/{session_id}/lead", headers={"X-User-Id": str(user_id)}
     )
     assert lead.json()["solo_mirando"] is True
-    # No mandó ningún dato del lead: la ficha sigue vacía, solo cambió la intención.
+    # It didn't send any lead data: the record is still empty, only the intent changed.
     assert lead.json()["lead"]["nombre"] is None
 
     fake_llm.turns = [FakeTurn(text="Claro, aquí estoy si tienes dudas.")]
@@ -202,7 +202,7 @@ async def test_no_se_puede_borrar_una_conversacion_ajena(client: AsyncClient) ->
     )
 
     assert response.status_code == 404
-    # Sigue existiendo para su dueño.
+    # It still exists for its owner.
     still = await client.get(
         f"/api/v1/sessions/{session_id}/messages", headers={"X-User-Id": str(owner)}
     )

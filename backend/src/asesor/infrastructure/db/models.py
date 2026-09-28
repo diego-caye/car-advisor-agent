@@ -60,7 +60,7 @@ class HandoffRow(Base):
     )
 
     __table_args__ = (
-        # Idempotencia de spec 03: como maximo un handoff OPEN por sesion.
+        # Idempotency from spec 03: at most one OPEN handoff per session.
         Index(
             "ux_handoffs_one_open_per_session",
             "session_id",
@@ -71,14 +71,14 @@ class HandoffRow(Base):
 
 
 class SessionTitleRow(Base):
-    """El título de una conversación, fuera de la sesión de ADK a propósito.
+    """A conversation's title, kept outside the ADK session on purpose.
 
-    Guardarlo como estado de sesión (un append_event con state_delta) competía
-    por el mismo lock optimista que el turno de chat: si el título se escribía
-    mientras un turno siguiente en la misma sesión seguía en vuelo, el append
-    del propio turno salía rechazado con StaleSessionError — un adorno de la
-    barra lateral tumbando la respuesta real. Una tabla aparte no comparte ese
-    candado con nada.
+    Storing it as session state (an append_event with state_delta) competed
+    for the same optimistic lock as the chat turn: if the title was being
+    written while a following turn in the same session was still in flight,
+    that turn's own append would come back rejected with StaleSessionError —
+    a sidebar decoration taking down the actual response. A separate table
+    doesn't share that lock with anything.
     """
 
     __tablename__ = "session_titles"
@@ -90,11 +90,11 @@ class SessionTitleRow(Base):
 
 
 class FeedbackRow(Base):
-    """Feedback 👍/👎 del usuario sobre un turno (spec 02, spec 08 S4).
+    """User's 👍/👎 feedback on a turn (spec 02, spec 08 S4).
 
-    Solo se escribe, nada dentro de la app lo vuelve a leer: vive aquí para
-    tener un respaldo propio incluso sin Langfuse configurado (el score
-    `user-feedback` se manda ahí también, pero eso es best-effort).
+    Write-only, nothing inside the app reads it back: it lives here to have
+    its own backup even without Langfuse configured (the `user-feedback`
+    score is also sent there, but that's best-effort).
     """
 
     __tablename__ = "feedback"
@@ -110,11 +110,11 @@ class FeedbackRow(Base):
 
 
 class EvaluationRow(Base):
-    """Un criterio evaluado de un turno (spec 08 S5), una fila por criterio.
+    """An evaluated criterion of a turn (spec 08 S5), one row per criterion.
 
-    Igual que feedback: solo se escribe desde EvaluationService, nada dentro
-    de la app la vuelve a leer. El score tambien se manda a Langfuse
-    (best-effort); esta tabla es el respaldo propio que sobrevive sin eso.
+    Same as feedback: only written from EvaluationService, nothing inside
+    the app reads it back. The score is also sent to Langfuse (best-effort);
+    this table is the own backup that survives without that.
     """
 
     __tablename__ = "evaluations"

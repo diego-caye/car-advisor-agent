@@ -32,8 +32,9 @@ def create_app(
         )
         if isinstance(container.session_service, DatabaseSessionService):
             await container.session_service.prepare_tables()
-        # Falla rápido si la KB se ingirió con otro modelo: son espacios
-        # vectoriales distintos y sus distancias no son comparables (spec 06 §4).
+        # Fails fast if the KB was ingested with a different model: they're
+        # different vector spaces and their distances aren't comparable
+        # (spec 06 §4).
         await container.knowledge_service.verify_embedding_model()
         app.state.container = container
         try:

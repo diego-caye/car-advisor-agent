@@ -45,8 +45,9 @@ class ChatService:
         return session
 
     async def delete_session(self, user_id: UUID, session_id: str) -> None:
-        # get_session primero para no revelar la existencia de sesiones ajenas:
-        # si no es del usuario, sale 404 igual que si no existiera.
+        # get_session first so as not to reveal the existence of other users'
+        # sessions: if it's not the user's, it comes back 404 just as if it
+        # didn't exist.
         await self.get_session(user_id, session_id)
         await self._session_service.delete_session(
             app_name=APP_NAME, user_id=str(user_id), session_id=session_id
@@ -62,11 +63,11 @@ class ChatService:
     async def resume_with_confirmation(
         self, user_id: UUID, session_id: str, confirmation_id: str, approved: bool
     ) -> AsyncIterator[Event]:
-        """Reanuda el turno pausado respondiendo la confirmación de tool de ADK.
+        """Resumes the paused turn by answering ADK's tool confirmation.
 
-        El formato lo fija ADK: una function response del usuario llamada
-        `adk_request_confirmation`, con el id de la llamada de confirmación
-        (spike de F3, ADR-002).
+        The format is fixed by ADK: a user function response called
+        `adk_request_confirmation`, with the id of the confirmation call
+        (F3 spike, ADR-002).
         """
         answer = ToolConfirmation(confirmed=approved)
         part = types.Part.from_function_response(

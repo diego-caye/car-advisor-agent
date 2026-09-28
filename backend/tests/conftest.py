@@ -7,15 +7,17 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-# El compose publica puertos fuera de los habituales para no chocar con otros
-# proyectos. En CI el servicio escucha en el 5432 y se pasa por TEST_DATABASE_URL.
+# Compose publishes ports outside the usual ones so as not to clash with
+# other projects. In CI the service listens on 5432 and is passed via
+# TEST_DATABASE_URL.
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://asesor:asesor@localhost:5490/asesor_test"
 )
 
 TEST_ENV = {
-    # dev + ENABLE_FAULT_INJECTION para poder ejercer los AT de fallos. Que el
-    # header se ignore fuera de dev lo cubre test_config (fault_injection_active).
+    # dev + ENABLE_FAULT_INJECTION so the fault ATs can be exercised. That
+    # the header is ignored outside of dev is covered by test_config
+    # (fault_injection_active).
     "APP_ENV": "dev",
     "ENABLE_FAULT_INJECTION": "true",
     "DATABASE_URL": TEST_DATABASE_URL,
@@ -29,19 +31,20 @@ TEST_ENV = {
     "EMBEDDINGS_PROVIDER": "gemini",
     "EMBEDDINGS_MODEL": "gemini-embedding-001",
     "GUARDRAIL_CANARY_TOKEN": "CANARY-TEST-0001",
-    # En blanco a proposito, aunque el .env real del desarrollador tenga keys
-    # de verdad (F7): sin esto, Settings cae al ../.env real y los tests que
-    # asumen "sin Langfuse configurado" (telemetry_enabled is False) se
-    # rompen -- o peor, llamarian a la API real de Langfuse sin querer.
+    # Blank on purpose, even though the developer's real .env has real keys
+    # (F7): without this, Settings falls back to the real ../.env and the
+    # tests that assume "no Langfuse configured" (telemetry_enabled is
+    # False) break -- or worse, they'd call the real Langfuse API by accident.
     "LANGFUSE_PUBLIC_KEY": "",
     "LANGFUSE_SECRET_KEY": "",
     "LANGFUSE_HOST": "",
     "LANGFUSE_PROJECT_ID": "",
-    # FakeEmbeddings es bolsa de palabras: sus scores no viven en el mismo rango
-    # que los de un embedder real, para el que está calibrado el 0.55 de produccion.
-    # Medido sobre la KB real: consulta relevante ~0.55, irrelevante ~0.07, así que
-    # 0.35 separa ambos casos. Lo que el test verifica es el cableado del umbral
-    # (no_results, orden, filtro), no la calidad semántica del embedding.
+    # FakeEmbeddings is a bag-of-words: its scores don't live in the same
+    # range as a real embedder's, which production's 0.55 is calibrated for.
+    # Measured against the real KB: relevant query ~0.55, irrelevant ~0.07,
+    # so 0.35 separates both cases. What the test verifies is the
+    # threshold's wiring (no_results, ordering, filter), not the embedding's
+    # semantic quality.
     "RAG_MIN_SCORE": "0.35",
 }
 

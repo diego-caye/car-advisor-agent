@@ -25,12 +25,12 @@ def make(**overrides: object) -> Settings:
 
 
 def test_respaldo_de_ollama_es_litellm_aunque_el_principal_sea_gemini() -> None:
-    """Bug real, visto en vivo: el proveedor del respaldo lo dice el propio
-    FALLBACK_MODEL, no el proveedor del modelo principal elegido. Antes se
-    ramificaba por choice.provider y esto construía un
-    Gemini(model="ollama_chat/llama3.2:3b") -- 404 real contra la API de
-    Gemini al seleccionar Gemini desde el selector con un respaldo de Ollama
-    configurado (el caso por defecto de este proyecto)."""
+    """Real bug, seen live: the fallback's provider is dictated by
+    FALLBACK_MODEL itself, not by the provider of the chosen primary model.
+    It used to branch on choice.provider and this built a
+    Gemini(model="ollama_chat/llama3.2:3b") -- a real 404 against the Gemini
+    API when selecting Gemini from the selector with an Ollama fallback
+    configured (this project's default case)."""
     settings = make(fallback_model="ollama_chat/llama3.2:3b")
     choice = ModelChoice(
         id="gemini", label="Gemini", provider=LlmProviderName.GEMINI, model="gemini-3.8-flash"

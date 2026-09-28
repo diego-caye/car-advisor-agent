@@ -28,17 +28,17 @@ def make(**overrides: object) -> Settings:
 
 
 def _fake_build(choice: ModelChoice) -> Runner:
-    """Nada de construir un Runner real de ADK aquí: solo importa qué id pidió
-    RunnerRegistry, no lo que devuelve. El cast es explícito, no un
-    `# type: ignore` a ciegas."""
+    """No building a real ADK Runner here: only which id RunnerRegistry asked
+    for matters, not what it returns. The cast is explicit, not a blind
+    `# type: ignore`."""
     return cast(Runner, object())
 
 
 def test_los_modelos_de_ollama_no_se_declaran_a_mano_se_descubren() -> None:
-    """MODEL_CHOICES no necesita (ni debe) listar los modelos de Ollama:
-    build_catalog los toma de lo que discover_ollama_models reportó, no de
-    configuración estática — así el selector nunca queda desincronizado de
-    lo que de verdad hay instalado.
+    """MODEL_CHOICES doesn't need to (and shouldn't) list Ollama models:
+    build_catalog takes them from what discover_ollama_models reported, not
+    from static configuration — so the selector never gets out of sync with
+    what's actually installed.
     """
     settings = make()
     discovered = [
@@ -55,8 +55,9 @@ def test_los_modelos_de_ollama_no_se_declaran_a_mano_se_descubren() -> None:
 
 
 def test_los_modelos_de_solo_embeddings_no_deberian_llegar_aqui() -> None:
-    """discover_ollama_models ya los filtra; build_catalog no vuelve a
-    comprobarlo, así que esto documenta el contrato: lo que llega, entra.
+    """discover_ollama_models already filters them out; build_catalog
+    doesn't check again, so this documents the contract: whatever arrives,
+    gets in.
     """
     settings = make()
     discovered = [
@@ -84,8 +85,9 @@ def test_las_entradas_estaticas_no_ollama_se_conservan() -> None:
 
 
 def test_una_entrada_ollama_en_model_choices_se_ignora() -> None:
-    """Ollama es dinámico o no es: una entrada de Ollama declarada a mano en
-    MODEL_CHOICES se descarta, para que no compita en id con lo descubierto.
+    """Ollama is dynamic or it isn't: an Ollama entry declared by hand in
+    MODEL_CHOICES is discarded, so it doesn't compete on id with what's
+    discovered.
     """
     settings = make(
         model_choices=[

@@ -15,7 +15,7 @@ async def seed_kb(
     embeddings: FakeEmbeddings,
     sources: list[str],
 ) -> int:
-    """Ingesta acotada de la KB real: solo los archivos que el test necesita."""
+    """Scoped ingestion of the real KB: only the files the test needs."""
     chunks = [chunk for chunk in load_chunks(KB_DIR) if chunk.source in sources]
     if not chunks:
         raise AssertionError(f"Ningún fragmento para {sources} en {KB_DIR}")

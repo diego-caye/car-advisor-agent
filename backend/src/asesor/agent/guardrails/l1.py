@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 MAX_MESSAGE_CHARS = 2000
 
-# Cc = control, Cf = formato invisible (zero-width, overrides de bidi). Se usan
-# para esconder instrucciones dentro de un mensaje que a la vista es inocente.
-# Filtrar por categoría cubre más que una lista de rangos escrita a mano.
+# Cc = control, Cf = invisible formatting (zero-width, bidi overrides). These
+# are used to hide instructions inside a message that looks innocent at a
+# glance. Filtering by category covers more than a hand-written list of
+# ranges.
 _INVISIBLE_CATEGORIES = frozenset({"Cc", "Cf"})
 _KEEP_ANYWAY = frozenset({"\n", "\r", "\t"})
 
@@ -55,10 +56,10 @@ _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(r"\b(you\s+are\s+now|from\s+now\s+on\s+you\s+are|act\s+as\s+if\s+you)\b"),
     ),
     ("injection", re.compile(r"\b(modo|mode)\s+(desarrollador|developer|dan|jailbreak)\b")),
-    # Etiquetas de rol: hacer pasar texto del usuario por un turno de sistema.
+    # Role labels: passing off user text as a system turn.
     ("injection", re.compile(r"(^|\s)(system|assistant|developer)\s*:")),
     ("injection", re.compile(r"<\s*/?\s*(system|assistant|instructions?)\s*>")),
-    # Bloques codificados largos, usados para esconder la carga útil.
+    # Long encoded blocks, used to hide the payload.
     ("injection", re.compile(r"\b[A-Za-z0-9+/]{80,}={0,2}\b")),
     ("injection", re.compile(r"\b(?:[0-9a-f]{2}[\s:]){30,}")),
 )
@@ -80,25 +81,25 @@ def strip_invisible(text: str) -> str:
 
 
 def normalize(text: str) -> str:
-    """NFKC, sin invisibles y con espacios colapsados.
+    """NFKC, without invisibles, and with collapsed whitespace.
 
-    La normalización va antes de buscar patrones: sin ella, "ignora" escrito en
-    caracteres de ancho completo, o partido con un zero-width en medio, esquivaría
-    el filtro.
+    Normalization happens before pattern matching: without it, "ignora"
+    written in full-width characters, or split with a zero-width character
+    in the middle, would dodge the filter.
     """
     normalized = unicodedata.normalize("NFKC", strip_invisible(text))
     return _WHITESPACE.sub(" ", normalized).strip()
 
 
 def fold(text: str) -> str:
-    """Minúsculas y sin tildes, para que 'instrucción' y 'instruccion' coincidan."""
+    """Lowercase and without accents, so 'instrucción' and 'instruccion' match."""
     decomposed = unicodedata.normalize("NFKD", text.casefold())
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
 def inspect_message(text: str) -> L1Verdict:
     if len(text) > MAX_MESSAGE_CHARS:
-        return L1Verdict(True, "too_long", f"mensaje de {len(text)} caracteres")
+        return L1Verdict(True, "too_long", f"{len(text)}-character message")
 
     haystack = fold(normalize(text))
 

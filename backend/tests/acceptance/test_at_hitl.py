@@ -1,4 +1,4 @@
-"""AT-08, AT-09 y AT-10 de specs/09-acceptance-tests.md."""
+"""AT-08, AT-09, and AT-10 from specs/09-acceptance-tests.md."""
 
 from uuid import UUID
 

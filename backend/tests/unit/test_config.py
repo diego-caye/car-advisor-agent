@@ -52,7 +52,7 @@ def test_ollama_requires_api_base() -> None:
 
 
 def test_ollama_rechaza_el_prefijo_equivocado() -> None:
-    # ollama/ puede provocar loops de tool-calling: solo ollama_chat/ es válido.
+    # ollama/ can cause tool-calling loops: only ollama_chat/ is valid.
     with pytest.raises(ValidationError, match="ollama_chat/"):
         make(**{**OLLAMA, "agent_model": "ollama/gemma4:latest"})
 
@@ -81,7 +81,7 @@ def test_telemetry_disabled_without_langfuse_keys() -> None:
     [("true", True), ("false", False), ("low", "low"), ("HIGH", "high"), (None, None)],
 )
 def test_ollama_think_se_normaliza(raw: str | None, esperado: object) -> None:
-    # Ollama rechaza la cadena "true": quiere el booleano o un nivel.
+    # Ollama rejects the string "true": it wants the boolean or a level.
     assert make(**{**OLLAMA, "ollama_think": raw}).ollama_think == esperado
 
 
