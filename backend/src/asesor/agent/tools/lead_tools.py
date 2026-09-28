@@ -51,32 +51,32 @@ def make_save_lead(lead_service: LeadService) -> SaveLead:
         interest_level: str | None = None,
         just_browsing: bool | None = None,
     ) -> dict[str, Any]:
-        """Guarda o actualiza la ficha del usuario con los datos que vaya compartiendo.
+        """Saves or updates the user's lead record with whatever data they share.
 
-        Llámala apenas el usuario dé su nombre, su uso principal, el tipo de vehículo o
-        la motorización que le interesa, o cuando notes que cambió su nivel de interés.
-        Actualiza solo los campos que conozcas: manda null en todos los demás.
+        Call it as soon as the user gives their name, primary use, the vehicle type
+        or powertrain they're interested in, or when you notice their interest level
+        changed. Update only the fields you know: send null for everything else.
 
         Args:
-            name: Nombre del usuario, 1 a 80 caracteres.
-            phone: Celular peruano de 9 dígitos o número en formato internacional.
-            email: Correo electrónico del usuario.
-            preferred_channel: Uno de WHATSAPP, CALL, EMAIL, CHAT.
-            contact_consent: true si el usuario aceptó explícitamente ser
-                contactado. Obligatorio si mandas phone o email.
-            primary_use: Uno de CITY, WORK, FAMILY, TRAVEL, MIXED.
-            vehicle_type_interest: Uno de SUV, SEDAN, HATCHBACK, PICKUP, VAN,
+            name: User's name, 1 to 80 characters.
+            phone: Peruvian 9-digit mobile number or a number in international format.
+            email: User's email address.
+            preferred_channel: One of WHATSAPP, CALL, EMAIL, CHAT.
+            contact_consent: true if the user explicitly agreed to be contacted.
+                Required if you send phone or email.
+            primary_use: One of CITY, WORK, FAMILY, TRAVEL, MIXED.
+            vehicle_type_interest: One of SUV, SEDAN, HATCHBACK, PICKUP, VAN,
                 CROSSOVER, OTHER.
-            powertrain_interest: Uno de GASOLINE, DIESEL, HYBRID, ELECTRIC,
+            powertrain_interest: One of GASOLINE, DIESEL, HYBRID, ELECTRIC,
                 LPG_CNG, UNDEFINED.
-            interest_level: Uno de LOW, MEDIUM, HIGH, deducido de la conversación.
-            just_browsing: true la primera vez que el usuario diga que solo está
-                mirando/comparando, sin intención de avanzar todavía. Puede ir solo,
-                sin ningún otro campo. Una vez activado, sigue así el resto de la
-                conversación: no hace falta volver a mandarlo.
+            interest_level: One of LOW, MEDIUM, HIGH, inferred from the conversation.
+            just_browsing: true the first time the user says they're just
+                looking/comparing, with no intent to move forward yet. It can go
+                alone, with no other field. Once set, it stays that way for the
+                rest of the conversation: no need to send it again.
 
         Returns:
-            La ficha actualizada y la etapa del diálogo.
+            The updated lead record and the dialog stage.
         """
         try:
             args = _SaveLeadArgs(

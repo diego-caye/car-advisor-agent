@@ -22,20 +22,20 @@ def make_search_knowledge_base(knowledge_service: KnowledgeService) -> SearchKno
         category: str | None = None,
         top_k: int = 4,
     ) -> dict[str, Any]:
-        """Busca en la guía técnica automotriz antes de explicar temas técnicos.
+        """Searches the automotive knowledge base before explaining technical topics.
 
-        Úsala siempre que el usuario pregunte por carrocerías, segmentos,
-        motorizaciones, transmisiones, consumo, mantenimiento o seguridad. Si la
-        búsqueda no devuelve resultados, dilo con honestidad en vez de suponer.
+        Use it whenever the user asks about body types, segments, powertrains,
+        transmissions, fuel economy, maintenance, or safety. If the search returns
+        no results, say so honestly instead of guessing.
 
         Args:
-            query: La pregunta o el tema a buscar, hasta 300 caracteres.
-            category: Filtro opcional. Una de BODY_TYPES, SEGMENTS, POWERTRAIN,
+            query: The question or topic to search for, up to 300 characters.
+            category: Optional filter. One of BODY_TYPES, SEGMENTS, POWERTRAIN,
                 TRANSMISSION, FUEL_ECONOMY, MAINTENANCE, SAFETY, USAGE, GLOSSARY.
-            top_k: Cuántos fragmentos traer, de 1 a 8. Por defecto 4.
+            top_k: How many chunks to fetch, 1 to 8. Defaults to 4.
 
         Returns:
-            Los fragmentos encontrados con su título y fuente, o no_results.
+            The chunks found with their title and source, or no_results.
         """
         try:
             args = _SearchArgs(query=query, category=category, top_k=top_k)

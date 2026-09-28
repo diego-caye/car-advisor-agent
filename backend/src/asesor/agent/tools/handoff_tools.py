@@ -35,21 +35,21 @@ def make_request_human_handoff(handoff_service: HandoffService) -> RequestHumanH
         preferred_channel: str | None = None,
         urgency: str | None = None,
     ) -> dict[str, Any]:
-        """Deriva al usuario a un asesor humano, con su confirmación previa.
+        """Hands the user off to a human advisor, with their prior confirmation.
 
-        Úsala cuando el usuario pida un test drive o una cotización formal, quiera
-        comprar y hablar con una persona, exprese disconformidad, o el tema supere
-        lo que puedes orientar. El usuario debe confirmar antes de que se ejecute.
+        Use it when the user asks for a test drive or a formal quote, wants to buy
+        and talk to a person, expresses dissatisfaction, or the topic exceeds what
+        you can guide them through. The user must confirm before it executes.
 
         Args:
-            reason: Uno de TEST_DRIVE, FORMAL_QUOTE, IMMEDIATE_PURCHASE,
+            reason: One of TEST_DRIVE, FORMAL_QUOTE, IMMEDIATE_PURCHASE,
                 DISSATISFACTION, OUT_OF_SCOPE.
-            requirement_summary: Resumen de lo que necesita, 10 a 500 caracteres.
-            preferred_channel: Uno de WHATSAPP, CALL, EMAIL, CHAT.
-            urgency: Una de LOW, MEDIUM, HIGH.
+            requirement_summary: Summary of what they need, 10 to 500 characters.
+            preferred_channel: One of WHATSAPP, CALL, EMAIL, CHAT.
+            urgency: One of LOW, MEDIUM, HIGH.
 
         Returns:
-            El estado de la solicitud y su número de ticket cuando se crea.
+            The request's status and its ticket number once it's created.
         """
         try:
             args = _HandoffArgs(
