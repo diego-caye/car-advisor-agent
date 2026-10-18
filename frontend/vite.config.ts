@@ -6,14 +6,14 @@ import { defineConfig } from 'vite'
 
 const apiTarget = process.env.VITE_API_TARGET ?? 'http://localhost:8000'
 
-// En Docker el código se monta desde el sistema de archivos de Windows y los
-// eventos de inotify no cruzan el bind mount: sin polling, editar un .tsx no
-// dispara el HMR. En local (sin la variable) se usa el watcher nativo.
+// In Docker the code is mounted from the Windows filesystem and inotify
+// events don't cross the bind mount: without polling, editing a .tsx doesn't
+// trigger HMR. Locally (without the variable) the native watcher is used.
 const polling = process.env.VITE_POLLING === 'true'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // shadcn/ui genera sus componentes importando desde '@/'.
+  // shadcn/ui generates its components importing from '@/'.
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },

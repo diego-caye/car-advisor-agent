@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { StreamIdleTimeoutError, api, sendConfirmation, sendMessage } from '../../api/client'
 import { navigate, sessionIdFromPath, sessionPath } from '../../lib/route'
 import type { ModelOption, ServerEvent, SessionSummary } from '../../api/types'
 import { type Message, chatReducer, initialChatState } from './reducer'
-
-const GENERIC_ERROR = 'No pudimos conectar con el asesor. Reintenta en unos segundos.'
-const TIMEOUT_ERROR = 'El asesor tardó demasiado en responder. Reintenta en unos segundos.'
 
 // Events that actually close a turn. If the stream ends without having
 // emitted any of these, the connection dropped halfway (backend crash,
@@ -30,6 +28,7 @@ function readStoredModel(): string | null {
 }
 
 export function useChat() {
+  const { t } = useTranslation()
   const [state, dispatch] = useReducer(chatReducer, initialChatState)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   // The URL is the source of truth for which conversation is shown, not a
@@ -93,8 +92,9 @@ export function useChat() {
       lead: lead.lead,
       stage: lead.stage as never,
       unansweredMessage: last?.role === 'user' ? last.content : null,
+      unansweredError: t('errors.unanswered'),
     })
-  }, [])
+  }, [t])
 
   const consume = useCallback(
     async (events: AsyncGenerator<ServerEvent>) => {
@@ -106,15 +106,16 @@ export function useChat() {
           if (TERMINAL_EVENTS.has(event.type)) sawTerminalEvent = true
         }
         if (!sawTerminalEvent) {
-          dispatch({ type: 'turn-failed', message: GENERIC_ERROR })
+          dispatch({ type: 'turn-failed', message: t('errors.generic') })
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return
-        const message = error instanceof StreamIdleTimeoutError ? TIMEOUT_ERROR : GENERIC_ERROR
+        const message =
+          error instanceof StreamIdleTimeoutError ? t('errors.timeout') : t('errors.generic')
         dispatch({ type: 'turn-failed', message })
       }
     },
-    [dispatch],
+    [dispatch, t],
   )
 
   // The in-flight promise is stored, not just a boolean: several clicks
@@ -191,7 +192,7 @@ export function useChat() {
       try {
         id = sessionId ?? (await createSession())
       } catch {
-        dispatch({ type: 'turn-failed', message: GENERIC_ERROR })
+        dispatch({ type: 'turn-failed', message: t('errors.generic') })
         return
       }
 
@@ -200,7 +201,7 @@ export function useChat() {
       await consume(sendMessage(id, text, modelId, controller.signal))
       await refreshSessions()
     },
-    [sessionId, modelId, createSession, consume, refreshSessions],
+    [sessionId, modelId, createSession, consume, refreshSessions, t],
   )
 
   const answerConfirmation = useCallback(

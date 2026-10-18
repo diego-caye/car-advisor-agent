@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { api } from '../../api/client'
 import {
@@ -19,7 +20,7 @@ import { Separator } from '@/components/ui/separator'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 
 import type { FeedbackDto, LeadDto, TurnMetrics } from '../../api/types'
-import { LEAD_FIELDS, STAGE_LABEL } from '../chat/labels'
+import { LEAD_FIELDS, stageLabel } from '../chat/labels'
 
 type Props = {
   lead: LeadDto | null
@@ -40,18 +41,19 @@ const LANGFUSE_HOST =
   (import.meta.env['VITE_LANGFUSE_HOST'] as string | undefined) || 'https://cloud.langfuse.com'
 
 export function DevPanel({ lead, stage, metrics, onClose, onOpenSession, feedbackVersion }: Props) {
+  const { t } = useTranslation()
   const record = (lead ?? {}) as Record<string, unknown>
 
   return (
     <Sidebar side="right" collapsible="offcanvas">
       <SidebarHeader className="flex-row items-center justify-between p-4 pb-0">
-        <Label>Panel dev</Label>
+        <Label>{t('devPanel.title')}</Label>
         <Button
           type="button"
           variant="ghost"
           size="icon-xs"
           onClick={onClose}
-          aria-label="Ocultar panel dev"
+          aria-label={t('devPanel.hide')}
           className="text-muted-foreground hover:text-foreground"
         >
           <X aria-hidden="true" />
@@ -62,20 +64,20 @@ export function DevPanel({ lead, stage, metrics, onClose, onOpenSession, feedbac
         <Separator />
 
         <section>
-          <Label>Etapa</Label>
+          <Label>{t('devPanel.stage')}</Label>
           <Badge variant="secondary" className="mt-1.5">
-            {STAGE_LABEL[stage] ?? stage}
+            {stageLabel(t, stage)}
           </Badge>
         </section>
 
         <section>
-          <Label>Ficha del lead</Label>
+          <Label>{t('devPanel.leadRecord')}</Label>
           <dl className="mt-1.5 flex flex-col gap-1">
             {LEAD_FIELDS.map((field) => {
               const value = record[field.key]
               return (
                 <div key={field.key} className="flex justify-between gap-2 text-xs">
-                  <dt className="text-muted-foreground">{field.label}</dt>
+                  <dt className="text-muted-foreground">{t(field.labelKey)}</dt>
                   <dd className={value ? 'text-foreground' : 'text-muted-foreground'}>
                     {typeof value === 'string' && value ? value : '—'}
                   </dd>
@@ -86,16 +88,16 @@ export function DevPanel({ lead, stage, metrics, onClose, onOpenSession, feedbac
         </section>
 
         <section>
-          <Label>Último turno</Label>
+          <Label>{t('devPanel.lastTurn')}</Label>
           {metrics ? (
             <dl className="mt-1.5 flex flex-col gap-1 text-xs">
-              <Row label="Latencia" value={`${metrics.latency_ms} ms`} />
-              <Row label="Tokens in" value={String(metrics.tokens_in)} />
-              <Row label="Tokens out" value={String(metrics.tokens_out)} />
-              <Row label="Modelo" value={metrics.model ?? '—'} />
+              <Row label={t('devPanel.latency')} value={`${metrics.latency_ms} ms`} />
+              <Row label={t('devPanel.tokensIn')} value={String(metrics.tokens_in)} />
+              <Row label={t('devPanel.tokensOut')} value={String(metrics.tokens_out)} />
+              <Row label={t('devPanel.model')} value={metrics.model ?? '—'} />
             </dl>
           ) : (
-            <p className="text-muted-foreground mt-1.5 text-xs">Sin turnos todavía.</p>
+            <p className="text-muted-foreground mt-1.5 text-xs">{t('devPanel.noTurnsYet')}</p>
           )}
 
           {metrics && LANGFUSE_PROJECT && (
@@ -105,7 +107,7 @@ export function DevPanel({ lead, stage, metrics, onClose, onOpenSession, feedbac
                 target="_blank"
                 rel="noreferrer"
               >
-                Ver traza en Langfuse
+                {t('devPanel.viewTraceInLangfuse')}
               </a>
             </Button>
           )}
@@ -146,6 +148,7 @@ function FeedbackSection({
   onOpenSession: (sessionId: string) => void
   refreshKey: number
 }) {
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<FeedbackDto[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -165,7 +168,7 @@ function FeedbackSection({
     try {
       setEntries(await api.listFeedback())
     } catch {
-      setError('No se pudo cargar el feedback.')
+      setError(t('devPanel.loadFeedbackError'))
     } finally {
       setLoading(false)
     }
@@ -178,7 +181,7 @@ function FeedbackSection({
       await api.deleteFeedback(id)
       setEntries((prev) => prev?.filter((entry) => entry.id !== id) ?? null)
     } catch {
-      setError('No se pudo borrar el feedback.')
+      setError(t('devPanel.deleteFeedbackError'))
     } finally {
       setDeletingId(null)
     }
@@ -187,7 +190,7 @@ function FeedbackSection({
   return (
     <section>
       <div className="flex items-center justify-between">
-        <Label>Feedback</Label>
+        <Label>{t('devPanel.feedback')}</Label>
         <Button
           type="button"
           size="xs"
@@ -196,18 +199,18 @@ function FeedbackSection({
           onClick={() => void load()}
           disabled={loading}
         >
-          Actualizar
+          {t('devPanel.refresh')}
         </Button>
       </div>
 
       {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
 
       {!entries && !error && (
-        <p className="text-muted-foreground mt-1.5 text-xs">Cargando…</p>
+        <p className="text-muted-foreground mt-1.5 text-xs">{t('devPanel.loading')}</p>
       )}
 
       {entries && entries.length === 0 && (
-        <p className="text-muted-foreground mt-1.5 text-xs">Sin feedback todavía.</p>
+        <p className="text-muted-foreground mt-1.5 text-xs">{t('devPanel.noFeedbackYet')}</p>
       )}
 
       {entries && entries.length > 0 && (
@@ -238,8 +241,8 @@ function FeedbackSection({
                     type="button"
                     variant="ghost"
                     size="icon-xs"
-                    aria-label="Eliminar feedback"
-                    title="Eliminar feedback"
+                    aria-label={t('devPanel.deleteFeedback')}
+                    title={t('devPanel.deleteFeedback')}
                     disabled={deletingId === entry.id}
                     className="text-muted-foreground hover:text-destructive absolute top-1/2 right-1 -translate-y-1/2 opacity-0 group-hover:opacity-100"
                   >
@@ -248,18 +251,18 @@ function FeedbackSection({
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar este feedback?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('devPanel.deleteFeedbackDialogTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Se borra esta fila del panel de revisión. La conversación no se toca.
+                      {t('devPanel.deleteFeedbackDialogDescription')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>{t('devPanel.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                       variant="destructive"
                       onClick={() => void handleDelete(entry.id)}
                     >
-                      Eliminar
+                      {t('devPanel.delete')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

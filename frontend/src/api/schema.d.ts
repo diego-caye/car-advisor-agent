@@ -169,14 +169,14 @@ export interface paths {
          * List Models
          * @description Model selector catalog.
          *
-         *     For Ollama, this catalog doesn't come from configuration: it was discovered
-         *     at startup against /api/tags + /api/show (see infrastructure.container),
-         *     so it always reflects what's actually installed, with its real
-         *     capabilities (supports_tools, supports_thinking).
+         *     For Ollama, this catalog doesn't come from configuration: it was
+         *     discovered at startup against /api/tags + /api/show (see
+         *     infrastructure.container), so it always reflects what's truly installed,
+         *     with its real capabilities (supports_tools, supports_thinking).
          *
-         *     `available` is false for options whose provider isn't configured
-         *     (Gemini without an API key, for example): the UI shows them disabled
-         *     instead of hiding them, so it's visible what exists and why it can't be used.
+         *     `available` is false for options whose provider isn't configured (Gemini
+         *     without an API key, for example): the UI shows them disabled instead of
+         *     hiding them, so it's clear what exists and why it can't be used.
          */
         get: operations["list_models_api_v1_models_get"];
         put?: never;
