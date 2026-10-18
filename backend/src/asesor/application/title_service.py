@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 MAX_TITLE_CHARS = 48
 
 _PROMPT = (
-    "Resume en un titulo corto de 3 a 6 palabras de que trata esta consulta de "
-    "un cliente a un asesor automotriz. Responde SOLO el titulo, sin comillas, "
-    "sin punto final y sin explicaciones.\n\nConsulta: {mensaje}\n\nTitulo:"
+    "Summarize in a short title of 3 to 6 words what this customer's query to "
+    "a car advisor is about. Write the title in the SAME language as the "
+    "query below -- never translate it. Reply with ONLY the title: no "
+    "quotes, no trailing period, no explanations.\n\nQuery: {message}\n\nTitle:"
 )
 
 _QUOTES = re.compile(r'^["\'`¿¡\s]+|["\'`.\s]+$')
@@ -71,7 +72,7 @@ class TitleService:
             contents=[
                 types.Content(
                     role="user",
-                    parts=[types.Part.from_text(text=_PROMPT.format(mensaje=message))],
+                    parts=[types.Part.from_text(text=_PROMPT.format(message=message))],
                 )
             ],
         )
