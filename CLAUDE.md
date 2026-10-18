@@ -13,7 +13,7 @@ After F0, **don't re-read `specs/prompts/00-master-build.md` in full**. Read `sp
 3. **Mandatory checkpoints:** end of F0 (already happened); blockers or decisions not covered by the specs (note them in `specs/open-questions.md` and ask); before merging `develop → main`.
 4. **ADK 2.x is never written from memory.** Use the `google-agents-cli-adk-code`, `google-agents-cli-eval`, `google-agents-cli-observability` skills; verify every class/signature against the installed package before using it (document it in `specs/notes/adk-api.md`). Don't use the agents-cli scaffold.
 5. **Confidentiality.** Nothing from `.local/` enters the history (already in `.gitignore`). Don't mention brands or companies from the hiring process.
-6. **Languages.** Code, specs, and README are in English; the bot replies in whichever language the end user writes in, defaulting to Peru Spanish with informal "tú" when that's unclear or on the first message.
+6. **Languages.** Code, specs, and README are in English; the bot replies in whichever language the end user writes in — judged from their actual words, including on the first message — defaulting to Peru Spanish with informal "tú" only when that's genuinely unclear (e.g. a bare "hola"/"hi").
 7. **Architecture.** `api → application → domain ← infrastructure`; `domain` has no ADK/FastAPI/SQLAlchemy imports; `agent` uses `application`. Detail in `specs/01-architecture.md`.
 
 ## Closed decisions (summary; detail in `specs/01-architecture.md` and `00-master-build.md` §2)
