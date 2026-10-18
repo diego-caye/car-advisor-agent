@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { Pencil, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 import { DeclinedNotice, HandoffNotice } from '../hitl/ConfirmationCard'
 import type { Activity, Message } from './reducer'
-import { TOOL_ACTIVITY } from './labels'
+import { toolActivityLabel } from './labels'
 
 type Props = {
   messages: Message[]
@@ -38,6 +39,7 @@ export function MessageList({
   traceId,
   onFeedback,
 }: Props) {
+  const { t } = useTranslation()
   const endRef = useRef<HTMLDivElement>(null)
   const lastMessage = messages.at(-1)
 
@@ -55,7 +57,7 @@ export function MessageList({
     <div
       className="flex-1 overflow-y-auto px-4 py-6 sm:px-8"
       aria-live="polite"
-      aria-label="Conversación"
+      aria-label={t('messageList.ariaLabel')}
     >
       <div className="mx-auto flex max-w-2xl flex-col gap-3">
         {messages.map((message) => {
@@ -124,6 +126,7 @@ function Bubble({
   showFeedback: boolean
   onFeedback: (score: 1 | -1) => void
 }) {
+  const { t } = useTranslation()
   const isUser = message.role === 'user'
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
@@ -177,7 +180,7 @@ function Bubble({
         />
         <div className="mt-1 flex gap-1">
           <Button type="button" size="xs" onClick={confirmEdit} disabled={!draft.trim()}>
-            Guardar y enviar
+            {t('messageList.saveAndSend')}
           </Button>
           <Button
             type="button"
@@ -186,7 +189,7 @@ function Bubble({
             onClick={() => setEditing(false)}
             className="text-muted-foreground hover:text-foreground"
           >
-            Cancelar
+            {t('messageList.cancel')}
           </Button>
         </div>
       </div>
@@ -221,7 +224,7 @@ function Bubble({
             className="text-muted-foreground hover:text-foreground"
           >
             <RotateCcw aria-hidden="true" />
-            Reintentar
+            {t('messageList.retry')}
           </Button>
           <Button
             type="button"
@@ -232,7 +235,7 @@ function Bubble({
             className="text-muted-foreground hover:text-foreground"
           >
             <Pencil aria-hidden="true" />
-            Editar
+            {t('messageList.edit')}
           </Button>
         </div>
       )}
@@ -245,8 +248,8 @@ function Bubble({
             size="icon-xs"
             onClick={() => sendFeedback(1)}
             disabled={feedbackSent !== null}
-            aria-label="Buena respuesta"
-            title="Buena respuesta"
+            aria-label={t('messageList.goodReply')}
+            title={t('messageList.goodReply')}
             className={
               feedbackSent === 1
                 ? 'text-ok'
@@ -261,8 +264,8 @@ function Bubble({
             size="icon-xs"
             onClick={() => sendFeedback(-1)}
             disabled={feedbackSent !== null}
-            aria-label="Mala respuesta"
-            title="Mala respuesta"
+            aria-label={t('messageList.badReply')}
+            title={t('messageList.badReply')}
             className={
               feedbackSent === -1
                 ? 'text-destructive'
@@ -272,7 +275,7 @@ function Bubble({
             <ThumbsDown aria-hidden="true" />
           </Button>
           {feedbackSent !== null && (
-            <span className="text-muted-foreground text-xs">gracias por el feedback</span>
+            <span className="text-muted-foreground text-xs">{t('messageList.thanksForFeedback')}</span>
           )}
         </div>
       )}
@@ -283,6 +286,7 @@ function Bubble({
 const SLOW_REPLY_MS = 8000
 
 function TypingIndicator({ isLocalModel }: { isLocalModel: boolean }) {
+  const { t } = useTranslation()
   const [slow, setSlow] = useState(false)
 
   useEffect(() => {
@@ -291,7 +295,11 @@ function TypingIndicator({ isLocalModel }: { isLocalModel: boolean }) {
   }, [])
 
   return (
-    <div className="flex flex-col items-start gap-1.5" role="status" aria-label="Luis está escribiendo">
+    <div
+      className="flex flex-col items-start gap-1.5"
+      role="status"
+      aria-label={t('messageList.agentTyping')}
+    >
       <span className="inline-flex items-center gap-1.5 rounded-[14px] rounded-bl-[4px] bg-card border px-4 py-3">
         <Dot delay="0ms" />
         <Dot delay="160ms" />
@@ -305,9 +313,7 @@ function TypingIndicator({ isLocalModel }: { isLocalModel: boolean }) {
               for the local case: there's no way to know that from here, and
               saying it on the model's fifth call, already warmed up, is more
               confusing than reassuring. */}
-          {isLocalModel
-            ? 'Los modelos locales a veces tardan más de lo normal…'
-            : 'Esto puede tardar unos segundos…'}
+          {isLocalModel ? t('messageList.slowLocalModel') : t('messageList.slowReply')}
         </span>
       )}
     </div>
@@ -328,11 +334,12 @@ function Dot({ delay }: { delay: string }) {
 }
 
 function ActivityChip({ name }: { name: string }) {
+  const { t } = useTranslation()
   return (
     <div className="flex justify-start" role="status">
       <Badge variant="secondary" className="bg-accent-soft text-muted-foreground h-auto py-1.5">
         <span className="bg-primary size-1.5 animate-pulse rounded-full" aria-hidden="true" />
-        {TOOL_ACTIVITY[name] ?? 'Trabajando…'}
+        {toolActivityLabel(t, name)}
       </Badge>
     </div>
   )

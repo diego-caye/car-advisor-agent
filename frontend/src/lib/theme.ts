@@ -25,7 +25,7 @@ export function setStoredTheme(theme: Theme): void {
   try {
     localStorage.setItem(THEME_KEY, theme)
   } catch {
-    // Preferencia accesoria: si el almacenamiento falla, solo no se recuerda.
+    // Non-essential preference: if storage fails, it just isn't remembered.
   }
 }
 

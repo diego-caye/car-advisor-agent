@@ -5,11 +5,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Paleta monocroma (blanco y negro, sin acento de color) expresada en los
-   tokens semánticos de shadcn: así los componentes de la librería salen ya
-   con la identidad del producto y no hay dos sistemas de color compitiendo.
-   :root es el tema claro y .dark lo invierte; cuál de los dos se aplica lo
-   decide src/lib/theme.ts añadiendo o quitando la clase en <html>. */
+/* Monochrome palette (black and white, no color accent) expressed through
+   shadcn's semantic tokens: this way the library's components come out
+   already matching the product's identity, with no two color systems
+   competing. :root is the light theme and .dark inverts it; which of the
+   two applies is decided by src/lib/theme.ts adding or removing the class
+   on <html>. */
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
@@ -75,9 +76,9 @@
   --font-sans: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
   --font-heading: var(--font-sans);
 
-  /* Tonos propios que shadcn no nombra y el chat sí necesita. El éxito de un
-     handoff y los errores conservan color con moderación: son estado, no
-     decoración, y perderlos del todo le costaría claridad a la interfaz. */
+  /* Tokens shadcn doesn't name that the chat needs. A handoff's success and
+     errors keep a touch of color on purpose: they're state, not decoration,
+     and losing it entirely would cost the UI clarity. */
   --color-raised: var(--secondary);
   --color-accent-soft: var(--secondary);
   --color-user-bubble: var(--secondary);

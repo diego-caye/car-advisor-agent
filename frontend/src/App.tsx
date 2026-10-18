@@ -1,9 +1,11 @@
 import { useState, type CSSProperties } from 'react'
 import { SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 import { Composer } from './features/chat/Composer'
@@ -17,6 +19,7 @@ import { Sidebar } from './features/sessions/Sidebar'
 const DEV_PANEL_KEY = 'asesor.devpanel'
 
 export default function App() {
+  const { t } = useTranslation()
   const {
     state,
     sessions,
@@ -60,7 +63,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <SidebarTrigger />
             <h1 className="text-[15px] font-semibold">
-              Luis <span className="text-muted-foreground font-normal">· asesor automotriz</span>
+              Luis <span className="text-muted-foreground font-normal">· {t('header.subtitle')}</span>
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -78,17 +81,17 @@ export default function App() {
                 onClick={() => toggleDevPanel(true)}
               >
                 <SlidersHorizontal aria-hidden="true" />
-                Panel dev
+                {t('header.devPanelButton')}
               </Button>
             )}
+            <LanguageToggle />
             <ThemeToggle />
           </div>
         </header>
 
         {state.messages.length === 0 && (
           <p className="text-muted-foreground mx-auto mt-10 max-w-md px-6 text-center text-sm">
-            Cuéntale a Luis qué buscas: para qué usarás el auto, qué carrocería te llama o
-            cualquier duda técnica. Te orienta sin presionarte.
+            {t('emptyState')}
           </p>
         )}
 

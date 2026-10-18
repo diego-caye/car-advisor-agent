@@ -1,9 +1,10 @@
 import { CircleCheckBig, CircleX, UserRoundCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-import { CHANNEL_LABEL, REASON_LABEL } from '../chat/labels'
+import { channelLabel, reasonLabel } from '../chat/labels'
 import type { Confirmation, DeclinedConfirmation, Handoff } from '../chat/reducer'
 
 type Props = {
@@ -13,9 +14,10 @@ type Props = {
 }
 
 export function ConfirmationCard({ confirmation, busy, onAnswer }: Props) {
-  const reason = REASON_LABEL[confirmation.reason] ?? 'hablar con un asesor'
+  const { t } = useTranslation()
+  const reason = reasonLabel(t, confirmation.reason)
   const channel = confirmation.preferred_channel
-    ? (CHANNEL_LABEL[confirmation.preferred_channel] ?? confirmation.preferred_channel)
+    ? channelLabel(t, confirmation.preferred_channel)
     : null
 
   return (
@@ -23,21 +25,23 @@ export function ConfirmationCard({ confirmation, busy, onAnswer }: Props) {
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center gap-2 text-[15px]">
           <UserRoundCheck className="text-primary size-4" aria-hidden="true" />
-          ¿Te derivamos con un asesor?
+          {t('confirmation.title')}
         </CardTitle>
-        <CardDescription>Luis quiere pasar tu caso a una persona para {reason}.</CardDescription>
+        <CardDescription>{t('confirmation.description', { reason })}</CardDescription>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
         <p className="bg-card rounded-lg px-3 py-2 text-sm">{confirmation.resumen}</p>
 
         {channel && (
-          <p className="text-muted-foreground text-xs">Te contactarían por {channel}.</p>
+          <p className="text-muted-foreground text-xs">
+            {t('confirmation.contactedVia', { channel })}
+          </p>
         )}
 
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="lg" onClick={() => onAnswer(true)} disabled={busy}>
-            Confirmar solicitud
+            {t('confirmation.confirm')}
           </Button>
           <Button
             type="button"
@@ -46,7 +50,7 @@ export function ConfirmationCard({ confirmation, busy, onAnswer }: Props) {
             onClick={() => onAnswer(false)}
             disabled={busy}
           >
-            Ahora no
+            {t('confirmation.declineNow')}
           </Button>
         </div>
       </CardContent>
@@ -55,13 +59,16 @@ export function ConfirmationCard({ confirmation, busy, onAnswer }: Props) {
 }
 
 export function HandoffNotice({ handoff }: { handoff: Handoff }) {
+  const { t } = useTranslation()
+
   return (
     <p
       className="border-ok/40 bg-card text-ok mx-auto flex max-w-2xl items-center gap-2 rounded-lg border px-4 py-2.5 text-sm"
       role="status"
     >
       <CircleCheckBig className="size-4 shrink-0" aria-hidden="true" />
-      ¿Te derivamos con un asesor? · {handoff.ya_existia ? 'Ya tenías una solicitud en curso' : 'Sí, derivar'} ·{' '}
+      {t('confirmation.title')} ·{' '}
+      {handoff.ya_existia ? t('confirmation.alreadyHadOne') : t('confirmation.yesHandoff')} ·{' '}
       <span className="tabular font-semibold">{handoff.ticket}</span>
     </p>
   )
@@ -71,7 +78,8 @@ export function HandoffNotice({ handoff }: { handoff: Handoff }) {
 // there's no ticket to show -- just the echo of the question and the
 // decision, so it doesn't look like the card simply vanished on its own.
 export function DeclinedNotice({ declined }: { declined: DeclinedConfirmation }) {
-  const reason = REASON_LABEL[declined.reason] ?? 'hablar con un asesor'
+  const { t } = useTranslation()
+  const reason = reasonLabel(t, declined.reason)
 
   return (
     <p
@@ -79,7 +87,7 @@ export function DeclinedNotice({ declined }: { declined: DeclinedConfirmation })
       role="status"
     >
       <CircleX className="size-4 shrink-0" aria-hidden="true" />
-      ¿Te derivamos para {reason}? · Ahora no
+      {t('confirmation.declinedNotice', { reason })}
     </p>
   )
 }
