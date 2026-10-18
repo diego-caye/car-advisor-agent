@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react'
 import { MessageSquarePlus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import {
   AlertDialog,
@@ -27,7 +28,7 @@ import {
 
 import type { SessionSummary } from '../../api/types'
 import { sessionPath } from '../../lib/route'
-import { STAGE_LABEL } from '../chat/labels'
+import { stageLabel } from '../chat/labels'
 
 type Props = {
   sessions: SessionSummary[]
@@ -38,12 +39,15 @@ type Props = {
 }
 
 export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Props) {
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'es-PE'
+
   return (
     <SidebarRoot collapsible="offcanvas">
       <SidebarHeader className="p-3">
         <Button type="button" onClick={onCreate} className="h-10 w-full font-semibold">
           <MessageSquarePlus aria-hidden="true" />
-          Nueva conversación
+          {t('sidebar.newConversation')}
         </Button>
       </SidebarHeader>
 
@@ -53,7 +57,7 @@ export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Pr
             <SidebarMenu>
               {sessions.length === 0 && (
                 <p className="text-muted-foreground px-2 py-3 text-xs">
-                  Todavía no tienes conversaciones.
+                  {t('sidebar.noConversations')}
                 </p>
               )}
 
@@ -89,17 +93,17 @@ export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Pr
                               background; until it arrives, the conversation still
                               needs to be distinguishable. */}
                           <span className="block truncate text-sm">
-                            {session.titulo || 'Conversación nueva'}
+                            {session.titulo || t('sidebar.untitledConversation')}
                           </span>
                           <span className="text-muted-foreground block truncate text-[11px]">
-                            {new Date(session.last_update_time).toLocaleString('es-PE', {
+                            {new Date(session.last_update_time).toLocaleString(dateLocale, {
                               day: '2-digit',
                               month: 'short',
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
                             {' · '}
-                            {STAGE_LABEL[session.stage] ?? session.stage}
+                            {stageLabel(t, session.stage)}
                           </span>
                         </span>
                       </a>
@@ -109,8 +113,8 @@ export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Pr
                       <AlertDialogTrigger asChild>
                         <SidebarMenuAction
                           showOnHover
-                          aria-label="Eliminar conversación"
-                          title="Eliminar conversación"
+                          aria-label={t('sidebar.deleteConversation')}
+                          title={t('sidebar.deleteConversation')}
                           className="text-muted-foreground hover:text-destructive !top-1/2 !-translate-y-1/2"
                         >
                           <Trash2 aria-hidden="true" />
@@ -118,15 +122,15 @@ export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Pr
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar esta conversación?</AlertDialogTitle>
+                          <AlertDialogTitle>{t('sidebar.deleteDialogTitle')}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Se borran los mensajes de «{session.titulo || 'Conversación nueva'}».
-                            Tu ficha de datos no se pierde: vive a nivel de usuario, no de
-                            conversación.
+                            {t('sidebar.deleteDialogDescription', {
+                              title: session.titulo || t('sidebar.untitledConversation'),
+                            })}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogCancel>{t('sidebar.cancel')}</AlertDialogCancel>
                           {/* variant, not className: AlertDialogAction forwards
                               className to Radix's internal element, not to the
                               Button that computes bg-primary, so a color class
@@ -136,7 +140,7 @@ export function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: Pr
                             variant="destructive"
                             onClick={() => onDelete(session.session_id)}
                           >
-                            Eliminar
+                            {t('sidebar.delete')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

@@ -1,21 +1,22 @@
-# Un solo archivo para todo el stack. Los servicios opcionales van por perfil,
-# no por archivos de override: así `docker compose up -d` siempre funciona y no
-# hay que recordar una cadena de `-f`.
+# One file for the whole stack. Optional services go through profiles, not
+# override files: this way `docker compose up -d` always works and there's no
+# chain of `-f` flags to remember.
 #
-#   docker compose up -d                        db + backend + frontend (+ ollama, ver abajo)
-#   docker compose --profile local-llm up -d    fuerza el perfil aunque no esté en .env
+#   docker compose up -d                        db + backend + frontend (+ ollama, see below)
+#   docker compose --profile local-llm up -d    forces the profile even if it's not in .env
 #
-# .env.example trae COMPOSE_PROFILES=local-llm: con eso, el primer comando ya
-# incluye el servicio "ollama" y el job que le baja los modelos — todo dentro
-# de Docker, sin depender de un Ollama nativo instalado en la máquina de quien
-# clone el repo. El perfil asume GPU NVIDIA con el container toolkit
-# instalado. Sin GPU, o para usar un Ollama nativo en su lugar (mejor acceso a
-# GPU en algunos equipos), quita COMPOSE_PROFILES del .env y apunta
-# OLLAMA_API_BASE_CONTAINER a http://host.docker.internal:11434.
+# .env.example ships with COMPOSE_PROFILES=local-llm: with that, the first
+# command already includes the "ollama" service and the job that pulls its
+# models — all inside Docker, with no dependency on a native Ollama installed
+# on whoever clones the repo's machine. The profile assumes an NVIDIA GPU with
+# the container toolkit installed. Without a GPU, or to use a native Ollama
+# instead (better GPU access on some machines), remove COMPOSE_PROFILES from
+# .env and point OLLAMA_API_BASE_CONTAINER at http://host.docker.internal:11434.
 #
-# backend y frontend montan el código fuente y recargan solos: editar un .py o
-# un .tsx se ve al instante, sin `--build`. Solo hace falta reconstruir cuando
-# cambian las dependencias (uv.lock, package-lock.json) o los Dockerfile.
+# backend and frontend mount the source code and reload on their own: editing
+# a .py or a .tsx shows up instantly, no `--build` needed. A rebuild is only
+# needed when dependencies change (uv.lock, package-lock.json) or the
+# Dockerfiles do.
 
 name: asesor
 
@@ -26,8 +27,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-asesor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-asesor}
       POSTGRES_DB: ${POSTGRES_DB:-asesor}
-    # Puertos por defecto fuera de los habituales (5432, 8000, 5173) a propósito:
-    # es normal tener otros proyectos ocupándolos. Se cambian por env.
+    # Default ports deliberately outside the usual ones (5432, 8000, 5173):
+    # it's normal to have other projects occupying them. Changed via env.
     ports:
       - "${POSTGRES_PORT:-5490}:5432"
     volumes:
@@ -46,36 +47,37 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-asesor}:${POSTGRES_PASSWORD:-asesor}@db:5432/${POSTGRES_DB:-asesor}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5190}
-      # En .env apunta a localhost, que es lo que usan los scripts del host;
-      # desde el contenedor hay que salir al host. Con el perfil local-llm,
-      # ponlo a http://ollama:11434.
+      # In .env it points at localhost, which is what the host scripts use;
+      # from the container it has to reach out to the host. With the
+      # local-llm profile, set it to http://ollama:11434.
       OLLAMA_API_BASE: ${OLLAMA_API_BASE_CONTAINER:-http://host.docker.internal:11434}
-      # Vacío = sin --reload (producción). Ver el command de abajo.
+      # Empty = no --reload (production). See the command below.
       RELOAD: ${BACKEND_RELOAD-1}
-      # El código vive en el sistema de archivos de Windows: los eventos inotify
-      # no cruzan el bind mount, así que watchfiles tiene que hacer polling.
+      # The code lives on the Windows filesystem: inotify events don't cross
+      # the bind mount, so watchfiles has to poll instead.
       WATCHFILES_FORCE_POLLING: ${WATCH_POLLING:-true}
-    # $$ para que lo expanda la shell del contenedor y no Compose. Una sola
-    # línea a propósito: un salto aquí lo parte en dos comandos y el exec se
-    # queda con el primero, sin --reload.
+    # $$ so the container's shell expands it, not Compose. Deliberately one
+    # line: a line break here splits it into two commands and exec keeps only
+    # the first one, without --reload.
     command: ["sh", "-c", "exec uvicorn asesor.main:create_app --factory --host 0.0.0.0 --port 8000 $${RELOAD:+--reload --reload-dir /app/src}"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "${BACKEND_PORT:-8090}:8000"
     volumes:
-      # El paquete se instala en modo editable, así que el contenedor ejecuta
-      # directamente lo que hay aquí montado.
+      # The package installs in editable mode, so the container runs exactly
+      # what's mounted here, directly.
       - ./backend/src:/app/src
-      # scripts/ no se copia a la imagen (solo pyproject.toml, uv.lock y src,
-      # ver Dockerfile): sin este mount, `docker compose exec backend uv run
-      # python scripts/ingest_kb.py` fallaba con "No such file or directory"
-      # para quien clona el repo con solo Docker, sin uv/Python nativo.
+      # scripts/ isn't copied into the image (only pyproject.toml, uv.lock
+      # and src, see Dockerfile): without this mount, `docker compose exec
+      # backend uv run python scripts/ingest_kb.py` failed with "No such file
+      # or directory" for whoever clones the repo with just Docker, no native
+      # uv/Python.
       - ./backend/scripts:/app/scripts:ro
-      # ingest_kb.py resuelve su --kb-dir por defecto como
-      # Path(__file__).parents[2] / "kb": con scripts/ en /app/scripts, eso
-      # cae en /kb -- de ahí este punto de montaje exacto, para no tener que
-      # pasar --kb-dir a mano ni duplicar la ruta en dos lugares.
+      # ingest_kb.py resolves its default --kb-dir as
+      # Path(__file__).parents[2] / "kb": with scripts/ at /app/scripts, that
+      # lands on /kb -- hence this exact mount point, so there's no need to
+      # pass --kb-dir by hand or duplicate the path in two places.
       - ./kb:/kb:ro
     depends_on:
       db:
@@ -92,21 +94,21 @@ services:
     build: ./frontend
     environment:
       VITE_API_TARGET: http://backend:8000
-      # Mismo motivo que WATCHFILES_FORCE_POLLING en el backend.
+      # Same reason as WATCHFILES_FORCE_POLLING in the backend.
       VITE_POLLING: ${WATCH_POLLING:-true}
-      # Solo para el link "Ver traza en Langfuse" del panel dev (spec 08 S7);
-      # vacio si no hay LANGFUSE_PROJECT_ID en .env, y el link simplemente no
-      # aparece (DevPanel.tsx). LANGFUSE_HOST tambien: el backend ya lo usa
-      # para exportar (telemetry.py) -- planes que no son el cloud.langfuse.com
-      # por defecto (p. ej. una region HIPAA) tienen un host propio, y el link
-      # armado a mano con el default se queda cargando para siempre en el host
-      # equivocado (visto en vivo).
+      # Only for the dev panel's "View trace in Langfuse" link (spec 08 S7);
+      # empty if there's no LANGFUSE_PROJECT_ID in .env, and the link simply
+      # doesn't show up (DevPanel.tsx). Same for LANGFUSE_HOST: the backend
+      # already uses it to export (telemetry.py) -- plans that aren't the
+      # default cloud.langfuse.com (e.g. a HIPAA region) have their own host,
+      # and a link built by hand with the default gets stuck loading forever
+      # on the wrong host (seen live).
       VITE_LANGFUSE_PROJECT_ID: ${LANGFUSE_PROJECT_ID:-}
       VITE_LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
     ports:
       - "${FRONTEND_PORT:-5190}:5173"
     volumes:
-      # Solo lo que se edita: node_modules se queda el de la imagen.
+      # Only what actually gets edited: node_modules stays the one from the image.
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
       - ./frontend/vite.config.ts:/app/vite.config.ts
@@ -115,10 +117,10 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      # El dev server de Vite tarda unos segundos en atender; sin healthcheck
-      # "docker compose ps" lo daba por listo antes de que respondiera.
-      # 127.0.0.1 y no localhost: dentro del contenedor localhost resuelve
-      # primero a ::1 y el dev server de Vite solo escucha en IPv4.
+      # Vite's dev server takes a few seconds to start answering; without a
+      # healthcheck "docker compose ps" marked it ready before it actually responded.
+      # 127.0.0.1, not localhost: inside the container localhost resolves to
+      # ::1 first, and Vite's dev server only listens on IPv4.
       test:
         ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
       interval: 10s
@@ -128,17 +130,17 @@ services:
 
   ollama:
     profiles: ["local-llm"]
-    # Versión fija, no :latest: una imagen que cambia sola en cada pull puede
-    # dejar de entender OLLAMA_THINK o el formato de /api/show que usa el
-    # descubrimiento de modelos (infrastructure/llm/ollama_discovery.py) sin
-    # ningún aviso. 0.24.0 (la que usa esta máquina, ADR-003) no alcanza:
-    # gemma4:12b necesita 0.30.3+ (0.30.5+ para evitar un crash conocido de
-    # esa variante) — probado en carne propia, "pull model manifest: 412
-    # requires a newer version of Ollama". 0.34.0 es la última estable
-    # publicada al fijar esto.
+    # Pinned version, not :latest: an image that changes on its own on every
+    # pull can silently stop understanding OLLAMA_THINK or the /api/show
+    # format that model discovery uses (infrastructure/llm/ollama_discovery.py)
+    # with no warning at all. 0.24.0 (what this machine uses, ADR-003) isn't
+    # enough: gemma4:12b needs 0.30.3+ (0.30.5+ to avoid a known crash in that
+    # variant) -- learned the hard way, "pull model manifest: 412 requires a
+    # newer version of Ollama". 0.34.0 is the latest stable published as of
+    # pinning this.
     image: ollama/ollama:0.34.0
     environment:
-      # Ollama recorta el contexto en silencio si no se le indica cuánto usar.
+      # Ollama silently truncates the context if it isn't told how much to use.
       OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-16384}
       OLLAMA_HOST: 0.0.0.0:11434
     ports:
@@ -159,24 +161,24 @@ services:
               count: all
               capabilities: [gpu]
 
-  # Descarga los cuatro modelos que la app de verdad usa (agente, guardrail
-  # -que también sirve de eval y de título-, respaldo y embeddings) una vez;
-  # el volumen los conserva entre reinicios. Antes solo bajaba dos: backend
-  # arrancaba igual, pero cualquier turno que tocara el respaldo o el
-  # guardrail fallaba con "model not found" la primera vez que hacía falta.
+  # Pulls the four models the app actually uses (agent, guardrail -- which
+  # also serves as the eval and title model --, fallback and embeddings)
+  # once; the volume keeps them across restarts. It used to only pull two:
+  # the backend still started fine, but any turn that touched the fallback or
+  # the guardrail failed with "model not found" the first time it was needed.
   #
-  # Cada uno con un tag explícito, no :latest — mismo motivo que la imagen
-  # de arriba, y además así lo que se descarga aquí es siempre exactamente lo
-  # que AGENT_MODEL/GUARDRAIL_MODEL/FALLBACK_MODEL/EMBEDDINGS_MODEL esperan
-  # encontrar (ver .env.example): un tag suelto podría resolver a una
-  # variante distinta a la que el resto de la app tiene configurada.
+  # Each with an explicit tag, not :latest -- same reason as the image above,
+  # and this way what gets pulled here is always exactly what
+  # AGENT_MODEL/GUARDRAIL_MODEL/FALLBACK_MODEL/EMBEDDINGS_MODEL expect to find
+  # (see .env.example): a loose tag could resolve to a different variant than
+  # the one the rest of the app is configured for.
   #
-  # OLLAMA_EXTRA_MODELS (opcional, en .env): modelos de más para el selector,
-  # separados por espacio, p. ej. "mistral:7b llama3.1:8b". No hace falta
-  # tocar este archivo ni MODEL_CHOICES para que aparezcan: el backend los
-  # descubre solos contra /api/tags al arrancar (infrastructure/llm/
-  # ollama_discovery.py) — esto solo los deja *pulled* para quien clone el
-  # repo y use este perfil, igual que los cuatro de arriba.
+  # OLLAMA_EXTRA_MODELS (optional, in .env): extra models for the selector,
+  # space-separated, e.g. "mistral:7b llama3.1:8b". No need to touch this file
+  # or MODEL_CHOICES for them to show up: the backend discovers them on its
+  # own against /api/tags at startup (infrastructure/llm/ollama_discovery.py)
+  # -- this just leaves them *pulled* for whoever clones the repo and uses
+  # this profile, same as the four above.
   ollama-pull:
     profiles: ["local-llm"]
     image: ollama/ollama:0.34.0

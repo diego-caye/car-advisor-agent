@@ -1,5 +1,6 @@
 import { type FormEvent, type KeyboardEvent, useState } from 'react'
 import { SendHorizontal } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,6 +11,7 @@ type Props = {
 }
 
 export function Composer({ disabled, onSend }: Props) {
+  const { t } = useTranslation()
   const [text, setText] = useState('')
 
   function submit(event?: FormEvent) {
@@ -33,14 +35,14 @@ export function Composer({ disabled, onSend }: Props) {
   return (
     <form onSubmit={submit} className="mx-auto flex w-full max-w-2xl items-end gap-2">
       <label className="sr-only" htmlFor="composer">
-        Escribe tu mensaje
+        {t('composer.label')}
       </label>
       <Textarea
         id="composer"
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Escribe tu mensaje"
+        placeholder={t('composer.placeholder')}
         maxLength={2000}
         rows={1}
         autoComplete="off"
@@ -53,7 +55,7 @@ export function Composer({ disabled, onSend }: Props) {
         className="h-11 px-4"
       >
         <SendHorizontal aria-hidden="true" />
-        Enviar
+        {t('composer.send')}
       </Button>
     </form>
   )

@@ -1,37 +1,30 @@
-export const TOOL_ACTIVITY: Record<string, string> = {
-  search_knowledge_base: 'Consultando la guía técnica…',
-  save_lead: 'Guardando tus datos…',
-  request_human_handoff: 'Preparando tu solicitud…',
+import type { TFunction } from 'i18next'
+
+// Small wrappers instead of static Record<string, string> maps: the label now
+// depends on the active UI language (i18n), so it has to be resolved through
+// `t` at render time instead of being a plain module-level constant.
+export function stageLabel(t: TFunction, stage: string): string {
+  return t(`stage.${stage}`, { defaultValue: stage })
 }
 
-export const REASON_LABEL: Record<string, string> = {
-  TEST_DRIVE: 'agendar un test drive',
-  FORMAL_QUOTE: 'una cotización formal',
-  IMMEDIATE_PURCHASE: 'avanzar con la compra',
-  DISSATISFACTION: 'atender un reclamo',
-  OUT_OF_SCOPE: 'hablar con un especialista',
+export function reasonLabel(t: TFunction, reason: string | undefined): string {
+  if (!reason) return t('reason.default')
+  return t(`reason.${reason}`, { defaultValue: t('reason.default') })
 }
 
-export const CHANNEL_LABEL: Record<string, string> = {
-  WHATSAPP: 'WhatsApp',
-  CALL: 'llamada',
-  EMAIL: 'correo',
-  CHAT: 'chat',
+export function channelLabel(t: TFunction, channel: string): string {
+  return t(`channel.${channel}`, { defaultValue: channel })
 }
 
-export const STAGE_LABEL: Record<string, string> = {
-  NEW: 'Nuevo',
-  DISCOVERY: 'Descubrimiento',
-  CONCRETE_INTEREST: 'Interés concreto',
-  HANDOFF_PENDING: 'Derivación pendiente',
-  HANDED_OFF: 'Derivado',
+export function toolActivityLabel(t: TFunction, name: string): string {
+  return t(`toolActivity.${name}`, { defaultValue: t('messageList.working') })
 }
 
-export const LEAD_FIELDS: { key: string; label: string }[] = [
-  { key: 'name', label: 'Nombre' },
-  { key: 'primary_use', label: 'Uso' },
-  { key: 'vehicle_type_interest', label: 'Carrocería' },
-  { key: 'powertrain_interest', label: 'Motor' },
-  { key: 'interest_level', label: 'Interés' },
-  { key: 'preferred_channel', label: 'Canal' },
+export const LEAD_FIELDS: { key: string; labelKey: string }[] = [
+  { key: 'name', labelKey: 'leadField.name' },
+  { key: 'primary_use', labelKey: 'leadField.primary_use' },
+  { key: 'vehicle_type_interest', labelKey: 'leadField.vehicle_type_interest' },
+  { key: 'powertrain_interest', labelKey: 'leadField.powertrain_interest' },
+  { key: 'interest_level', labelKey: 'leadField.interest_level' },
+  { key: 'preferred_channel', labelKey: 'leadField.preferred_channel' },
 ]

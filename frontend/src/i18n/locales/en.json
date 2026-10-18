@@ -1,0 +1,119 @@
+{
+  "header": {
+    "subtitle": "car advisor",
+    "devPanelButton": "Dev panel"
+  },
+  "emptyState": "Tell Luis what you're looking for: what you'll use the car for, which body style catches your eye, or any technical question. He'll guide you without any pressure.",
+  "sidebar": {
+    "newConversation": "New conversation",
+    "noConversations": "You don't have any conversations yet.",
+    "untitledConversation": "New conversation",
+    "deleteConversation": "Delete conversation",
+    "deleteDialogTitle": "Delete this conversation?",
+    "deleteDialogDescription": "The messages in \"{{title}}\" are deleted. Your lead record isn't lost: it lives at the user level, not the conversation level.",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "composer": {
+    "label": "Type your message",
+    "placeholder": "Type your message",
+    "send": "Send"
+  },
+  "messageList": {
+    "ariaLabel": "Conversation",
+    "saveAndSend": "Save and send",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "edit": "Edit",
+    "goodReply": "Good reply",
+    "badReply": "Bad reply",
+    "thanksForFeedback": "thanks for the feedback",
+    "agentTyping": "Luis is typing",
+    "slowLocalModel": "Local models sometimes take longer than usual…",
+    "slowReply": "This can take a few seconds…",
+    "working": "Working…"
+  },
+  "confirmation": {
+    "title": "Should we connect you with an advisor?",
+    "description": "Luis wants to pass your case to a person to {{reason}}.",
+    "contactedVia": "They'd contact you via {{channel}}.",
+    "confirm": "Confirm request",
+    "declineNow": "Not now",
+    "alreadyHadOne": "You already had a request in progress",
+    "yesHandoff": "Yes, hand off",
+    "declinedNotice": "Should we connect you with an advisor for {{reason}}? · Not now"
+  },
+  "devPanel": {
+    "title": "Dev panel",
+    "hide": "Hide dev panel",
+    "stage": "Stage",
+    "leadRecord": "Lead record",
+    "lastTurn": "Last turn",
+    "latency": "Latency",
+    "tokensIn": "Tokens in",
+    "tokensOut": "Tokens out",
+    "model": "Model",
+    "noTurnsYet": "No turns yet.",
+    "viewTraceInLangfuse": "View trace in Langfuse",
+    "feedback": "Feedback",
+    "refresh": "Refresh",
+    "loadFeedbackError": "Couldn't load feedback.",
+    "deleteFeedbackError": "Couldn't delete feedback.",
+    "loading": "Loading…",
+    "noFeedbackYet": "No feedback yet.",
+    "deleteFeedback": "Delete feedback",
+    "deleteFeedbackDialogTitle": "Delete this feedback?",
+    "deleteFeedbackDialogDescription": "This row is removed from the review panel. The conversation itself isn't touched.",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "modelSelect": {
+    "ariaLabel": "Model",
+    "canReason": "Can reason before responding",
+    "canUseTools": "Can use the advisor's tools",
+    "notConfigured": "not configured"
+  },
+  "stage": {
+    "NEW": "New",
+    "DISCOVERY": "Discovery",
+    "CONCRETE_INTEREST": "Concrete interest",
+    "HANDOFF_PENDING": "Handoff pending",
+    "HANDED_OFF": "Handed off"
+  },
+  "reason": {
+    "default": "talk to an advisor",
+    "TEST_DRIVE": "schedule a test drive",
+    "FORMAL_QUOTE": "a formal quote",
+    "IMMEDIATE_PURCHASE": "move forward with the purchase",
+    "DISSATISFACTION": "address a complaint",
+    "OUT_OF_SCOPE": "talk to a specialist"
+  },
+  "channel": {
+    "WHATSAPP": "WhatsApp",
+    "CALL": "call",
+    "EMAIL": "email",
+    "CHAT": "chat"
+  },
+  "toolActivity": {
+    "search_knowledge_base": "Checking the technical guide…",
+    "save_lead": "Saving your info…",
+    "request_human_handoff": "Preparing your request…"
+  },
+  "leadField": {
+    "name": "Name",
+    "primary_use": "Use",
+    "vehicle_type_interest": "Body style",
+    "powertrain_interest": "Powertrain",
+    "interest_level": "Interest",
+    "preferred_channel": "Channel"
+  },
+  "errors": {
+    "generic": "We couldn't connect to the advisor. Try again in a few seconds.",
+    "timeout": "The advisor took too long to respond. Try again in a few seconds.",
+    "unanswered": "This conversation was left without a reply. You can retry."
+  },
+  "languageToggle": {
+    "switchToSpanish": "Switch to Spanish",
+    "switchToEnglish": "Switch to English"
+  }
+}

@@ -1,4 +1,5 @@
 import { Brain, Wrench } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import {
@@ -24,6 +25,7 @@ type Props = {
 }
 
 export function ModelSelect({ models, value, disabled, onChange }: Props) {
+  const { t } = useTranslation()
   // With only one option the selector adds nothing: the model is already
   // visible in the dev panel, in the turn metrics.
   if (models.length < 2) return null
@@ -35,7 +37,7 @@ export function ModelSelect({ models, value, disabled, onChange }: Props) {
     <Select value={current.id} disabled={disabled} onValueChange={onChange}>
       <SelectTrigger
         size="sm"
-        aria-label="Modelo"
+        aria-label={t('modelSelect.ariaLabel')}
         title={`${current.model} · ${current.provider}`}
         className="min-w-[9.5rem]"
       >
@@ -61,16 +63,16 @@ export function ModelSelect({ models, value, disabled, onChange }: Props) {
                   qwen3:4b-instruct doesn't, for example. */}
               {model.supports_thinking && (
                 <Brain className="text-muted-foreground size-3" aria-hidden="true">
-                  <title>Puede razonar antes de responder</title>
+                  <title>{t('modelSelect.canReason')}</title>
                 </Brain>
               )}
               {model.supports_tools && (
                 <Wrench className="text-muted-foreground size-3" aria-hidden="true">
-                  <title>Puede usar las herramientas del asesor</title>
+                  <title>{t('modelSelect.canUseTools')}</title>
                 </Wrench>
               )}
               {!model.available && (
-                <span className="text-muted-foreground text-[10px]">sin configurar</span>
+                <span className="text-muted-foreground text-[10px]">{t('modelSelect.notConfigured')}</span>
               )}
             </span>
           </SelectItem>

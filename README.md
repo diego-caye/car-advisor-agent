@@ -19,7 +19,7 @@ Migration of an n8n workflow into a custom backend with **Google ADK 2.x + FastA
 
 ## Features
 
-- **Conversational agent** ("Luis") with its own voice and instruction, in Peru Spanish, using "tú" — built on `google-adk` (`Agent`/`Runner`/`App`), not a generic scaffold.
+- **Conversational agent** ("Luis") with its own voice and instruction, replying in whichever language the user writes in (defaulting to Peru Spanish, "tú," when that's genuinely ambiguous) — built on `google-adk` (`Agent`/`Runner`/`App`), not a generic scaffold.
 - **3 tools with their own contract** (spec 03): `save_lead` (structured lead capture), `request_human_handoff` (hands off to a human with prior confirmation), and `search_knowledge_base` (RAG over a general automotive knowledge base).
 - **Real human-in-the-loop**: asking for a test drive or a formal quote pauses the turn with a confirmation card in the UI before a ticket is created — not a `JSON.stringify` that reaches no one.
 - **RAG with a threshold and a source**: `pgvector` on the same Postgres instance, hash-based idempotent ingestion, and an honest phrase when there's no data ("I don't have the exact detail, but I'll note it down so a specialist can confirm it for you") instead of making things up.
@@ -28,7 +28,7 @@ Migration of an n8n workflow into a custom backend with **Google ADK 2.x + FastA
 - **Real observability**: OpenTelemetry → Langfuse (no-op without keys, the app works the same), a full trace per turn, 👍/👎 feedback, and background post-turn quality evaluation with an LLM judge.
 - **Golden dataset of conversations** (`backend/tests/evalset/`): on-topic and off-script cases (prompt injection, price requests, group-savings schemes) run against the real model, not simulated.
 - **Real local models, not just a demo**: an Ollama catalog discovered live (never declared by hand), a per-turn model selector in the UI, real capabilities (reasoning/tools) shown as icons.
-- **Custom frontend** in React + Vite + strict TypeScript + Tailwind (shadcn/ui), typed end-to-end from the backend's OpenAPI.
+- **Custom frontend** in React + Vite + strict TypeScript + Tailwind (shadcn/ui), typed end-to-end from the backend's OpenAPI. Its own chrome is bilingual too (English/Spanish, browser-detected with a manual switch, `react-i18next`) — separate from the agent's own per-message language mirroring above.
 
 ## Architecture
 

@@ -60,13 +60,6 @@ export const initialChatState: ChatState = {
   lastUserMessage: null,
 }
 
-// The backend doesn't persist that a turn failed, only the exchange itself:
-// if the last saved message is the user's, there was no response (the model
-// failed, the connection dropped halfway, whatever). Without this, reloading
-// such a conversation leaves the message hanging there with no hint that it
-// can be retried — it ends up looking the same as a live failure.
-const UNANSWERED_ERROR = 'Esta conversación se quedó sin respuesta. Puedes reintentar.'
-
 export type ChatAction =
   | { type: 'reset' }
   | {
@@ -75,6 +68,14 @@ export type ChatAction =
       lead: LeadDto | null
       stage: Stage
       unansweredMessage?: string | null
+      // The backend doesn't persist that a turn failed, only the exchange
+      // itself: if the last saved message is the user's, there was no
+      // response (the model failed, the connection dropped halfway,
+      // whatever). Without this, reloading such a conversation leaves the
+      // message hanging there with no hint that it can be retried -- it
+      // ends up looking the same as a live failure. Passed in already
+      // translated (reducer.ts is a pure function with no i18n access).
+      unansweredError?: string
     }
   | { type: 'user-sent'; content: string }
   // Corrects the last message's text in place (the same bubble), instead of
@@ -106,7 +107,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...(action.unansweredMessage
           ? {
               lastUserMessage: action.unansweredMessage,
-              error: { message: UNANSWERED_ERROR, retryable: true },
+              error: { message: action.unansweredError ?? '', retryable: true },
             }
           : {}),
       }

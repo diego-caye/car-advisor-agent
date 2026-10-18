@@ -1,0 +1,119 @@
+{
+  "header": {
+    "subtitle": "asesor automotriz",
+    "devPanelButton": "Panel dev"
+  },
+  "emptyState": "Cuéntale a Luis qué buscas: para qué usarás el auto, qué carrocería te llama o cualquier duda técnica. Te orienta sin presionarte.",
+  "sidebar": {
+    "newConversation": "Nueva conversación",
+    "noConversations": "Todavía no tienes conversaciones.",
+    "untitledConversation": "Conversación nueva",
+    "deleteConversation": "Eliminar conversación",
+    "deleteDialogTitle": "¿Eliminar esta conversación?",
+    "deleteDialogDescription": "Se borran los mensajes de «{{title}}». Tu ficha de datos no se pierde: vive a nivel de usuario, no de conversación.",
+    "cancel": "Cancelar",
+    "delete": "Eliminar"
+  },
+  "composer": {
+    "label": "Escribe tu mensaje",
+    "placeholder": "Escribe tu mensaje",
+    "send": "Enviar"
+  },
+  "messageList": {
+    "ariaLabel": "Conversación",
+    "saveAndSend": "Guardar y enviar",
+    "cancel": "Cancelar",
+    "retry": "Reintentar",
+    "edit": "Editar",
+    "goodReply": "Buena respuesta",
+    "badReply": "Mala respuesta",
+    "thanksForFeedback": "gracias por el feedback",
+    "agentTyping": "Luis está escribiendo",
+    "slowLocalModel": "Los modelos locales a veces tardan más de lo normal…",
+    "slowReply": "Esto puede tardar unos segundos…",
+    "working": "Trabajando…"
+  },
+  "confirmation": {
+    "title": "¿Te derivamos con un asesor?",
+    "description": "Luis quiere pasar tu caso a una persona para {{reason}}.",
+    "contactedVia": "Te contactarían por {{channel}}.",
+    "confirm": "Confirmar solicitud",
+    "declineNow": "Ahora no",
+    "alreadyHadOne": "Ya tenías una solicitud en curso",
+    "yesHandoff": "Sí, derivar",
+    "declinedNotice": "¿Te derivamos para {{reason}}? · Ahora no"
+  },
+  "devPanel": {
+    "title": "Panel dev",
+    "hide": "Ocultar panel dev",
+    "stage": "Etapa",
+    "leadRecord": "Ficha del lead",
+    "lastTurn": "Último turno",
+    "latency": "Latencia",
+    "tokensIn": "Tokens in",
+    "tokensOut": "Tokens out",
+    "model": "Modelo",
+    "noTurnsYet": "Sin turnos todavía.",
+    "viewTraceInLangfuse": "Ver traza en Langfuse",
+    "feedback": "Feedback",
+    "refresh": "Actualizar",
+    "loadFeedbackError": "No se pudo cargar el feedback.",
+    "deleteFeedbackError": "No se pudo borrar el feedback.",
+    "loading": "Cargando…",
+    "noFeedbackYet": "Sin feedback todavía.",
+    "deleteFeedback": "Eliminar feedback",
+    "deleteFeedbackDialogTitle": "¿Eliminar este feedback?",
+    "deleteFeedbackDialogDescription": "Se borra esta fila del panel de revisión. La conversación no se toca.",
+    "cancel": "Cancelar",
+    "delete": "Eliminar"
+  },
+  "modelSelect": {
+    "ariaLabel": "Modelo",
+    "canReason": "Puede razonar antes de responder",
+    "canUseTools": "Puede usar las herramientas del asesor",
+    "notConfigured": "sin configurar"
+  },
+  "stage": {
+    "NEW": "Nuevo",
+    "DISCOVERY": "Descubrimiento",
+    "CONCRETE_INTEREST": "Interés concreto",
+    "HANDOFF_PENDING": "Derivación pendiente",
+    "HANDED_OFF": "Derivado"
+  },
+  "reason": {
+    "default": "hablar con un asesor",
+    "TEST_DRIVE": "agendar un test drive",
+    "FORMAL_QUOTE": "una cotización formal",
+    "IMMEDIATE_PURCHASE": "avanzar con la compra",
+    "DISSATISFACTION": "atender un reclamo",
+    "OUT_OF_SCOPE": "hablar con un especialista"
+  },
+  "channel": {
+    "WHATSAPP": "WhatsApp",
+    "CALL": "llamada",
+    "EMAIL": "correo",
+    "CHAT": "chat"
+  },
+  "toolActivity": {
+    "search_knowledge_base": "Consultando la guía técnica…",
+    "save_lead": "Guardando tus datos…",
+    "request_human_handoff": "Preparando tu solicitud…"
+  },
+  "leadField": {
+    "name": "Nombre",
+    "primary_use": "Uso",
+    "vehicle_type_interest": "Carrocería",
+    "powertrain_interest": "Motor",
+    "interest_level": "Interés",
+    "preferred_channel": "Canal"
+  },
+  "errors": {
+    "generic": "No pudimos conectar con el asesor. Reintenta en unos segundos.",
+    "timeout": "El asesor tardó demasiado en responder. Reintenta en unos segundos.",
+    "unanswered": "Esta conversación se quedó sin respuesta. Puedes reintentar."
+  },
+  "languageToggle": {
+    "switchToSpanish": "Cambiar a español",
+    "switchToEnglish": "Cambiar a inglés"
+  }
+}
