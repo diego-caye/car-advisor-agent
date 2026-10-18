@@ -1,4 +1,4 @@
-"""AT-11 a AT-18 de specs/09-acceptance-tests.md."""
+"""AT-11 through AT-18 from specs/09-acceptance-tests.md."""
 
 from uuid import UUID
 
@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 from asesor.agent.guardrails.l4 import SAFE_PRICING_REPLY
-from asesor.agent.instruction import CANNED_JAILBREAK, CANNED_SIN_DATOS_KB
+from asesor.agent.instruction import CANNED_JAILBREAK, CANNED_NO_KB_DATA
 from asesor.infrastructure.embeddings.fake import FakeEmbeddings
 from asesor.infrastructure.llm.fake import FakeAdkLlm, FakeTurn
 from tests.support.sse import ReceivedEvent, parse_sse, reply_text, send_message, tool_names
@@ -47,9 +47,9 @@ async def test_at13_at14_l1_bloquea_sin_llamar_al_modelo(
 
     events = await send_message(client, user_id, session_id, mensaje)
 
-    assert reply_text(events) == CANNED_JAILBREAK
+    assert reply_text(events) == CANNED_JAILBREAK["es"]
     assert tool_names(events) == []
-    # El modelo nunca se invocó: esa es la promesa de L1 (spec 07).
+    # The model was never invoked: that's L1's promise (spec 07).
     assert fake_llm.calls == 0
 
     assert guardrails(events) == [{"layer": "L1", "category": "injection"}]
@@ -77,7 +77,7 @@ async def test_at15_l4_reemplaza_una_respuesta_con_precios(
 
     events = await send_message(client, user_id, session_id, "¿cuál es el precio de esa SUV?")
 
-    assert reply_text(events) == SAFE_PRICING_REPLY
+    assert reply_text(events) == SAFE_PRICING_REPLY["es"]
     assert "89,900" not in reply_text(events)
     assert guardrails(events) == [{"layer": "L4", "category": "pricing_leak"}]
 
@@ -99,7 +99,7 @@ async def test_at16_fallo_de_tool_no_rompe_el_turno(
 ) -> None:
     fake_llm.rules = {
         "familia": [
-            FakeTurn(tool_name="guardar_lead", tool_args={"uso_principal": "FAMILIA"}),
+            FakeTurn(tool_name="save_lead", tool_args={"primary_use": "FAMILY"}),
             FakeTurn(text="No pude guardar tus datos ahora, pero sigo contigo."),
         ]
     }
@@ -109,7 +109,7 @@ async def test_at16_fallo_de_tool_no_rompe_el_turno(
 
     finished = [e for e in events if e.event == "tool.finished"]
     assert finished[0].data["status"] == "error"
-    # El turno cierra normalmente: el agente lo explica, no se cae.
+    # The turn closes normally: the agent explains it, it doesn't crash.
     assert any(e.event == "message.completed" for e in events)
     assert reply_text(events)
 
@@ -122,7 +122,7 @@ async def test_at17_429_cae_al_modelo_de_respaldo(
 
     events = await send_with_fault(client, user_id, session_id, "hola", "model_429")
 
-    # El principal falla las 3 veces y responde el respaldo: sin error al usuario.
+    # The primary fails all 3 times and the fallback responds: no error reaches the user.
     assert "respaldo" in reply_text(events)
     assert [e for e in events if e.event == "error"] == []
 
@@ -136,7 +136,7 @@ async def test_at18_rag_caido_se_comporta_como_no_results(
     fake_llm.rules = {
         "hibrido": [
             FakeTurn(tool_name="search_knowledge_base", tool_args={"query": "hibridos"}),
-            FakeTurn(text=CANNED_SIN_DATOS_KB),
+            FakeTurn(text=CANNED_NO_KB_DATA),
         ]
     }
     session_id = await new_session(client, user_id)
@@ -147,4 +147,4 @@ async def test_at18_rag_caido_se_comporta_como_no_results(
 
     finished = [e for e in events if e.event == "tool.finished"]
     assert finished[0].data["status"] == "no_results"
-    assert reply_text(events) == CANNED_SIN_DATOS_KB
+    assert reply_text(events) == CANNED_NO_KB_DATA

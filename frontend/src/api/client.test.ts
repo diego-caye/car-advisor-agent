@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { StreamIdleTimeoutError, streamEvents } from './client'
 
-/** Un stream que nunca manda nada ni se cierra: simula una conexión colgada. */
+/** A stream that never sends anything and never closes: simulates a hung connection. */
 function stalledBody(): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start() {
-      // A propósito vacío.
+      // Intentionally empty.
     },
   })
 }

@@ -1,6 +1,6 @@
 ---
 title: "Seguridad activa, pasiva y sistemas ADAS"
-categoria: SEGURIDAD
+categoria: SAFETY
 ---
 
 ## Las tres capas

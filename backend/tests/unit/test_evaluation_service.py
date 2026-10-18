@@ -9,9 +9,9 @@ from asesor.infrastructure.llm.fake import FakeAdkLlm, FakeTurn
 
 
 class _FakeEvaluationRepo:
-    """El mismo contrato que SqlEvaluationRepository, en memoria: estos tests
-    son sobre la lógica de evaluate_turn (qué criterios corren, cómo se
-    descartan fallos), no sobre SQL.
+    """The same contract as SqlEvaluationRepository, in memory: these tests
+    are about evaluate_turn's logic (which criteria run, how failures are
+    discarded), not about SQL.
     """
 
     def __init__(self) -> None:
@@ -66,9 +66,9 @@ async def test_evaluate_turn_guarda_un_criterio_por_veredicto(settings: Settings
 
 
 async def test_evaluate_turn_incluye_fidelidad_rag_solo_si_used_rag(settings: Settings) -> None:
-    # El juez "alucina" los 5 posibles criterios en las dos corridas; lo que
-    # se prueba es que evaluate_turn descarta fidelidad_rag cuando el turno
-    # no consultó la KB, no que el prompt se lo pida distinto al juez.
+    # The judge "hallucinates" all 5 possible criteria in both runs; what's
+    # being tested is that evaluate_turn discards fidelidad_rag when the
+    # turn didn't query the KB, not that the prompt asks the judge differently.
     veredictos = [
         {"criterio": "tono_empatico", "cumple": True, "justificacion": "-"},
         {"criterio": "brevedad", "cumple": True, "justificacion": "-"},

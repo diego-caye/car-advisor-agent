@@ -5,54 +5,58 @@ from uuid import UUID
 from google.adk.tools import ToolContext
 from pydantic import BaseModel, Field, ValidationError
 
+from asesor.agent.language import detect_language
 from asesor.agent.state import STAGE_KEY, STAGE_PREVIA_KEY, read_dialog_state
 from asesor.agent.tools.envelope import error, ok
 from asesor.application.handoff_service import HandoffService
-from asesor.domain.enums import CanalPreferido, MotivoHandoff, Stage, Urgencia
+from asesor.domain.enums import HandoffReason, PreferredChannel, Stage, Urgency
 from asesor.domain.errors import DomainError
 
-SolicitarContactoHumano = Callable[..., Awaitable[dict[str, Any]]]
+RequestHumanHandoff = Callable[..., Awaitable[dict[str, Any]]]
 
-CONFIRMATION_HINT = "¿Confirmas que derivemos tu solicitud a un asesor humano?"
+CONFIRMATION_HINT = {
+    "es": "¿Confirmas que derivemos tu solicitud a un asesor humano?",
+    "en": "Can you confirm you'd like us to hand your request off to a human advisor?",
+}
 
 
 class _HandoffArgs(BaseModel):
-    motivo: MotivoHandoff
-    resumen_requerimiento: str = Field(min_length=10, max_length=500)
-    canal_preferido: CanalPreferido | None = None
-    urgencia: Urgencia | None = None
+    reason: HandoffReason
+    requirement_summary: str = Field(min_length=10, max_length=500)
+    preferred_channel: PreferredChannel | None = None
+    urgency: Urgency | None = None
 
 
-def make_solicitar_contacto_humano(handoff_service: HandoffService) -> SolicitarContactoHumano:
-    async def solicitar_contacto_humano(
+def make_request_human_handoff(handoff_service: HandoffService) -> RequestHumanHandoff:
+    async def request_human_handoff(
         tool_context: ToolContext,
-        motivo: str,
-        resumen_requerimiento: str,
-        canal_preferido: str | None = None,
-        urgencia: str | None = None,
+        reason: str,
+        requirement_summary: str,
+        preferred_channel: str | None = None,
+        urgency: str | None = None,
     ) -> dict[str, Any]:
-        """Deriva al usuario a un asesor humano, con su confirmación previa.
+        """Hands the user off to a human advisor, with their prior confirmation.
 
-        Úsala cuando el usuario pida un test drive o una cotización formal, quiera
-        comprar y hablar con una persona, exprese disconformidad, o el tema supere
-        lo que puedes orientar. El usuario debe confirmar antes de que se ejecute.
+        Use it when the user asks for a test drive or a formal quote, wants to buy
+        and talk to a person, expresses dissatisfaction, or the topic exceeds what
+        you can guide them through. The user must confirm before it executes.
 
         Args:
-            motivo: Uno de TEST_DRIVE, COTIZACION_FORMAL, COMPRA_INMEDIATA,
-                DISCONFORMIDAD, FUERA_DE_ALCANCE.
-            resumen_requerimiento: Resumen de lo que necesita, 10 a 500 caracteres.
-            canal_preferido: Uno de WHATSAPP, LLAMADA, EMAIL, CHAT.
-            urgencia: Una de BAJA, MEDIA, ALTA.
+            reason: One of TEST_DRIVE, FORMAL_QUOTE, IMMEDIATE_PURCHASE,
+                DISSATISFACTION, OUT_OF_SCOPE.
+            requirement_summary: Summary of what they need, 10 to 500 characters.
+            preferred_channel: One of WHATSAPP, CALL, EMAIL, CHAT.
+            urgency: One of LOW, MEDIUM, HIGH.
 
         Returns:
-            El estado de la solicitud y su número de ticket cuando se crea.
+            The request's status and its ticket number once it's created.
         """
         try:
             args = _HandoffArgs(
-                motivo=motivo,
-                resumen_requerimiento=resumen_requerimiento,
-                canal_preferido=canal_preferido,
-                urgencia=urgencia,
+                reason=reason,
+                requirement_summary=requirement_summary,
+                preferred_channel=preferred_channel,
+                urgency=urgency,
             )
         except ValidationError as exc:
             first = exc.errors()[0]
@@ -65,21 +69,23 @@ def make_solicitar_contacto_humano(handoff_service: HandoffService) -> Solicitar
 
         if confirmation is None:
             tool_context.state[STAGE_PREVIA_KEY] = dialog.stage.value
-            tool_context.state[STAGE_KEY] = Stage.DERIVACION_PENDIENTE.value
+            tool_context.state[STAGE_KEY] = Stage.HANDOFF_PENDING.value
             tool_context.request_confirmation(
-                hint=CONFIRMATION_HINT,
+                hint=CONFIRMATION_HINT[detect_language(args.requirement_summary)],
                 payload={
-                    "motivo": args.motivo.value,
-                    "resumen": args.resumen_requerimiento,
-                    "canal_preferido": args.canal_preferido.value if args.canal_preferido else None,
-                    "urgencia": args.urgencia.value if args.urgencia else None,
+                    "reason": args.reason.value,
+                    "resumen": args.requirement_summary,
+                    "preferred_channel": args.preferred_channel.value
+                    if args.preferred_channel
+                    else None,
+                    "urgency": args.urgency.value if args.urgency else None,
                 },
             )
             return ok({"pendiente_de_confirmacion": True})
 
         if not confirmation.confirmed:
             tool_context.state[STAGE_KEY] = (
-                tool_context.state.get(STAGE_PREVIA_KEY) or Stage.NUEVO.value
+                tool_context.state.get(STAGE_PREVIA_KEY) or Stage.NEW.value
             )
             return ok({"cancelado": True})
 
@@ -87,24 +93,24 @@ def make_solicitar_contacto_humano(handoff_service: HandoffService) -> Solicitar
             handoff, created = await handoff_service.open_or_get(
                 session_id=session_id,
                 user_id=UUID(tool_context.user_id),
-                motivo=args.motivo,
-                resumen_requerimiento=args.resumen_requerimiento,
-                canal_preferido=args.canal_preferido,
-                urgencia=args.urgencia,
+                reason=args.reason,
+                requirement_summary=args.requirement_summary,
+                preferred_channel=args.preferred_channel,
+                urgency=args.urgency,
             )
         except DomainError as exc:
             return error(exc.code, exc.message, retryable=exc.retryable)
 
-        tool_context.state[STAGE_KEY] = Stage.DERIVADO.value
+        tool_context.state[STAGE_KEY] = Stage.HANDED_OFF.value
 
         return ok(
             {
                 "handoff_id": handoff.id,
                 "ticket": handoff.ticket,
-                "motivo": handoff.motivo.value,
+                "reason": handoff.reason.value,
                 "status": handoff.status.value,
                 "ya_existia": not created,
             }
         )
 
-    return solicitar_contacto_humano
+    return request_human_handoff

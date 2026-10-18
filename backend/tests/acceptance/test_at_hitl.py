@@ -1,4 +1,4 @@
-"""AT-08, AT-09 y AT-10 de specs/09-acceptance-tests.md."""
+"""AT-08, AT-09, and AT-10 from specs/09-acceptance-tests.md."""
 
 from uuid import UUID
 
@@ -10,11 +10,11 @@ from tests.support.sse import ReceivedEvent, parse_sse, send_message
 
 TEST_DRIVE_TURNS = [
     FakeTurn(
-        tool_name="solicitar_contacto_humano",
+        tool_name="request_human_handoff",
         tool_args={
-            "motivo": "TEST_DRIVE",
-            "resumen_requerimiento": "Quiere agendar un test drive para el sábado",
-            "canal_preferido": "WHATSAPP",
+            "reason": "TEST_DRIVE",
+            "requirement_summary": "Quiere agendar un test drive para el sábado",
+            "preferred_channel": "WHATSAPP",
         },
     ),
     FakeTurn(text="Listo, un asesor te contacta."),
@@ -61,27 +61,27 @@ async def test_at08_test_drive_confirmado_crea_handoff(
     asked = await send_message(client, user_id, session_id, "quiero un test drive")
 
     pending = [e for e in asked if e.event == "hitl.confirmation_required"]
-    assert pending[0].data["motivo"] == "TEST_DRIVE"
+    assert pending[0].data["reason"] == "TEST_DRIVE"
     assert "test drive" in str(pending[0].data["resumen"]).lower()
-    assert pending[0].data["canal_preferido"] == "WHATSAPP"
+    assert pending[0].data["preferred_channel"] == "WHATSAPP"
 
     lead = await client.get(
         f"/api/v1/sessions/{session_id}/lead", headers={"X-User-Id": str(user_id)}
     )
-    assert lead.json()["etapa"] == "DERIVACION_PENDIENTE"
+    assert lead.json()["stage"] == "HANDOFF_PENDING"
 
     resumed = await confirm(client, user_id, session_id, confirmation_id_of(asked), approved=True)
 
     created = [e for e in resumed if e.event == "handoff.created"]
     assert created, "no se emitió handoff.created"
     assert created[0].data["status"] == "OPEN"
-    assert created[0].data["motivo"] == "TEST_DRIVE"
+    assert created[0].data["reason"] == "TEST_DRIVE"
     assert created[0].data["ticket"].startswith("TICK-")
 
     lead = await client.get(
         f"/api/v1/sessions/{session_id}/lead", headers={"X-User-Id": str(user_id)}
     )
-    assert lead.json()["etapa"] == "DERIVADO"
+    assert lead.json()["stage"] == "HANDED_OFF"
 
     listed = await client.get("/api/v1/handoffs?status=OPEN", headers=ADMIN)
     assert listed.status_code == 200
@@ -102,7 +102,7 @@ async def test_at09_cancelar_la_confirmacion_no_crea_handoff(
     lead = await client.get(
         f"/api/v1/sessions/{session_id}/lead", headers={"X-User-Id": str(user_id)}
     )
-    assert lead.json()["etapa"] == "NUEVO"
+    assert lead.json()["stage"] == "NEW"
 
     listed = await client.get("/api/v1/handoffs", headers=ADMIN)
     assert listed.json() == []
@@ -115,10 +115,10 @@ async def test_at10_segundo_pedido_con_handoff_abierto_es_idempotente(
         "test drive": TEST_DRIVE_TURNS,
         "cotización": [
             FakeTurn(
-                tool_name="solicitar_contacto_humano",
+                tool_name="request_human_handoff",
                 tool_args={
-                    "motivo": "COTIZACION_FORMAL",
-                    "resumen_requerimiento": "Ahora pide una cotización formal por escrito",
+                    "reason": "FORMAL_QUOTE",
+                    "requirement_summary": "Ahora pide una cotización formal por escrito",
                 },
             ),
             FakeTurn(text="Ya tienes una solicitud en curso."),
@@ -138,7 +138,7 @@ async def test_at10_segundo_pedido_con_handoff_abierto_es_idempotente(
     created = [e for e in second if e.event == "handoff.created"]
     assert created[0].data["ticket"] == first_ticket
     assert created[0].data["ya_existia"] is True
-    assert created[0].data["motivo"] == "TEST_DRIVE"
+    assert created[0].data["reason"] == "TEST_DRIVE"
 
     listed = await client.get("/api/v1/handoffs", headers=ADMIN)
     assert len(listed.json()) == 1
@@ -186,7 +186,7 @@ async def test_declinar_deja_la_decision_en_el_historial(
 
     with_decision = [m for m in messages if m.get("decision")]
     assert len(with_decision) == 1
-    assert with_decision[0]["decision"] == {"kind": "declined", "motivo": "TEST_DRIVE"}
+    assert with_decision[0]["decision"] == {"kind": "declined", "reason": "TEST_DRIVE"}
 
 
 async def test_admin_endpoints_requieren_token(client: AsyncClient) -> None:

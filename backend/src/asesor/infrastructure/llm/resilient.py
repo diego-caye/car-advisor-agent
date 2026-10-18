@@ -12,8 +12,9 @@ from asesor.infrastructure.fault_context import current_fault
 
 logger = logging.getLogger(__name__)
 
-# El baseline n8n reintentaba 3 veces con 3 s fijos (retryOnFail / maxTries).
-# Aquí el backoff es exponencial, que se porta mejor ante un 429 sostenido.
+# The n8n baseline retried 3 times with a fixed 3 s delay (retryOnFail /
+# maxTries). Here the backoff is exponential, which behaves better under a
+# sustained 429.
 DEFAULT_ATTEMPTS = 3
 DEFAULT_BASE_DELAY = 0.5
 
@@ -40,10 +41,11 @@ def is_retryable(error: BaseException) -> bool:
 
 
 class ResilientLlm(BaseLlm):
-    """Reintenta con backoff y cae al modelo de respaldo (spec 07 §3).
+    """Retries with backoff and falls back to the backup model (spec 07 §3).
 
-    Solo reintenta si todavía no emitió nada: una vez que empezó a transmitir
-    texto al usuario, repetir la llamada duplicaría lo ya entregado.
+    Only retries if it hasn't emitted anything yet: once it has started
+    streaming text to the user, repeating the call would duplicate what was
+    already delivered.
     """
 
     model: str = "resilient"
@@ -66,14 +68,15 @@ class ResilientLlm(BaseLlm):
                 return
             except Exception as error:
                 if emitted:
-                    # Ya salió texto al usuario: reintentar lo duplicaría.
-                    logger.error("el modelo falló a mitad del stream: %s", error)
+                    # Text already went out to the user: retrying would
+                    # duplicate it.
+                    logger.error("model failed midway through the stream: %s", error)
                     raise
                 if not is_retryable(error):
                     raise
                 last_error = error
                 logger.warning(
-                    "modelo principal falló (intento %s/%s): %s", attempt, self.attempts, error
+                    "primary model failed (attempt %s/%s): %s", attempt, self.attempts, error
                 )
                 if attempt < self.attempts:
                     await asyncio.sleep(self.base_delay * (2 ** (attempt - 1)))
@@ -81,7 +84,7 @@ class ResilientLlm(BaseLlm):
         if self.fallback is None:
             raise last_error if last_error else RuntimeError("primary model failed")
 
-        logger.warning("cayendo al modelo de respaldo tras %s intentos", self.attempts)
+        logger.warning("falling back to the backup model after %s attempts", self.attempts)
         async for response in self._call(self.fallback, llm_request, stream, primary=False):
             yield response
 
@@ -95,9 +98,9 @@ class ResilientLlm(BaseLlm):
             if fault is Fault.MODEL_TIMEOUT:
                 raise TimeoutError("fault injection: model_timeout")
 
-        # LiteLlm resuelve el proveedor desde llm_request.model, no desde su
-        # propio campo. Sin esto vería el nombre del envoltorio y fallaría con
-        # "LLM Provider NOT provided".
+        # LiteLlm resolves the provider from llm_request.model, not from its
+        # own field. Without this it would see the wrapper's name and fail
+        # with "LLM Provider NOT provided".
         llm_request.model = model.model
 
         async for response in model.generate_content_async(llm_request, stream):

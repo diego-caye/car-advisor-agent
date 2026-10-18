@@ -4,9 +4,9 @@ import httpx
 
 from asesor.domain.knowledge import EMBEDDING_DIMENSIONS
 
-# embeddinggemma se entrenó con prefijos de tarea: separan "esto es una consulta"
-# de "esto es un documento" y mejoran el recall. Van en el texto porque la API de
-# embeddings de Ollama no tiene un parámetro de task_type.
+# embeddinggemma was trained with task prefixes: they separate "this is a
+# query" from "this is a document" and improve recall. They go in the text
+# because Ollama's embeddings API doesn't have a task_type parameter.
 _QUERY_PREFIX = "task: search result | query: "
 _DOCUMENT_PREFIX = "title: none | text: "
 
@@ -41,15 +41,13 @@ class OllamaEmbeddings:
 
         vectors: list[list[float]] = payload.get("embeddings") or []
         if len(vectors) != len(inputs):
-            raise RuntimeError(
-                f"Ollama devolvió {len(vectors)} vectores para {len(inputs)} entradas"
-            )
+            raise RuntimeError(f"Ollama returned {len(vectors)} vectors for {len(inputs)} inputs")
 
         for vector in vectors:
             if len(vector) != EMBEDDING_DIMENSIONS:
                 raise RuntimeError(
-                    f"El modelo '{self._model}' devuelve {len(vector)} dimensiones, "
-                    f"pero la tabla kb_chunks espera {EMBEDDING_DIMENSIONS}"
+                    f"Model '{self._model}' returns {len(vector)} dimensions, "
+                    f"but the kb_chunks table expects {EMBEDDING_DIMENSIONS}"
                 )
 
         return vectors

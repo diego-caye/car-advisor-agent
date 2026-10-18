@@ -1,20 +1,20 @@
-import type { Etapa, LeadDto, ServerEvent, TurnMetrics } from '../../api/types'
+import type { LeadDto, ServerEvent, Stage, TurnMetrics } from '../../api/types'
 
 export type Handoff = { ticket: string; ya_existia: boolean }
 
-// Eco de la tarjeta de confirmación, aceptada o declinada: a diferencia de
-// aprobar (donde handoff.created cuenta la historia con el ticket), cancelar
-// no crea nada del lado del backend, así que sin esto no queda ningún rastro
-// de qué se preguntó ni qué se contestó.
-export type DeclinedConfirmation = { motivo: string }
+// Echo of the confirmation card, accepted or declined: unlike approving
+// (where handoff.created tells the story with the ticket), declining
+// doesn't create anything on the backend side, so without this no trace
+// would remain of what was asked or what was answered.
+export type DeclinedConfirmation = { reason: string }
 
-// Va DENTRO del mensaje al que pertenece (el que disparó la derivación), no
-// en un campo aparte del estado global: un campo aparte se limpiaba con
-// cada mensaje nuevo del usuario (para no arrastrar el eco de un tema viejo
-// al turno siguiente) pero eso también borraba el eco para siempre en
-// cuanto se seguía conversando, aunque la fila siguiera ahí en la propia
-// burbuja — reportado en vivo. Colgado del mensaje, sobrevive solo porque
-// el mensaje mismo nunca se borra.
+// Goes INSIDE the message it belongs to (the one that triggered the
+// handoff), not in a separate field of the global state: a separate field
+// used to get cleared on every new user message (to avoid carrying the echo
+// of an old topic into the next turn), but that also erased the echo
+// forever as soon as the conversation continued, even though the row was
+// still right there in its own bubble — reported live. Attached to the
+// message, it survives only because the message itself is never deleted.
 export type MessageDecision =
   | ({ kind: 'handoff' } & Handoff)
   | ({ kind: 'declined' } & DeclinedConfirmation)
@@ -31,9 +31,9 @@ export type Activity = { name: string; done: boolean }
 
 export type Confirmation = {
   confirmation_id: string
-  motivo: string
+  reason: string
   resumen: string
-  canal_preferido: string | null
+  preferred_channel: string | null
 }
 
 export type ChatState = {
@@ -41,7 +41,7 @@ export type ChatState = {
   activity: Activity[]
   pendingConfirmation: Confirmation | null
   lead: LeadDto | null
-  etapa: Etapa
+  stage: Stage
   metrics: TurnMetrics | null
   streaming: boolean
   error: { message: string; retryable: boolean } | null
@@ -53,18 +53,18 @@ export const initialChatState: ChatState = {
   activity: [],
   pendingConfirmation: null,
   lead: null,
-  etapa: 'NUEVO',
+  stage: 'NEW',
   metrics: null,
   streaming: false,
   error: null,
   lastUserMessage: null,
 }
 
-// El backend no persiste que un turno falló, solo el intercambio en sí: si el
-// último mensaje guardado es del usuario, no hubo respuesta (el modelo falló,
-// la conexión se cortó a medias, lo que sea). Sin esto, recargar una
-// conversación así de deja el mensaje ahí colgado sin ninguna pista de que se
-// puede reintentar — pasa a verse igual que en una falla en vivo.
+// The backend doesn't persist that a turn failed, only the exchange itself:
+// if the last saved message is the user's, there was no response (the model
+// failed, the connection dropped halfway, whatever). Without this, reloading
+// such a conversation leaves the message hanging there with no hint that it
+// can be retried — it ends up looking the same as a live failure.
 const UNANSWERED_ERROR = 'Esta conversación se quedó sin respuesta. Puedes reintentar.'
 
 export type ChatAction =
@@ -73,21 +73,21 @@ export type ChatAction =
       type: 'load'
       messages: Message[]
       lead: LeadDto | null
-      etapa: Etapa
+      stage: Stage
       unansweredMessage?: string | null
     }
   | { type: 'user-sent'; content: string }
-  // Corrige el texto del último mensaje en su propio lugar (la misma
-  // burbuja), en vez de agregar uno nuevo: es lo que dispara "Editar" sobre
-  // un mensaje que se quedó sin respuesta.
+  // Corrects the last message's text in place (the same bubble), instead of
+  // adding a new one: this is what "Edit" triggers on a message that was
+  // left without a response.
   | { type: 'edit-last-message'; content: string }
   | { type: 'turn-start' }
   | { type: 'server'; event: ServerEvent }
   | { type: 'turn-failed'; message: string }
-  // Cancelar no crea nada (spec 03 §3): a diferencia de aprobar, donde la
-  // tarjeta la quita el propio evento handoff.created, cancelar no tiene
-  // ningún evento de servidor que "avise" que ya se resolvió -- hay que
-  // quitarla a mano en cuanto el usuario decide, sin esperar al backend.
+  // Declining doesn't create anything (spec 03 §3): unlike approving, where
+  // the handoff.created event itself removes the card, declining has no
+  // server event that "announces" it's already resolved -- it has to be
+  // removed by hand as soon as the user decides, without waiting for the backend.
   | { type: 'confirmation-declined' }
 
 const AGENT_DRAFT_ID = 'agent-draft'
@@ -102,7 +102,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...initialChatState,
         messages: action.messages,
         lead: action.lead,
-        etapa: action.etapa,
+        stage: action.stage,
         ...(action.unansweredMessage
           ? {
               lastUserMessage: action.unansweredMessage,
@@ -153,10 +153,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return applyServerEvent(state, action.event)
 
     case 'confirmation-declined': {
-      const motivo = state.pendingConfirmation?.motivo
+      const reason = state.pendingConfirmation?.reason
       const cleared = clearConfirmation(state)
-      return motivo
-        ? { ...cleared, messages: attachDecision(cleared.messages, { kind: 'declined', motivo }) }
+      return reason
+        ? { ...cleared, messages: attachDecision(cleared.messages, { kind: 'declined', reason }) }
         : cleared
     }
   }
@@ -198,7 +198,7 @@ function applyServerEvent(state: ChatState, event: ServerEvent): ChatState {
       }
 
     case 'lead.updated':
-      return { ...state, lead: event.lead, etapa: event.etapa }
+      return { ...state, lead: event.lead, stage: event.stage }
 
     case 'hitl.confirmation_required':
       return {
@@ -207,9 +207,9 @@ function applyServerEvent(state: ChatState, event: ServerEvent): ChatState {
         activity: [],
         pendingConfirmation: {
           confirmation_id: event.confirmation_id,
-          motivo: event.motivo,
+          reason: event.reason,
           resumen: event.resumen,
-          canal_preferido: event.canal_preferido,
+          preferred_channel: event.preferred_channel,
         },
       }
 
@@ -254,10 +254,10 @@ export function clearConfirmation(state: ChatState): ChatState {
   return { ...state, pendingConfirmation: null }
 }
 
-// El mensaje al que se cuelga la decisión es el último de la conversación en
-// ese momento, sea del agente o del usuario: a veces el modelo llama la tool
-// de derivación sin texto previo, así que el último mensaje en pantalla
-// puede ser el del propio usuario.
+// The message the decision gets attached to is the last one in the
+// conversation at that moment, whether the agent's or the user's: sometimes
+// the model calls the handoff tool without prior text, so the last message
+// on screen can be the user's own.
 function attachDecision(messages: Message[], decision: MessageDecision): Message[] {
   if (messages.length === 0) return messages
   return messages.map((message, index) =>

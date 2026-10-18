@@ -45,7 +45,7 @@ async def test_un_turno_solo_de_razonamiento_no_deja_burbuja_vacia() -> None:
 async def test_un_turno_que_pide_confirmacion_no_recibe_relleno() -> None:
     call = types.Part.from_function_call(
         name="adk_request_confirmation",
-        args={"toolConfirmation": {"payload": {"motivo": "TEST_DRIVE", "resumen": "x"}}},
+        args={"toolConfirmation": {"payload": {"reason": "TEST_DRIVE", "resumen": "x"}}},
     )
 
     events = await collect(model_event(call))
@@ -55,15 +55,15 @@ async def test_un_turno_que_pide_confirmacion_no_recibe_relleno() -> None:
 
 
 async def test_un_turno_con_confirmacion_ignora_todo_lo_que_llegue_despues() -> None:
-    """Reproduce en vivo con gemma4:12b: tras pedir la confirmación, la MISMA
-    invocación a veces sigue produciendo eventos (una función respondida, más
-    texto) en vez de detenerse a esperar al usuario. Spec 02 §2 dice que el
-    turno cierra ahí mismo -- este test fija que `translate` lo hace de
-    verdad, sin importar qué más traiga `events` después.
+    """Reproduces live with gemma4:12b: after requesting confirmation, the
+    SAME invocation sometimes keeps producing events (a function response,
+    more text) instead of stopping to wait for the user. Spec 02 §2 says the
+    turn closes right there -- this test pins down that `translate` really
+    does that, no matter what else `events` brings afterward.
     """
     call = types.Part.from_function_call(
         name="adk_request_confirmation",
-        args={"toolConfirmation": {"payload": {"motivo": "TEST_DRIVE", "resumen": "x"}}},
+        args={"toolConfirmation": {"payload": {"reason": "TEST_DRIVE", "resumen": "x"}}},
     )
     response_after = Event(
         author="user",
@@ -84,10 +84,11 @@ async def test_un_turno_con_confirmacion_ignora_todo_lo_que_llegue_despues() -> 
 
 
 async def test_el_texto_se_entrega_una_vez_revisado_por_l4() -> None:
-    """Los parciales se acumulan: nada sale antes de que L4 vea la respuesta entera.
+    """Partials are buffered: nothing goes out before L4 sees the complete response.
 
-    Una vez transmitido un delta no hay forma de retirarlo del cliente, así que
-    el filtro de salida solo sirve si el texto se retiene hasta el final.
+    Once a delta has been streamed there's no way to retract it from the
+    client, so the output filter only works if the text is held back until
+    the end.
     """
     events = await collect(
         model_event(types.Part.from_text(text="Hola "), partial=True),

@@ -1,69 +1,69 @@
 # CLAUDE.md
 
-Asesor automotriz virtual — migración de un workflow n8n a Google ADK 2.x + FastAPI + React. Reto técnico (AI Engineer), entrega viernes 18-sep-2026 15:00 (hora Perú).
+Virtual automotive advisor — migrating an n8n workflow to Google ADK 2.x + FastAPI + React. Technical challenge (AI Engineer), due Friday 18-Sep-2026 15:00 (Peru time).
 
-## Fuente de verdad
+## Source of truth
 
-Después de F0, **no releas `specs/prompts/00-master-build.md` completo**. Lee `specs/` (specs numerados 00–11, `decisions/ADR-*.md`, `open-questions.md`) y este archivo. `PROGRESS.md` tiene el checklist de fases.
+After F0, **don't re-read `specs/prompts/00-master-build.md` in full**. Read `specs/` (numbered specs 00–11, `decisions/ADR-*.md`, `open-questions.md`) and this file. `PROGRESS.md` has the phase checklist.
 
-## Reglas operativas
+## Operating rules
 
-1. **Spec-Driven Development.** Si el código diverge de un spec, actualiza el spec en el mismo PR.
-2. **Una rama por fase** desde `develop`: `feature/*`, `docs/*`, `fix/*`. Commits convencionales atómicos → `make lint typecheck test` en verde → PR a `develop` (qué, por qué, cómo probar, AT cubiertos) → merge commit (sin squash).
-3. **Paradas obligatorias:** fin de F0 (ya ocurrió); bloqueos o decisiones no cubiertas por specs (anotar en `specs/open-questions.md` y preguntar); antes del merge `develop → main`.
-4. **ADK 2.x no se escribe de memoria.** Usa los skills `google-agents-cli-adk-code`, `google-agents-cli-eval`, `google-agents-cli-observability`; verifica cada clase/firma contra el paquete instalado antes de usarla (documentar en `specs/notes/adk-api.md`). No uses el scaffold de agents-cli.
-5. **Confidencialidad.** Nada de `.local/` entra al historial (ya está en `.gitignore`). No mencionar marcas ni empresas del proceso de selección.
-6. **Idiomas.** Código en inglés; specs y README en español; el bot habla español de Perú, tuteando.
-7. **Arquitectura.** `api → application → domain ← infrastructure`; `domain` sin imports de ADK/FastAPI/SQLAlchemy; `agent` usa `application`. Detalle en `specs/01-architecture.md`.
+1. **Spec-Driven Development.** If the code diverges from a spec, update the spec in the same PR.
+2. **One branch per phase** from `develop`: `feature/*`, `docs/*`, `fix/*`. Atomic conventional commits → `make lint typecheck test` green → PR to `develop` (what, why, how to test, ATs covered) → merge commit (no squash).
+3. **Mandatory checkpoints:** end of F0 (already happened); blockers or decisions not covered by the specs (note them in `specs/open-questions.md` and ask); before merging `develop → main`.
+4. **ADK 2.x is never written from memory.** Use the `google-agents-cli-adk-code`, `google-agents-cli-eval`, `google-agents-cli-observability` skills; verify every class/signature against the installed package before using it (document it in `specs/notes/adk-api.md`). Don't use the agents-cli scaffold.
+5. **Confidentiality.** Nothing from `.local/` enters the history (already in `.gitignore`). Don't mention brands or companies from the hiring process.
+6. **Languages.** Code, specs, and README are in English; the bot replies in whichever language the end user writes in, defaulting to Peru Spanish with informal "tú" when that's unclear or on the first message.
+7. **Architecture.** `api → application → domain ← infrastructure`; `domain` has no ADK/FastAPI/SQLAlchemy imports; `agent` uses `application`. Detail in `specs/01-architecture.md`.
 
-## Decisiones cerradas (resumen; detalle en `specs/01-architecture.md` y `00-master-build.md` §2)
+## Closed decisions (summary; detail in `specs/01-architecture.md` and `00-master-build.md` §2)
 
-Python 3.12 + uv + FastAPI + Pydantic v2 + SQLAlchemy 2 async + Alembic + `google-adk>=2`. Un `Agent` ("Luis") + 3 tools (`guardar_lead`, `solicitar_contacto_humano`, `search_knowledge_base`) + plugins de guardrails. SSE propio sobre `runner.run_async`. `LlmProvider`: Gemini (default) u Ollama/Gemma 4 vía LiteLLM, solo por env. `DatabaseSessionService` de ADK sobre Postgres + pgvector (`vector(768)`, HNSW coseno) para RAG. OTel → Langfuse (no-op sin keys). Frontend React + Vite + TS strict + Tailwind, tipos desde OpenAPI.
+Python 3.12 + uv + FastAPI + Pydantic v2 + SQLAlchemy 2 async + Alembic + `google-adk>=2`. One `Agent` ("Luis") + 3 tools (`save_lead`, `request_human_handoff`, `search_knowledge_base`) + guardrail plugins. Custom SSE over `runner.run_async`. `LlmProvider`: Gemini (default) or Ollama/Gemma 4 via LiteLLM, env-only. ADK's `DatabaseSessionService` over Postgres + pgvector (`vector(768)`, HNSW cosine) for RAG. OTel → Langfuse (no-op without keys). Frontend React + Vite + TS strict + Tailwind, types from OpenAPI.
 
-## Estado actual
+## Current status
 
-**F0–F7 completas y mergeadas a `develop`** (F8, modelos locales, se adelantó dentro de F6). Queda **F9** (README, diagramas, guion de demo, tag `v1.0.0`, P0) — único bloqueante para la entrega.
+**F0–F7 complete and merged to `develop`** (F8, local models, was moved up within F6). **F9** remains (README, diagrams, demo script, `v1.0.0` tag, P0) — the only blocker left for delivery.
 
-**Falta remoto en GitHub y `gh auth login`**, así que los merges de fase se hacen localmente con `git merge --no-ff` y el cuerpo del merge commit hace de descripción de PR — ver `specs/open-questions.md`.
+**Still missing a GitHub remote and `gh auth login`**, so phase merges are done locally with `git merge --no-ff` and the merge commit's body serves as the PR description — see `specs/open-questions.md`.
 
-## Modelos locales
+## Local models
 
-El proyecto corre **sin ninguna API key**: agente `ollama_chat/gemma4:12b` con `OLLAMA_THINK=low` y contexto 32768, embeddings `embeddinggemma:300m`. Gemini sigue disponible cambiando variables de entorno; los dos perfiles están en `.env.example`.
+The project runs **with no API key at all**: agent `ollama_chat/gemma4:12b` with `OLLAMA_THINK=low` and a 32768 context, embeddings via `embeddinggemma:300m`. Gemini remains available by switching environment variables; both profiles are in `.env.example`.
 
-**Todo dentro de Docker por defecto, nada nativo.** `COMPOSE_PROFILES=local-llm` en `.env.example` hace que `docker compose up -d` (sin ningún flag) ya incluya Ollama y le baje los cuatro modelos que hacen falta — quien clone el repo con solo Docker no necesita instalar Ollama en su máquina. El catálogo del selector para Ollama no se declara a mano (`MODEL_CHOICES`): se descubre en vivo contra `/api/tags` + `/api/show` al arrancar el backend (`infrastructure/llm/ollama_discovery.py`, spec 11 §3.1), con sus capacidades reales (piensa / usa tools).
+**Everything inside Docker by default, nothing native.** `COMPOSE_PROFILES=local-llm` in `.env.example` makes `docker compose up -d` (with no flags) already include Ollama and pull the four models it needs — whoever clones the repo with just Docker doesn't need to install Ollama on their machine. The Ollama entries in the selector's catalog aren't declared by hand (`MODEL_CHOICES`): they're discovered live against `/api/tags` + `/api/show` when the backend starts (`infrastructure/llm/ollama_discovery.py`, spec 11 §3.1), with their real capabilities (thinking / tool use).
 
-Antes de cambiar de modelo, leer `specs/decisions/ADR-003-modelos-locales.md`. Lo esencial: si `docker compose exec ollama ollama ps` no dice `100% GPU`, el modelo no entra y la latencia se multiplica — revisar VRAM libre **y** la RAM de la VM de WSL (`%USERPROFILE%\.wslconfig`).
+Before switching models, read `specs/decisions/ADR-003-modelos-locales.md`. The essentials: if `docker compose exec ollama ollama ps` doesn't say `100% GPU`, the model doesn't fit and latency multiplies — check both free VRAM **and** the WSL VM's RAM (`%USERPROFILE%\.wslconfig`).
 
-## Comandos
+## Commands
 
-`make` no está instalado en Windows; el `Makefile` es la interfaz canónica (CI, Docker, Linux/macOS) y estos son los equivalentes directos:
+`make` isn't installed on Windows; the `Makefile` is the canonical interface (CI, Docker, Linux/macOS), and these are the direct equivalents:
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check .   # lint
 cd backend && uv run mypy                                          # typecheck
 cd backend && uv run pytest                                        # tests
 cd frontend && npm run typecheck && npm run build                  # frontend
-docker compose exec backend uv run python scripts/ingest_kb.py     # ingesta de la KB (scripts/ y kb/ montados en el backend)
-docker compose up -d                                              # make up (recarga en caliente; --build solo si cambian dependencias)
+docker compose exec backend uv run python scripts/ingest_kb.py     # KB ingestion (scripts/ and kb/ mounted into the backend)
+docker compose up -d                                              # make up (hot reload; --build only if dependencies change)
 ```
 
-Puertos por defecto **8090** (backend), **5190** (frontend) y **5490** (Postgres), fuera de los habituales a propósito: es normal tener otros proyectos ocupando 8000, 5173 y 5432. Se cambian con `BACKEND_PORT`, `FRONTEND_PORT` y `POSTGRES_PORT`.
+Default ports **8090** (backend), **5190** (frontend), and **5490** (Postgres), deliberately outside the usual ones: it's normal to have other projects using 8000, 5173, and 5432. Changed via `BACKEND_PORT`, `FRONTEND_PORT`, and `POSTGRES_PORT`.
 
-## Dónde mirar cada cosa
+## Where to look for what
 
-| Pregunta | Spec |
+| Question | Spec |
 |---|---|
-| Qué cambia respecto al baseline n8n | `specs/00-baseline-analysis.md` |
-| Estructura de carpetas, capas, trade-offs | `specs/01-architecture.md` |
-| Endpoints y eventos SSE | `specs/02-api-contract.md` |
-| Contrato de las 3 tools | `specs/03-tools.md` |
-| Máquina de estados del diálogo | `specs/04-dialog-state.md` |
-| Instrucción del agente | `specs/05-agent-policy.md` |
-| Sesiones, memoria, RAG | `specs/06-memory-rag.md` |
+| What changes from the n8n baseline | `specs/00-baseline-analysis.md` |
+| Folder structure, layers, trade-offs | `specs/01-architecture.md` |
+| Endpoints and SSE events | `specs/02-api-contract.md` |
+| Contract for the 3 tools | `specs/03-tools.md` |
+| Dialog state machine | `specs/04-dialog-state.md` |
+| Agent instruction | `specs/05-agent-policy.md` |
+| Sessions, memory, RAG | `specs/06-memory-rag.md` |
 | Guardrails L1–L4, fallbacks, fault injection | `specs/07-guardrails.md` |
-| Trazas, métricas, feedback, evals | `specs/08-observability-feedback.md` |
-| Tests de aceptación | `specs/09-acceptance-tests.md` |
-| Qué recortar si falta tiempo | `specs/10-priorities.md` |
-| Providers de LLM/embeddings | `specs/11-llm-providers.md` |
-| Por qué ADK y no LangGraph/n8n | `specs/decisions/ADR-001-framework.md` |
-| Bloqueos y prerrequisitos pendientes | `specs/open-questions.md` |
+| Traces, metrics, feedback, evals | `specs/08-observability-feedback.md` |
+| Acceptance tests | `specs/09-acceptance-tests.md` |
+| What to cut if time runs short | `specs/10-priorities.md` |
+| LLM/embeddings providers | `specs/11-llm-providers.md` |
+| Why ADK and not LangGraph/n8n | `specs/decisions/ADR-001-framework.md` |
+| Blockers and pending prerequisites | `specs/open-questions.md` |

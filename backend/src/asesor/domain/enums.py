@@ -2,65 +2,65 @@ from enum import StrEnum
 
 
 class Stage(StrEnum):
-    NUEVO = "NUEVO"
-    DESCUBRIMIENTO = "DESCUBRIMIENTO"
-    INTERES_CONCRETO = "INTERES_CONCRETO"
-    DERIVACION_PENDIENTE = "DERIVACION_PENDIENTE"
-    DERIVADO = "DERIVADO"
+    NEW = "NEW"
+    DISCOVERY = "DISCOVERY"
+    CONCRETE_INTEREST = "CONCRETE_INTEREST"
+    HANDOFF_PENDING = "HANDOFF_PENDING"
+    HANDED_OFF = "HANDED_OFF"
 
 
-class CanalPreferido(StrEnum):
+class PreferredChannel(StrEnum):
     WHATSAPP = "WHATSAPP"
-    LLAMADA = "LLAMADA"
+    CALL = "CALL"
     EMAIL = "EMAIL"
     CHAT = "CHAT"
 
 
-class UsoPrincipal(StrEnum):
-    CIUDAD = "CIUDAD"
-    TRABAJO = "TRABAJO"
-    FAMILIA = "FAMILIA"
-    VIAJES = "VIAJES"
-    MIXTO = "MIXTO"
+class PrimaryUse(StrEnum):
+    CITY = "CITY"
+    WORK = "WORK"
+    FAMILY = "FAMILY"
+    TRAVEL = "TRAVEL"
+    MIXED = "MIXED"
 
 
-class TipoVehiculo(StrEnum):
+class VehicleType(StrEnum):
     SUV = "SUV"
     SEDAN = "SEDAN"
     HATCHBACK = "HATCHBACK"
     PICKUP = "PICKUP"
     VAN = "VAN"
     CROSSOVER = "CROSSOVER"
-    OTRO = "OTRO"
+    OTHER = "OTHER"
 
 
-class Motorizacion(StrEnum):
-    GASOLINA = "GASOLINA"
+class Powertrain(StrEnum):
+    GASOLINE = "GASOLINE"
     DIESEL = "DIESEL"
-    HIBRIDO = "HIBRIDO"
-    ELECTRICO = "ELECTRICO"
-    GLP_GNV = "GLP_GNV"
-    NO_DEFINIDO = "NO_DEFINIDO"
+    HYBRID = "HYBRID"
+    ELECTRIC = "ELECTRIC"
+    LPG_CNG = "LPG_CNG"
+    UNDEFINED = "UNDEFINED"
 
 
-class NivelInteres(StrEnum):
-    BAJO = "BAJO"
-    MEDIO = "MEDIO"
-    ALTO = "ALTO"
+class InterestLevel(StrEnum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 
-class MotivoHandoff(StrEnum):
+class HandoffReason(StrEnum):
     TEST_DRIVE = "TEST_DRIVE"
-    COTIZACION_FORMAL = "COTIZACION_FORMAL"
-    COMPRA_INMEDIATA = "COMPRA_INMEDIATA"
-    DISCONFORMIDAD = "DISCONFORMIDAD"
-    FUERA_DE_ALCANCE = "FUERA_DE_ALCANCE"
+    FORMAL_QUOTE = "FORMAL_QUOTE"
+    IMMEDIATE_PURCHASE = "IMMEDIATE_PURCHASE"
+    DISSATISFACTION = "DISSATISFACTION"
+    OUT_OF_SCOPE = "OUT_OF_SCOPE"
 
 
-class Urgencia(StrEnum):
-    BAJA = "BAJA"
-    MEDIA = "MEDIA"
-    ALTA = "ALTA"
+class Urgency(StrEnum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 
 class HandoffStatus(StrEnum):
@@ -69,16 +69,16 @@ class HandoffStatus(StrEnum):
     CLOSED = "CLOSED"
 
 
-class CategoriaKb(StrEnum):
-    CARROCERIAS = "CARROCERIAS"
-    SEGMENTOS = "SEGMENTOS"
-    MOTORIZACION = "MOTORIZACION"
-    TRANSMISION = "TRANSMISION"
-    CONSUMO = "CONSUMO"
-    MANTENIMIENTO = "MANTENIMIENTO"
-    SEGURIDAD = "SEGURIDAD"
-    USO = "USO"
-    GLOSARIO = "GLOSARIO"
+class KbCategory(StrEnum):
+    BODY_TYPES = "BODY_TYPES"
+    SEGMENTS = "SEGMENTS"
+    POWERTRAIN = "POWERTRAIN"
+    TRANSMISSION = "TRANSMISSION"
+    FUEL_ECONOMY = "FUEL_ECONOMY"
+    MAINTENANCE = "MAINTENANCE"
+    SAFETY = "SAFETY"
+    USAGE = "USAGE"
+    GLOSSARY = "GLOSSARY"
 
 
 class ToolStatus(StrEnum):

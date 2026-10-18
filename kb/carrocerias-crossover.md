@@ -1,6 +1,6 @@
 ---
 title: "Crossover: en qué se diferencia de una SUV"
-categoria: CARROCERIAS
+categoria: BODY_TYPES
 ---
 
 ## La diferencia real

@@ -1,6 +1,6 @@
 ---
 title: "Mantenimiento básico: qué revisar y cada cuánto"
-categoria: MANTENIMIENTO
+categoria: MAINTENANCE
 ---
 
 ## La regla general

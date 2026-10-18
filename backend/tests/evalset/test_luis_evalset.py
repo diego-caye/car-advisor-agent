@@ -1,27 +1,28 @@
-"""Golden dataset de conversaciones para Luis, corrido contra el Ollama real.
+"""Golden dataset of conversations for Luis, run against real Ollama.
 
-Equivalente de este proyecto a un dataset de LangSmith: `luis.cases.json` es
-editable a mano (sumar un caso no toca este archivo), y cada turno se juzga
-con dos mecanismos:
+This project's equivalent of a LangSmith dataset: `luis.cases.json` is
+editable by hand (adding a case doesn't touch this file), and each turn is
+judged with two mechanisms:
 
-- `TrajectoryEvaluator` (google.adk.evaluation, verificado contra
-  google-adk==2.9.1, specs/notes/adk-api.md S8): compara los nombres de tool
-  llamados contra los esperados (ANY_ORDER/EXACT segun el caso).
-  Determinista, sin LLM.
-- Un juez propio (`_judge_rubrics`), NO el `RubricBasedFinalResponseQualityV1Evaluator`
-  de ADK: se probo primero (specs/notes/adk-api.md S8) y su prompt interno
-  exige "evidencia" de tools para dar por cumplida una rubrica, con lo que
-  marcaba un saludo simple como incumplido aunque el texto fuera correcto —
-  esta pensado para fidelidad a evidencia recuperada (RAG), no para reglas de
-  tono/politica sin tools de por medio. El juez propio hace una sola llamada
-  a EVAL_MODEL (aqui Ollama, resuelto igual que hace el propio LlmAsJudge de
-  ADK vía LLMRegistry, sin ninguna key) pidiendo un veredicto JSON por regla.
+- `TrajectoryEvaluator` (google.adk.evaluation, verified against
+  google-adk==2.9.1, specs/notes/adk-api.md S8): compares the tool names
+  called against the expected ones (ANY_ORDER/EXACT depending on the case).
+  Deterministic, no LLM.
+- A custom judge (`_judge_rubrics`), NOT ADK's
+  `RubricBasedFinalResponseQualityV1Evaluator`: it was tried first
+  (specs/notes/adk-api.md S8) and its internal prompt requires tool
+  "evidence" to consider a rubric satisfied, which marked a simple greeting
+  as unmet even when the text was correct — it's meant for faithfulness to
+  retrieved evidence (RAG), not for tone/policy rules with no tools
+  involved. The custom judge makes a single call to EVAL_MODEL (here Ollama,
+  resolved the same way ADK's own LlmAsJudge does via LLMRegistry, with no
+  key at all) asking for a JSON verdict per rule.
 
-No se compara contra un texto fijo porque un LLM no responde siempre igual
-(pedido explicito del humano).
+It's not compared against fixed text because an LLM doesn't always respond
+the same way (explicit request from the human).
 
-Fuera de CI (marker `evalset`, igual que `live`): tarda varios minutos porque
-golpea un modelo local real turno a turno.
+Outside of CI (the `evalset` marker, same as `live`): takes several minutes
+because it hits a real local model turn by turn.
 """
 
 import json
@@ -68,7 +69,7 @@ def _assert_trajectory(
 ) -> None:
     expected_tools = turn.get("expected_tools")
     if expected_tools is None:
-        return  # este turno no verifica trayectoria (ver luis.cases.json)
+        return  # this turn doesn't verify trajectory (see luis.cases.json)
 
     expected = _invocation(message=turn["message"], reply="", tools=list(expected_tools))
     evaluator = TrajectoryEvaluator(
@@ -190,10 +191,10 @@ async def test_conversacion(
         error_triggered = any(e.event == "error" for e in events)
 
         if hitl_triggered:
-            # Un turno con hitl.confirmation_required cierra el stream sin
-            # message.delta (spec 02 S2): no hay texto final que juzgar. Solo
-            # es un desenlace valido si el caso lo declaro explicitamente --
-            # de lo contrario, una pausa inesperada es en si misma un fallo.
+            # A turn with hitl.confirmation_required closes the stream
+            # without a message.delta (spec 02 S2): there's no final text to
+            # judge. It's only a valid outcome if the case declared it
+            # explicitly -- otherwise, an unexpected pause is itself a failure.
             assert turn.get("accepts_hitl"), (
                 f"[{case['id']}] el turno disparo hitl.confirmation_required sin "
                 f"esperarlo: {_hitl_payload(events)}"
@@ -201,15 +202,15 @@ async def test_conversacion(
             continue
 
         if error_triggered:
-            # event.error_code (p. ej. MAX_TOKENS) se traduce a un "error"
-            # SSE retryable (asesor/api/sse.py) en vez de a texto: es el
-            # manejo de fallos de spec 07 funcionando, no un turno roto. Solo
-            # se tolera si el caso lo declaro explicitamente.
+            # event.error_code (e.g. MAX_TOKENS) is translated into a
+            # retryable "error" SSE event (asesor/api/sse.py) instead of
+            # text: it's spec 07's failure handling working, not a broken
+            # turn. It's only tolerated if the case declared it explicitly.
             assert turn.get("tolerates_error"), (
                 f"[{case['id']}] el turno termino en error sin esperarlo: "
                 f"{[e.data for e in events if e.event == 'error']}"
             )
-            print(f"[{case['id']}] nota: el turno degrado a un error retryable, tolerado")
+            print(f"[{case['id']}] note: the turn degraded to a retryable error, tolerated")
             if turn.get("expected_tools") is not None:
                 _assert_trajectory(turn, _invocation(turn["message"], "", tools), tools, case["id"])
             continue

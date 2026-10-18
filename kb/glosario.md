@@ -1,6 +1,6 @@
 ---
 title: "Glosario automotriz"
-categoria: GLOSARIO
+categoria: GLOSSARY
 ---
 
 ## Mecánica y motor

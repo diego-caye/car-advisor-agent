@@ -1,6 +1,6 @@
 ---
 title: "Transmisiones y sistemas de tracción"
-categoria: TRANSMISION
+categoria: TRANSMISSION
 ---
 
 ## Tipos de transmisión

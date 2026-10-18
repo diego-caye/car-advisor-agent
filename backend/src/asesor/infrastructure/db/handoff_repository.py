@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from asesor.domain.entities import Handoff
-from asesor.domain.enums import CanalPreferido, HandoffStatus, MotivoHandoff, Urgencia
+from asesor.domain.enums import HandoffReason, HandoffStatus, PreferredChannel, Urgency
 from asesor.infrastructure.db.engine import SessionFactory
 from asesor.infrastructure.db.models import HandoffRow
 
@@ -13,10 +13,12 @@ def _to_domain(row: HandoffRow) -> Handoff:
         id=row.id,
         session_id=row.session_id,
         user_id=row.user_id,
-        motivo=MotivoHandoff(row.motivo),
-        resumen_requerimiento=row.resumen_requerimiento,
-        canal_preferido=CanalPreferido(row.canal_preferido) if row.canal_preferido else None,
-        urgencia=Urgencia(row.urgencia) if row.urgencia else None,
+        reason=HandoffReason(row.reason),
+        requirement_summary=row.requirement_summary,
+        preferred_channel=PreferredChannel(row.preferred_channel)
+        if row.preferred_channel
+        else None,
+        urgency=Urgency(row.urgency) if row.urgency else None,
         status=HandoffStatus(row.status),
         created_at=row.created_at,
     )
@@ -46,19 +48,19 @@ class SqlHandoffRepository:
         *,
         session_id: str,
         user_id: UUID,
-        motivo: MotivoHandoff,
-        resumen_requerimiento: str,
-        canal_preferido: CanalPreferido | None,
-        urgencia: Urgencia | None,
+        reason: HandoffReason,
+        requirement_summary: str,
+        preferred_channel: PreferredChannel | None,
+        urgency: Urgency | None,
     ) -> Handoff:
         async with self._session_factory() as session, session.begin():
             row = HandoffRow(
                 session_id=session_id,
                 user_id=user_id,
-                motivo=motivo.value,
-                resumen_requerimiento=resumen_requerimiento,
-                canal_preferido=canal_preferido.value if canal_preferido else None,
-                urgencia=urgencia.value if urgencia else None,
+                reason=reason.value,
+                requirement_summary=requirement_summary,
+                preferred_channel=preferred_channel.value if preferred_channel else None,
+                urgency=urgency.value if urgency else None,
                 status=HandoffStatus.OPEN.value,
             )
             session.add(row)

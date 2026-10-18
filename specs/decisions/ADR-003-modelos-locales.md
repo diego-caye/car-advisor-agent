@@ -1,152 +1,152 @@
-# ADR-003 · Modelos locales con Ollama
+# ADR-003 · Local models with Ollama
 
-## Estado
-Aceptado — adelantado de F8 (P2) a F6 por decisión del humano el 2026-09-15.
+## Status
+Accepted — moved up from F8 (P2) to F6 by the human's decision on 2026-09-15.
 
-## Contexto
+## Context
 
-`00-master-build.md` planeaba los modelos locales para F8, como P2. Se adelantaron porque el proyecto no tenía una `GOOGLE_API_KEY` con billing y eso bloqueaba tres cosas a la vez: verificar F4 en el navegador, ingerir la KB con embeddings reales, y calibrar `RAG_MIN_SCORE` contra una distribución real de scores.
+`00-master-build.md` planned local models for F8, as P2. They were moved up because the project didn't have a `GOOGLE_API_KEY` with billing enabled, and that blocked three things at once: verifying F4 in the browser, ingesting the KB with real embeddings, and calibrating `RAG_MIN_SCORE` against a real score distribution.
 
-Hardware disponible: RTX 5080 (16 GB de VRAM), 32 GB de RAM, Ollama 0.24 en Docker con acceso a GPU.
+Hardware available: RTX 5080 (16 GB VRAM), 32 GB RAM, Ollama 0.24 in Docker with GPU access.
 
-## Decisión
+## Decision
 
-Perfil local por defecto, intercambiable a Gemini cambiando solo variables de entorno:
+A local profile by default, swappable to Gemini by changing only environment variables:
 
-| Rol | Local | Gemini |
+| Role | Local | Gemini |
 |---|---|---|
-| Agente | `ollama_chat/gemma4:latest` con `OLLAMA_THINK=low` | `gemini-3.8-flash` |
+| Agent | `ollama_chat/gemma4:latest` with `OLLAMA_THINK=low` | `gemini-3.8-flash` |
 | Guardrail L2 / eval | `ollama_chat/qwen3:4b-instruct` | `gemini-3.5-flash-lite` / `-flash` |
 | Fallback | `ollama_chat/llama3.2:latest` | `gemini-3.7-flash` |
 | Embeddings | `embeddinggemma` (768 dims) | `gemini-embedding-001` |
 
-El agente pasó por tres candidatos antes de quedar fijo, y cada cambio salió de una medición:
+The agent went through three candidates before settling, and each change came from a measurement:
 
-1. `gemma4:latest` — se repartía a CPU y tardaba 19 s por turno. Parecía no caber en VRAM; la causa real era otra (§ "El modelo local necesita RAM del sistema").
-2. `qwen3:4b-instruct` — rapidísimo (1,2 s) y 100% en GPU, pero **nunca llamaba `guardar_lead`**. Llamaba las otras dos tools, así que no era un problema de cableado: la variante sin razonamiento no decide bien una tool de guardado silencioso.
-3. `gemma4:latest` de nuevo, tras corregir el límite de RAM de WSL y liberar VRAM: **100% GPU, 5–10 s por turno y las tres tools funcionando**. Es el que queda.
+1. `gemma4:latest` — split onto the CPU and took 19 s per turn. It seemed not to fit in VRAM; the real cause was something else (see "The local model needs system RAM, not just VRAM" below).
+2. `qwen3:4b-instruct` — very fast (1.2 s) and 100% on GPU, but it **never called `save_lead`**. It did call the other two tools, so it wasn't a wiring problem: the non-reasoning variant doesn't reliably decide to call a silent save-data tool.
+3. `gemma4:latest` again, after fixing the WSL RAM limit and freeing up VRAM: **100% GPU, 5–10 s per turn, and all three tools working.** This is the one that stayed.
 
-`qwen3:4b` (con thinking) queda como alternativa: entra en GPU con mucha menos VRAM libre y también llama las tres tools, a cambio de respuestas más escuetas.
+`qwen3:4b` (with thinking) remains a fallback option: it fits on the GPU with much less free VRAM and also calls all three tools, at the cost of terser responses.
 
-**`:latest` en la tabla de arriba describe esta máquina, ya afinada — no la plantilla para GitHub.** `.env.example` y `docker-compose.yml` fijan tags explícitos (`gemma4:12b`, `llama3.2:3b`, `embeddinggemma:300m`, imagen `ollama/ollama:0.34.0`), para que una descarga limpia sea reproducible en vez de heredar lo que `:latest` resuelva ese día (spec 11 §3). `gemma4:12b` no es exactamente el mismo peso que `gemma4:latest` (que aquí resolvió a la variante de 8B) — es la variante nombrada más cercana; si el ajuste de VRAM/contexto de esta tabla no aplica igual a esa descarga fresca, hay que volver a medir con `ollama ps`, no asumir.
+**The `:latest` tags in the table above describe this machine, already tuned — not the template for GitHub.** `.env.example` and `docker-compose.yml` pin explicit tags (`gemma4:12b`, `llama3.2:3b`, `embeddinggemma:300m`, image `ollama/ollama:0.34.0`), so a clean download is reproducible instead of inheriting whatever `:latest` resolves to on a given day (spec 11 §3). `gemma4:12b` isn't exactly the same weight class as `gemma4:latest` (which resolved here to the 8B variant) — it's the closest named variant; if this table's VRAM/context tuning doesn't hold for that fresh download, it has to be re-measured with `ollama ps`, not assumed.
 
-La imagen del servidor empezó fijada en `0.24.0` (la de esta máquina) y tuvo que subirse: `gemma4:12b` no existía como tag para Ollama hasta la 0.30.3 (0.30.5 para evitar un crash conocido de esa variante), así que `0.24.0` fallaba al bajarlo con `pull model manifest: 412 requires a newer version of Ollama`. Verificado con una descarga limpia real de las cuatro modelos contra `0.34.0`: funciona, y hasta reveló que la propia versión del motor cambia cómo Ollama reporta las capacidades de un modelo — `qwen3:4b-instruct` sale con `thinking=true` en `0.34.0` y `false` en la instalación nativa de `0.24.0` de esta máquina.
+The server image started out pinned to `0.24.0` (the one on this machine) and had to be bumped: `gemma4:12b` didn't exist as a tag for Ollama until 0.30.3 (0.30.5 to avoid a known crash in that variant), so `0.24.0` failed to pull it with `pull model manifest: 412 requires a newer version of Ollama`. Verified with a real clean download of the four models against `0.34.0`: it works, and it even revealed that the engine's own version changes how Ollama reports a model's capabilities — `qwen3:4b-instruct` comes back with `thinking=true` on `0.34.0` and `false` on this machine's native `0.24.0` install.
 
-El puerto `EmbeddingsPort` y `build_base_model` aíslan la diferencia: fuera de `container.py` y `config.py`, ninguna capa sabe qué proveedor está activo.
+The `EmbeddingsPort` port and `build_base_model` isolate the difference: outside `container.py` and `config.py`, no layer knows which provider is active.
 
-**El Ollama de Docker pasó a ser el camino por defecto de esta máquina, no solo el de la plantilla.** Hasta aquí, `.env` de esta máquina seguía apuntando al Ollama nativo (`host.docker.internal:11434`) mientras `.env.example` ya recomendaba el perfil `local-llm`. A pedido del humano —quien descargue el repo no debería depender de nada instalado fuera de Docker— se cambió también el `.env` real: `OLLAMA_API_BASE_CONTAINER=http://ollama:11434`, `COMPOSE_PROFILES=local-llm`, `OLLAMA_PORT=11435` (el 11434 del host ya lo tiene el Ollama nativo, que sigue existiendo para otros proyectos pero este ya no lo toca). `AGENT_MODEL`/`FALLBACK_MODEL` pasaron de `gemma4:latest`/`llama3.2:latest` a los tags fijos `gemma4:12b`/`llama3.2:3b` que el `docker-compose.yml` ya bajaba, para que la app corriera exactamente contra lo que el Ollama de Docker tiene instalado.
+**Dockerized Ollama became this machine's default path, not just the template's.** Up to this point, this machine's `.env` still pointed at native Ollama (`host.docker.internal:11434`) while `.env.example` already recommended the `local-llm` profile. At the human's request — whoever downloads the repo shouldn't depend on anything installed outside Docker — the real `.env` was changed too: `OLLAMA_API_BASE_CONTAINER=http://ollama:11434`, `COMPOSE_PROFILES=local-llm`, `OLLAMA_PORT=11435` (the host's 11434 already belongs to native Ollama, which still exists for other projects but this one no longer touches it). `AGENT_MODEL`/`FALLBACK_MODEL` moved from `gemma4:latest`/`llama3.2:latest` to the fixed tags `gemma4:12b`/`llama3.2:3b` that `docker-compose.yml` was already pulling, so the app runs against exactly what the Dockerized Ollama has installed.
 
-`EMBEDDINGS_MODEL` fue el único cambio con un costo real: pasó de `embeddinggemma` (sin tag) a `embeddinggemma:300m`, y `verify_embedding_model()` compara el string tal cual contra lo que quedó grabado en `kb_chunks` al ingerir — un cambio de tag, aunque sea el mismo modelo, se ve como un modelo distinto. Hubo que volver a correr `scripts/ingest_kb.py` (71 fragmentos, contra el Ollama de Docker) antes de que el backend arrancara sin el `EmbeddingModelMismatchError`.
+`EMBEDDINGS_MODEL` was the only change with a real cost: it went from `embeddinggemma` (no tag) to `embeddinggemma:300m`, and `verify_embedding_model()` compares the string as-is against what's stored in `kb_chunks` at ingestion time — a tag change, even for the same model, looks like a different model. `scripts/ingest_kb.py` had to be re-run (71 chunks, against the Dockerized Ollama) before the backend would start without the `EmbeddingModelMismatchError`.
 
-Verificado de punta a punta contra el Ollama de Docker exclusivamente: saludo con `guardar_lead` y una pregunta técnica que dispara `search_knowledge_base` con una respuesta correcta, `ollama ps` confirma los tres modelos en `100% GPU` con el mismo contexto (32768) que ya estaba calibrado para la instalación nativa. El primer turno tardó 90 s (carga en frío del modelo recién levantado en este contenedor); el segundo, 39 s.
+Verified end-to-end against the Dockerized Ollama exclusively: a greeting with `save_lead` and a technical question that triggers `search_knowledge_base` with a correct answer, `ollama ps` confirms all three models at `100% GPU` with the same context (32768) already calibrated for the native install. The first turn took 90 s (cold load of the model just brought up in this container); the second, 39 s.
 
-## Hallazgos de la integración
+## Integration findings
 
-Cada uno costó una iteración y ninguno estaba en la documentación.
+Each one cost an iteration and none of them was documented anywhere.
 
-### 1. Gemma 4 solo llama tools si el "thinking" está activo
+### 1. Gemma 4 only calls tools if "thinking" is on
 
-Con `think: false` el modelo **ignora por completo** las tools: responde en prosa "voy a consultar mi base de conocimientos" y no emite ninguna `tool_call`. Con `think: true` las llama correctamente. Verificado contra la API de Ollama directamente, aislando ADK y LiteLLM.
+With `think: false` the model **completely ignores** the tools: it answers in prose "I'll check my knowledge base" and emits no `tool_call` at all. With `think: true` it calls them correctly. Verified directly against the Ollama API, isolating ADK and LiteLLM.
 
-Como el agente entero depende de las tools, `OLLAMA_THINK=true` no es opcional en el perfil local.
+Since the whole agent depends on the tools, `OLLAMA_THINK=true` isn't optional in the local profile.
 
-### 2. El razonamiento se filtraba a la pantalla
+### 2. The reasoning leaked onto the screen
 
-Con el thinking activo, ADK convierte el razonamiento en `types.Part(text=..., thought=True)`. Nuestro traductor de SSE concatenaba **todas** las partes, así que el usuario veía el monólogo interno del modelo ("Thinking Process: 1. Analyze the user input…") antes de la respuesta.
+With thinking on, ADK turns the reasoning into `types.Part(text=..., thought=True)`. Our SSE translator was concatenating **every** part, so the user saw the model's internal monologue ("Thinking Process: 1. Analyze the user input…") before the actual response.
 
-Solución: `agent/parts.py::visible_text()` omite las partes con `thought=True`, y se usa en los tres sitios que arman texto (SSE, historial de mensajes y el filtro L4). Aplica igual a Gemini, que marca el pensamiento de la misma forma.
+Fix: `agent/parts.py::visible_text()` skips parts with `thought=True`, and is used in the three places that assemble text (SSE, message history, and the L4 filter). This applies to Gemini too, which marks its reasoning the same way.
 
-### 3. LiteLLM resuelve el proveedor desde `llm_request.model`
+### 3. LiteLLM resolves the provider from `llm_request.model`
 
-`ResilientLlm` envuelve al modelo real para reintentos y respaldo (spec 07). LiteLLM no mira el campo `model` de su propia instancia sino `llm_request.model`, que ADK rellena con el nombre canónico del agente — es decir, el del envoltorio. Resultado: `BadRequestError: LLM Provider NOT provided. You passed model=resilient`.
+`ResilientLlm` wraps the real model for retries and fallback (spec 07). LiteLLM doesn't look at its own instance's `model` field but at `llm_request.model`, which ADK fills with the agent's canonical name — i.e., the wrapper's name. Result: `BadRequestError: LLM Provider NOT provided. You passed model=resilient`.
 
-Solución: `ResilientLlm._call` fija `llm_request.model` al del delegado antes de invocarlo, de modo que cada modelo (principal o respaldo) ve su propio identificador.
+Fix: `ResilientLlm._call` sets `llm_request.model` to the delegate's before invoking it, so each model (primary or fallback) sees its own identifier.
 
-### 4. Turnos sin texto visible
+### 4. Turns with no visible text
 
-Gemma 4 a veces produce solo razonamiento y ninguna respuesta, lo que dejaba una burbuja vacía en la UI. El traductor ahora detecta el turno sin texto visible y emite una frase de recuperación, salvo cuando el turno termina legítimamente sin texto (una confirmación HITL pendiente o un error ya reportado).
+Gemma 4 sometimes produces only reasoning and no response, leaving an empty bubble in the UI. The translator now detects a turn with no visible text and emits a recovery phrase, except when the turn legitimately ends with no text (a pending HITL confirmation or an already-reported error).
 
-### 5. El contexto hay que declararlo
+### 5. The context has to be declared
 
-`gemma4` declara 131072 tokens de contexto, pero Ollama usa su default (mucho menor) y **recorta en silencio** si no se le indica otra cosa. Se pasa `num_ctx` explícito en cada llamada, desde `OLLAMA_CONTEXT_LENGTH` (16384 con 16 GB de VRAM; 32768 con 24 GB o más).
+`gemma4` declares a context of 131072 tokens, but Ollama uses its own (much smaller) default and **silently truncates** unless told otherwise. `num_ctx` is passed explicitly on every call, from `OLLAMA_CONTEXT_LENGTH` (16384 with 16 GB of VRAM; 32768 with 24 GB or more).
 
-### 6. El prefijo importa y se valida
+### 6. The prefix matters and is validated
 
-`ollama/` puede provocar loops de tool-calling; solo `ollama_chat/` se trata como modelo conversacional. `Settings` rechaza el arranque si `LLM_PROVIDER=ollama` y `AGENT_MODEL` no empieza con `ollama_chat/`, con un mensaje que explica cuál usar.
+`ollama/` can cause tool-calling loops; only `ollama_chat/` is treated as a conversational model. `Settings` rejects startup if `LLM_PROVIDER=ollama` and `AGENT_MODEL` doesn't start with `ollama_chat/`, with a message explaining which one to use.
 
-### 7. `LiteLlm` no viene en la instalación base
+### 7. `LiteLlm` doesn't ship in the base install
 
-`from google.adk.models.lite_llm import LiteLlm` falla con `ImportError` en `google-adk` pelado. Hace falta el extra: `google-adk[extensions]==2.9.1`.
+`from google.adk.models.lite_llm import LiteLlm` fails with `ImportError` on a bare `google-adk`. The extra is required: `google-adk[extensions]==2.9.1`.
 
-## El modelo local necesita RAM del sistema, no solo VRAM
+## The local model needs system RAM, not just VRAM
 
-Este fue el hallazgo con más impacto, y el diagnóstico inicial fue equivocado: parecía un problema de VRAM y en realidad eran **dos límites distintos apilados**.
+This was the highest-impact finding, and the initial diagnosis was wrong: it looked like a VRAM problem, and it was actually **two separate limits stacked on top of each other**.
 
-En una RTX 5080 (16,3 GB) con 31 GB de RAM, `gemma4:latest` (~10 GB) corría dos tercios en CPU y tardaba 19 s por turno. Bajar el contexto no ayudaba. El error real solo apareció al pedirle a Ollama que cargara el modelo de cero:
+On an RTX 5080 (16.3 GB) with 31 GB of RAM, `gemma4:latest` (~10 GB) ran two-thirds on CPU and took 19 s per turn. Lowering the context didn't help. The real error only showed up when Ollama was asked to load the model from scratch:
 
 ```
 model requires more system memory (6.7 GiB) than is available (6.0 GiB)
 ```
 
-**Causa 1 — la VM de WSL.** Docker Desktop en Windows corre sobre WSL2, que sin `.wslconfig` toma por defecto el 50% de la RAM del equipo: 15,2 GB de los 31. Dentro de esa VM, con el resto de contenedores corriendo, a Ollama le quedaban ~6 GB de RAM del sistema, insuficientes para la parte del modelo que no entra en GPU. Los 31 GB del equipo no llegaban a Docker.
+**Cause 1 — the WSL VM.** Docker Desktop on Windows runs on WSL2, which, without a `.wslconfig`, takes 50% of the machine's RAM by default: 15.2 GB out of 31. Inside that VM, with the rest of the containers running, Ollama was left with ~6 GB of system RAM — not enough for the part of the model that doesn't fit on the GPU. The machine's full 31 GB never reached Docker.
 
-**Causa 2 — otros procesos reteniendo VRAM.** Otro contenedor del equipo (un servicio de síntesis de voz) mantenía su modelo cargado en GPU aunque estuviera ocioso, ocupando ~4,8 GB. No es un fallo: la mayoría de servicios de ML hacen *eager loading* porque cargar el modelo tarda, y además PyTorch no devuelve al driver la VRAM que libera, se la queda en su pool. Ollama es la excepción: descarga el modelo tras su `keep_alive`.
+**Cause 2 — other processes holding onto VRAM.** Another container on the machine (a speech-synthesis service) kept its model loaded on the GPU even while idle, using ~4.8 GB. This isn't a bug: most ML services do *eager loading* because loading the model is slow, and on top of that PyTorch doesn't return freed VRAM to the driver, it keeps it in its own pool. Ollama is the exception: it unloads the model after its `keep_alive` window.
 
-Con `.wslconfig` (`memory=24GB`) y ese contenedor detenido, quedaron 14,2 GB de VRAM libres y **`gemma4` pasó a 100% GPU con 32768 de contexto**.
+With `.wslconfig` (`memory=24GB`) and that container stopped, 14.2 GB of VRAM were freed up and **`gemma4` moved to 100% GPU with a 32768 context**.
 
-| Configuración | Reparto | Latencia por turno |
+| Configuration | Split | Latency per turn |
 |---|---|---|
-| `gemma4`, WSL en 15 GB, otros modelos en GPU | 66% CPU / 34% GPU | 16–32 s |
-| `gemma4`, WSL en 24 GB, VRAM liberada | **100% GPU** | **5–10 s** |
-| `qwen3:4b-instruct` (comparación) | 100% GPU | 1,2 s |
+| `gemma4`, WSL at 15 GB, other models on GPU | 66% CPU / 34% GPU | 16–32 s |
+| `gemma4`, WSL at 24 GB, VRAM freed | **100% GPU** | **5–10 s** |
+| `qwen3:4b-instruct` (comparison) | 100% GPU | 1.2 s |
 
-### Cómo diagnosticarlo
+### How to diagnose it
 
-`ollama ps` es lo que lo delata: la columna `PROCESSOR` dice si el modelo está entero en GPU o repartido.
+`ollama ps` is the tell: the `PROCESSOR` column shows whether the model is entirely on the GPU or split.
 
 ```bash
-docker exec <ollama> ollama ps                    # reparto CPU/GPU
-docker exec <ollama> ollama stop <modelo>         # descargar
+docker exec <ollama> ollama ps                    # CPU/GPU split
+docker exec <ollama> ollama stop <model>          # unload
 docker exec <ollama> nvidia-smi --query-gpu=memory.free --format=csv
-wsl -d docker-desktop -e sh -c "free -h"          # RAM real de la VM
+wsl -d docker-desktop -e sh -c "free -h"          # the VM's real RAM
 ```
 
-Si el modelo se reparte, revisar **las dos** cosas: VRAM libre y RAM disponible dentro de la VM de WSL.
+If the model is split, check **both** things: free VRAM and available RAM inside the WSL VM.
 
-### Sobre ampliar el contexto
+### On widening the context
 
-Ampliar `num_ctx` agranda el KV cache. Con el modelo desbordado, subir de 8k a 32k casi duplicaba la latencia; con el modelo entero en GPU sale gratis.
+Widening `num_ctx` grows the KV cache. With the model already overflowing, going from 8k to 32k nearly doubled latency; with the model entirely on the GPU, it comes for free.
 
-Y ampliarlo es **necesario**, no opcional: los turnos reales de esta aplicación miden entre 2.400 y 9.600 tokens de entrada (instrucción de ~2,2k, tres esquemas de tools, fragmentos de RAG e historial). Con el default de Ollama el prompt se truncaría en silencio, que es lo que produce respuestas incoherentes o cortadas. De ahí `OLLAMA_CONTEXT_LENGTH=32768`.
+And widening it is **necessary**, not optional: this app's real turns measure between 2,400 and 9,600 input tokens (an instruction of ~2.2k, three tool schemas, RAG fragments, and history). With Ollama's default, the prompt would be silently truncated, which is what produces incoherent or cut-off responses. Hence `OLLAMA_CONTEXT_LENGTH=32768`.
 
-### El razonamiento es el precio de que las tools funcionen
+### Reasoning is the price of tools working
 
-`qwen3:4b-instruct` respondía en 0,4–3,7 s pero no llamaba `guardar_lead`, así que la ficha del lead nunca se llenaba — y capturar el lead es un requisito del reto, no un adorno. La variante con razonamiento sí la llama, y se paga en latencia:
+`qwen3:4b-instruct` responded in 0.4–3.7 s but never called `save_lead`, so the lead record never got filled in — and capturing the lead is a requirement of the challenge, not decoration. The reasoning variant does call it, at the cost of latency:
 
-| Configuración | `guardar_lead` | Latencia por turno |
+| Configuration | `save_lead` | Latency per turn |
 |---|---|---|
-| `qwen3:4b-instruct` (sin thinking) | **no** | 0,4–3,7 s |
-| `qwen3:4b` + `think=low` | sí | 12–30 s |
-| `qwen3:4b` + `think=true` | sí | 10–17 s |
+| `qwen3:4b-instruct` (no thinking) | **no** | 0.4–3.7 s |
+| `qwen3:4b` + `think=low` | yes | 12–30 s |
+| `qwen3:4b` + `think=true` | yes | 10–17 s |
 
-Aislado, `think=low` responde en ~3 s. Dentro de la aplicación sube a 12–30 s porque el contexto real (instrucción de ~2,2k tokens más tres esquemas de tools) hace que el modelo razone mucho más, y ADK llama al modelo dos veces por turno cuando hay tool: una para decidirla y otra para redactar con el resultado.
+In isolation, `think=low` responds in ~3 s. Inside the application it climbs to 12–30 s because the real context (an instruction of ~2.2k tokens plus three tool schemas) makes the model reason much more, and ADK calls the model twice per turn when a tool is involved: once to decide it, and once to write the response with its result.
 
-Los niveles de razonamiento (`low`, `medium`, `high`) funcionan y resuelven la duda que spec 05 §3 dejaba abierta sobre si el SDK los expone: sí, vía el parámetro `think` de Ollama.
+The reasoning levels (`low`, `medium`, `high`) work and settle the question spec 05 §3 left open about whether the SDK exposes them: yes, via Ollama's `think` parameter.
 
-**Camino de mejora si la latencia molesta:** acortar la instrucción del sistema, que es lo que más infla el razonamiento. No se hizo aquí porque la instrucción codifica las frases canned y las reglas del baseline, y recortarla a ciegas arriesga fidelidad con el spec.
+**Path to improve if latency is a problem:** shorten the system instruction, which is what inflates the reasoning the most. Not done here because the instruction encodes the baseline's canned phrases and rules, and trimming it blindly risks drifting from the spec.
 
-### Tabla orientativa
+### Reference table
 
-Medir con el modelo descargado, porque lo que importa es lo que queda libre, no lo instalado.
+Measure with the model unloaded, because what matters is what's free, not what's installed.
 
-| VRAM libre | RAM libre en la VM de WSL | Modelo sugerido | Contexto |
+| Free VRAM | Free RAM in the WSL VM | Suggested model | Context |
 |---|---|---|---|
 | ~4 GB | 4 GB | `llama3.2` | 8192 |
 | ~9 GB | 8 GB | `qwen3:4b` | 32768 |
 | ~14 GB | 16 GB | `gemma4:latest` | 32768 |
-| 24 GB o más | 24 GB | `gemma4` de mayor tamaño | 32768 |
+| 24 GB or more | 24 GB | a larger `gemma4` | 32768 |
 
-En Windows, además del modelo hay que dimensionar la VM de WSL en `%USERPROFILE%\.wslconfig`:
+On Windows, besides the model, the WSL VM also needs sizing in `%USERPROFILE%\.wslconfig`:
 
 ```ini
 [wsl2]
@@ -155,43 +155,43 @@ swap=8GB
 autoMemoryReclaim=gradual
 ```
 
-Los cambios requieren `wsl --shutdown`, que reinicia todos los contenedores. Los que tengan `restart: unless-stopped` vuelven solos.
+The changes require `wsl --shutdown`, which restarts every container. Ones with `restart: unless-stopped` come back on their own.
 
-### 8. Los modelos pequeños escriben la llamada en vez de emitirla
+### 8. Small models write out the call instead of emitting it
 
-Gemma 4 a veces devolvió la llamada a la tool **como texto** en la respuesta:
+Gemma 4 sometimes returned the tool call **as text** in the response:
 
 ```
 Hola 👋 Soy Luis, tu asesor automotriz. ¿Con quién tengo el gusto?
-guardar_lead(nombre="Diego", uso_principal=None, tipo_vehiculo_interes=None, ...)
+save_lead(name="Diego", primary_use=None, vehicle_type_interest=None, ...)
 ```
 
-La tool nunca se ejecutaba y el usuario veía eso en la burbuja del chat. Se detectó mirando una captura del navegador, no en los tests: con el `FakeAdkLlm` no ocurre.
+The tool was never executed and the user saw that in the chat bubble. Caught by looking at a browser capture, not in the tests: it doesn't happen with `FakeAdkLlm`.
 
-L4 ahora detecta y elimina esas pseudo-llamadas (`strip_pseudo_tool_calls`). No arregla que la tool no se ejecutara —eso depende del modelo— pero evita que el usuario vea código.
+L4 now detects and strips these pseudo-calls (`strip_pseudo_tool_calls`). It doesn't fix the tool not being executed — that's on the model — but it keeps the user from seeing code.
 
-### 9. RAG + thinking a veces agota el presupuesto de tokens de salida
+### 9. RAG + thinking sometimes runs out the output token budget
 
-Encontrado corriendo el evalset (`backend/tests/evalset/`, F7) contra `gemma4:12b` real: la pregunta "¿cuál es la diferencia entre un SUV y un crossover?" (dispara `search_knowledge_base`) terminó una vez en
+Found while running the evalset (`backend/tests/evalset/`, F7) against real `gemma4:12b`: the question "what's the difference between an SUV and a crossover?" (which triggers `search_knowledge_base`) once ended in
 
 ```
 upstream error FinishReason.MAX_TOKENS: Maximum tokens reached
 ```
 
-`asesor/api/sse.py::translate` ya lo maneja como está diseñado (spec 07): un `event.error_code` se traduce a un SSE `error` retryable, nunca a una burbuja rota ni a un crash — el manejo de fallos funcionó. No es un caso aislado de "sin texto visible" (hallazgo #4): ahí el modelo no produce nada; aquí sí produce (razonamiento + la propia respuesta) pero se queda sin presupuesto de tokens antes de cerrarla, con `OLLAMA_THINK=low` y contexto 32768 ya activos.
+`asesor/api/sse.py::translate` already handles this as designed (spec 07): an `event.error_code` translates to a retryable SSE `error`, never a broken bubble or a crash — the failure handling worked as intended. It's not an isolated case of "no visible text" (finding #4): there, the model produces nothing at all; here it does produce something (reasoning + the response itself) but runs out of token budget before closing it, with `OLLAMA_THINK=low` and a 32768 context already active.
 
-No se investigó a fondo el remedio (subir `num_predict`/`max_tokens` explícito, o recortar los fragmentos de la KB que entran al contexto) porque no se reprodujo en corridas repetidas del mismo caso — parece ocasional, no sistemático. Queda anotado para quien retome F7/evalset: si se vuelve frecuente, el primer sospechoso es el tamaño de los chunks de la KB que se inyectan como resultado de la tool, no el modelo en sí.
+The fix wasn't investigated in depth (raising `num_predict`/`max_tokens` explicitly, or trimming the KB fragments that go into the context) because it didn't reproduce on repeated runs of the same case — it looks occasional, not systematic. Left noted for whoever picks up F7/evalset next: if it becomes frequent, the first suspect is the size of the KB chunks injected as the tool's result, not the model itself.
 
-## Diferencias frente a Gemini
+## Differences vs. Gemini
 
-- **Calidad conversacional:** buena en ambos modelos locales. Respetan el rol, el tuteo peruano, el límite de 2–3 oraciones y las frases canned del baseline. La respuesta de RAG queda fundamentada en los fragmentos recuperados.
-- **Consistencia de tools:** menor que la de Gemini. En una corrida el agente capturó `nombre` y `uso_principal`; en otra solo `nombre`; en otra escribió la llamada como texto. La máquina de estados no se rompe porque la etapa la recalcula el dominio, no el modelo.
-- **Latencia:** con el modelo bien dimensionado, comparable a Gemini Flash (~1–2 s por turno conversacional).
-- **Costo y privacidad:** cero costo por token y ningún dato sale del equipo. Es lo que hace viable desarrollar y grabar la demo sin cuenta de facturación.
+- **Conversational quality:** good on both local models. They respect the role, the Peruvian "tú," the 2–3 sentence limit, and the baseline's canned phrases. RAG-grounded answers stay faithful to the retrieved fragments.
+- **Tool-call consistency:** lower than Gemini's. In one run the agent captured `name` and `primary_use`; in another only `name`; in another it wrote the call as text. The state machine doesn't break because the domain recalculates the stage, not the model.
+- **Latency:** with the model properly sized, comparable to Gemini Flash (~1–2 s per conversational turn).
+- **Cost and privacy:** zero cost per token and no data leaves the machine. This is what makes it feasible to develop and record the demo without a billing account.
 
-## Consecuencias
+## Consequences
 
-- El repo arranca sin ninguna API key: `docker compose up` más los dos `ollama pull` y el proyecto funciona completo.
-- El perfil `local-llm` del `docker-compose.yml` levanta su propio Ollama con volumen y job de descarga. Empezó siendo dos archivos de override (`local-llm` + `gpu`) para no romper el arranque en equipos sin NVIDIA; se unificaron en perfiles porque el perfil ya cumple esa función: `docker compose up -d` a secas nunca toca la GPU. El coste es que el perfil asume GPU; quien no la tenga apunta `OLLAMA_API_BASE` a un Ollama del host y omite el perfil, que es además lo habitual en Windows.
-- `RAG_MIN_SCORE` quedó calibrado para `embeddinggemma` (0.42). Cambiar de modelo de embeddings obliga a re-ingerir **y** a re-calibrar; el chequeo de arranque detecta lo primero, lo segundo es manual.
-- Volver a Gemini es cambiar seis variables de entorno y re-ingerir la KB. No hay código condicionado al proveedor fuera de `container.py` y `config.py`.
+- The repo starts up with no API key at all: `docker compose up` plus the two `ollama pull`s and the project runs in full.
+- The `local-llm` profile in `docker-compose.yml` brings up its own Ollama with a volume and a pull job. It started as two override files (`local-llm` + `gpu`) so as not to break startup on machines without an NVIDIA GPU; they were unified into profiles because the profile already serves that purpose: a plain `docker compose up -d` never touches the GPU. The cost is that the profile assumes a GPU; anyone without one points `OLLAMA_API_BASE` at a host Ollama and skips the profile, which is also the common case on Windows.
+- `RAG_MIN_SCORE` was calibrated for `embeddinggemma` (0.42). Switching embeddings models forces both a re-ingestion **and** a re-calibration; the startup check catches the former, the latter is manual.
+- Going back to Gemini means changing six environment variables and re-ingesting the KB. No code is conditioned on the provider outside `container.py` and `config.py`.

@@ -1,55 +1,55 @@
-# 11 · Proveedores de LLM y embeddings
+# 11 · LLM and embeddings providers
 
-## 1. Puerto `LlmProvider`
+## 1. `LlmProvider` port
 
-`domain/ports.py` define el `Protocol`; dos adaptadores en `infrastructure/llm/`:
+`domain/ports.py` defines the `Protocol`; two adapters in `infrastructure/llm/`:
 
-| Adaptador | Uso | Selección |
+| Adapter | Use | Selection |
 |---|---|---|
-| Gemini | Default | AI Studio o Vertex AI, según `GOOGLE_GENAI_USE_VERTEXAI` |
-| Ollama / Gemma 4 | Local (P2, spec 10) | Vía LiteLLM, `LLM_PROVIDER=ollama` |
+| Gemini | Default | AI Studio or Vertex AI, based on `GOOGLE_GENAI_USE_VERTEXAI` |
+| Ollama / Gemma 4 | Local (P2, spec 10) | Via LiteLLM, `LLM_PROVIDER=ollama` |
 
-Ningún modelo se hardcodea: `AGENT_MODEL`, `GUARDRAIL_MODEL`, `EVAL_MODEL`, `FALLBACK_MODEL` son variables de entorno obligatorias (falla al arrancar si faltan y el provider correspondiente está activo). Los IDs de modelo Gemini cambian con frecuencia — se verifican contra la documentación oficial vigente antes de fijarlos en `.env.example`, nunca se asumen de memoria (gotcha #6, prompt maestro).
+No model is hardcoded: `AGENT_MODEL`, `GUARDRAIL_MODEL`, `EVAL_MODEL`, `FALLBACK_MODEL` are mandatory environment variables (startup fails if they're missing while the corresponding provider is active). Gemini model IDs change frequently — they're verified against the current official documentation before being fixed in `.env.example`, never assumed from memory (gotcha #6, master prompt).
 
 ## 2. Gemini
 
-- Dos backends posibles bajo el mismo adaptador: AI Studio (`GOOGLE_API_KEY`) o Vertex AI (`GOOGLE_GENAI_USE_VERTEXAI=true` + credenciales de proyecto GCP). El `Settings` valida que las variables necesarias para el backend elegido estén presentes.
-- Sin `temperature` fija para `AGENT_MODEL` (spec 05 §3): Gemini 3.x recomienda el default; valores bajos pueden inducir loops de tool-calling.
-- `gemini-embedding-2` no acepta `task_type` como parámetro de la API: la instrucción de tarea (p. ej. "retrieval query" vs. "retrieval document") va como texto dentro del prompt de embedding, no como argumento estructurado.
-- El free tier responde 429 con relativa frecuencia bajo uso de demo/pruebas → backoff exponencial + `FALLBACK_MODEL` (spec 07 §3) no es opcional, es parte del camino feliz esperado en desarrollo.
+- Two possible backends under the same adapter: AI Studio (`GOOGLE_API_KEY`) or Vertex AI (`GOOGLE_GENAI_USE_VERTEXAI=true` + GCP project credentials). `Settings` validates that the variables required for the chosen backend are present.
+- No fixed `temperature` for `AGENT_MODEL` (spec 05 §3): Gemini 3.x recommends the default; low values can induce tool-calling loops.
+- `gemini-embedding-2` doesn't accept `task_type` as an API parameter: the task instruction (e.g. "retrieval query" vs. "retrieval document") goes as text inside the embedding prompt, not as a structured argument.
+- The free tier returns 429 fairly often under demo/testing load → exponential backoff + `FALLBACK_MODEL` (spec 07 §3) isn't optional, it's part of the expected happy path in development.
 
-## 3. Ollama / Gemma 4 (adelantado a F6, detalle en ADR-003)
+## 3. Ollama / Gemma 4 (moved up to F6, detail in ADR-003)
 
-- Prefijo obligatorio `ollama_chat/` en LiteLLM (no `ollama/`): el prefijo `ollama/` puede producir loops de tool-calling e ignorar contexto en algunos modelos.
-- `OLLAMA_API_BASE` por env, sin default de host embebido en código (para soportar contenedor, host nativo o GPU).
-- **Nunca `:latest`**, ni en la imagen del servidor (`docker-compose.yml`) ni en los modelos (`AGENT_MODEL`, `GUARDRAIL_MODEL`, `FALLBACK_MODEL`, `EMBEDDINGS_MODEL`): una etiqueta que apunta a "lo último" puede resolver a otra variante el día que alguien vuelva a levantar el proyecto, con distinto tamaño o capacidades — justo el tipo de incompatibilidad silenciosa que este proyecto ya se topó una vez con la imagen de Ollama (ADR-003). Los tags fijos actuales están en `.env.example` y `docker-compose.yml`.
+- Mandatory `ollama_chat/` prefix in LiteLLM (not `ollama/`): the `ollama/` prefix can produce tool-calling loops and ignore context in some models.
+- `OLLAMA_API_BASE` via env, with no host default baked into the code (to support a container, a native host, or a GPU host).
+- **Never `:latest`**, either for the server image (`docker-compose.yml`) or for the models (`AGENT_MODEL`, `GUARDRAIL_MODEL`, `FALLBACK_MODEL`, `EMBEDDINGS_MODEL`): a tag that points at "whatever's latest" can resolve to a different variant the next time someone spins the project back up, with a different size or capabilities — exactly the kind of silent incompatibility this project already ran into once with the Ollama image (ADR-003). The current fixed tags live in `.env.example` and `docker-compose.yml`.
 
-## 3.1 Catálogo de modelos: Gemini a mano, Ollama descubierto
+## 3.1 Model catalog: Gemini by hand, Ollama discovered
 
-`GET /api/v1/models` (spec 02) no lee un catálogo estático para Ollama. `infrastructure/container.py` arma el catálogo real en el arranque:
+`GET /api/v1/models` (spec 02) doesn't read a static catalog for Ollama. `infrastructure/container.py` builds the real catalog at startup:
 
-- Las entradas que **no** son de Ollama (típicamente la de Gemini) salen de `MODEL_CHOICES` (JSON en env), sin cambios respecto al diseño original.
-- Las entradas de Ollama se **descubren**: `infrastructure/llm/ollama_discovery.discover_ollama_models` llama a `GET /api/tags` (qué hay instalado) y luego a `POST /api/show` por cada modelo (sus `capabilities`). Se descartan los modelos sin `"completion"` en `capabilities` — así `embeddinggemma` y cualquier otro modelo de solo-embeddings nunca aparecen en el selector de chat, sin necesidad de una lista de exclusión mantenida a mano.
-- Cualquier entrada de Ollama declarada a mano en `MODEL_CHOICES` se ignora: Ollama es dinámico o no es, para que el catálogo nunca quede desincronizado de lo que el servidor realmente tiene *pulled*.
-- Cada opción descubierta lleva `supports_tools` y `supports_thinking`, tomados literalmente de `capabilities` (`"tools"`, `"thinking"`). Esto no es solo informativo para la interfaz (`ModelOption.supports_*`, badges en el selector): `build_base_model` solo manda el parámetro `think` a LiteLLM cuando la opción elegida lo soporta, en vez de asumirlo siempre para el modelo principal como antes — mandarlo a un modelo sin esa capacidad responde 400 "does not support thinking" (ADR-003).
-- El modelo por defecto del selector es el que coincide con `AGENT_MODEL`, se haya declarado a mano o descubierto — no "el primero de la lista", que con descubrimiento dinámico depende del orden en que Ollama lo reporte.
-- Si `OLLAMA_API_BASE` no está configurado, o Ollama no responde en el arranque, la parte de Ollama del catálogo queda vacía (log de aviso, no falla el arranque del backend).
-- El descubrimiento corre **una vez, al arrancar** el backend, no en cada request a `/api/v1/models`: pullear un modelo nuevo mientras el backend ya está corriendo no lo hace aparecer solo, hace falta reiniciarlo (`docker compose restart backend`) para que vuelva a consultar `/api/tags`.
+- Entries that are **not** Ollama (typically the Gemini one) come from `MODEL_CHOICES` (JSON in env), unchanged from the original design.
+- Ollama entries are **discovered**: `infrastructure/llm/ollama_discovery.discover_ollama_models` calls `GET /api/tags` (what's installed) and then `POST /api/show` for each model (its `capabilities`). Models without `"completion"` in `capabilities` are dropped — so `embeddinggemma` and any other embeddings-only model never show up in the chat selector, with no manually-maintained exclusion list needed.
+- Any Ollama entry manually declared in `MODEL_CHOICES` is ignored: Ollama is either dynamic or it isn't, so the catalog never drifts out of sync with what the server actually has *pulled*.
+- Every discovered option carries `supports_tools` and `supports_thinking`, taken literally from `capabilities` (`"tools"`, `"thinking"`). This isn't just informational for the UI (`ModelOption.supports_*`, badges in the selector): `build_base_model` only sends the `think` parameter to LiteLLM when the chosen option supports it, instead of always assuming it for the main model like before — sending it to a model without that capability returns a 400 "does not support thinking" (ADR-003).
+- The selector's default model is the one matching `AGENT_MODEL`, whether declared by hand or discovered — not "the first one in the list," which under dynamic discovery depends on the order Ollama happens to report it in.
+- If `OLLAMA_API_BASE` isn't configured, or Ollama doesn't respond at startup, the Ollama portion of the catalog is left empty (a warning log, the backend startup doesn't fail).
+- Discovery runs **once, at backend startup**, not on every request to `/api/v1/models`: pulling a new model while the backend is already running doesn't make it appear on its own — it takes a restart (`docker compose restart backend`) for it to query `/api/tags` again.
 
-**Agregar un modelo local nuevo — dos caminos distintos, no confundirlos:**
+**Adding a new local model — two different paths, don't mix them up:**
 
-1. **Ollama nativo** (el que usa `OLLAMA_API_BASE=http://localhost:11434` de `.env.example` por defecto, y lo que corre esta máquina de desarrollo): `ollama pull <modelo>:<tag>` en el host, después `docker compose restart backend`. No toca ningún archivo del repo — es solo para *esta* instalación.
-2. **Ollama dentro de Docker** (perfil `local-llm`, para quien clone el repo sin un Ollama propio): el modelo tiene que quedar *pulled* dentro del volumen `ollama-models` para que esté ahí la próxima vez que alguien levante el perfil. Se agrega a `OLLAMA_EXTRA_MODELS` en `.env` (lista separada por espacio, p. ej. `mistral:7b llama3.1:8b`) — el job `ollama-pull` de `docker-compose.yml` los baja junto con los cuatro por defecto. En ningún caso hace falta tocar `MODEL_CHOICES` ni `docker-compose.yml`: el descubrimiento (punto anterior) hace el resto.
+1. **Native Ollama** (the one using `OLLAMA_API_BASE=http://localhost:11434` from `.env.example` by default, and what this dev machine runs): `ollama pull <model>:<tag>` on the host, then `docker compose restart backend`. Doesn't touch any file in the repo — it's just for *this* installation.
+2. **Ollama inside Docker** (the `local-llm` profile, for someone cloning the repo with no Ollama of their own): the model has to end up *pulled* inside the `ollama-models` volume so it's there next time someone brings the profile up. It's added to `OLLAMA_EXTRA_MODELS` in `.env` (a space-separated list, e.g. `mistral:7b llama3.1:8b`) — the `ollama-pull` job in `docker-compose.yml` downloads them alongside the four defaults. Neither `MODEL_CHOICES` nor `docker-compose.yml` ever needs to be touched: discovery (previous point) handles the rest.
 
-## 4. Puerto `Embeddings`
+## 4. `Embeddings` port
 
-| Adaptador | Modelo | Dimensión |
+| Adapter | Model | Dimension |
 |---|---|---|
-| Gemini | `gemini-embedding-001` o `gemini-embedding-2` | proyectado/truncado a 768 |
-| Ollama | `embeddinggemma` | 768 nativas |
+| Gemini | `gemini-embedding-001` or `gemini-embedding-2` | projected/truncated to 768 |
+| Ollama | `embeddinggemma` | 768 native |
 
-768 se eligió porque pgvector indexa (HNSW/IVFFlat) hasta 2000 dimensiones en el tipo `vector`, y 768 es compatible con ambos proveedores sin necesitar dos esquemas de tabla. Cambiar de proveedor de embeddings implica re-ingesta completa (spec 06 §4): el chequeo de arranque lo fuerza si detecta un `embedding_model` distinto en `kb_chunks`.
+768 was chosen because pgvector indexes (HNSW/IVFFlat) up to 2000 dimensions on the `vector` type, and 768 is compatible with both providers without needing two table schemas. Switching the embeddings provider requires a full re-ingestion (spec 06 §4): the startup check forces it if it detects a different `embedding_model` in `kb_chunks`.
 
-## 5. Variables de entorno (resumen)
+## 5. Environment variables (summary)
 
-`LLM_PROVIDER` (`gemini`|`ollama`), `GOOGLE_API_KEY`, `GOOGLE_GENAI_USE_VERTEXAI`, `AGENT_MODEL`, `GUARDRAIL_MODEL`, `EVAL_MODEL`, `FALLBACK_MODEL`, `OLLAMA_API_BASE`, `EMBEDDINGS_PROVIDER`, `EMBEDDINGS_MODEL`. Documentadas y comentadas en `.env.example` (F1).
+`LLM_PROVIDER` (`gemini`|`ollama`), `GOOGLE_API_KEY`, `GOOGLE_GENAI_USE_VERTEXAI`, `AGENT_MODEL`, `GUARDRAIL_MODEL`, `EVAL_MODEL`, `FALLBACK_MODEL`, `OLLAMA_API_BASE`, `EMBEDDINGS_PROVIDER`, `EMBEDDINGS_MODEL`. Documented and commented in `.env.example` (F1).

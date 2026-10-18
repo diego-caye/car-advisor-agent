@@ -1,10 +1,10 @@
-"""Ingesta idempotente de la base de conocimiento.
+"""Idempotent knowledge base ingestion.
 
-Uso:  uv run python scripts/ingest_kb.py [--kb-dir ../kb] [--dry-run]
+Usage:  uv run python scripts/ingest_kb.py [--kb-dir ../kb] [--dry-run]
 
-Solo recalcula el embedding de los fragmentos cuyo contenido cambió (hash) o que
-fueron ingeridos con otro modelo. Los fragmentos que ya no existen en kb/ se
-borran, para que la tabla refleje siempre el estado del directorio.
+Only recomputes the embedding for chunks whose content changed (hash) or
+that were ingested with a different model. Chunks that no longer exist in
+kb/ are deleted, so the table always reflects the directory's state.
 """
 
 import argparse
@@ -31,7 +31,7 @@ async def ingest(kb_dir: Path, *, dry_run: bool, use_fake: bool) -> int:
 
     chunks = load_chunks(kb_dir)
     if not chunks:
-        print(f"No se encontró ningún .md en {kb_dir}")
+        print(f"No .md files found in {kb_dir}")
         return 1
 
     engine = create_engine(settings.database_url)
@@ -60,9 +60,9 @@ async def ingest(kb_dir: Path, *, dry_run: bool, use_fake: bool) -> int:
         obsolete = sorted(set(stored) - {chunk.chunk_id for chunk in chunks})
 
         print(
-            f"{len(chunks)} fragmentos en {kb_dir.name}/ · "
-            f"{len(pending)} por (re)embeber · {len(obsolete)} obsoletos · "
-            f"modelo {embeddings.model_name}"
+            f"{len(chunks)} chunks in {kb_dir.name}/ · "
+            f"{len(pending)} to (re)embed · {len(obsolete)} obsolete · "
+            f"model {embeddings.model_name}"
         )
 
         if dry_run:
@@ -77,7 +77,7 @@ async def ingest(kb_dir: Path, *, dry_run: bool, use_fake: bool) -> int:
                     values = {
                         "chunk_id": chunk.chunk_id,
                         "title": chunk.title,
-                        "categoria": chunk.categoria.value,
+                        "category": chunk.category.value,
                         "source": chunk.source,
                         "content": chunk.content,
                         "content_hash": chunk.content_hash,
@@ -93,14 +93,14 @@ async def ingest(kb_dir: Path, *, dry_run: bool, use_fake: bool) -> int:
                         )
                     )
 
-            print(f"  embebidos {min(start + BATCH_SIZE, len(pending))}/{len(pending)}")
+            print(f"  embedded {min(start + BATCH_SIZE, len(pending))}/{len(pending)}")
 
         if obsolete:
             async with session_factory() as session, session.begin():
                 await session.execute(delete(KbChunkRow).where(KbChunkRow.chunk_id.in_(obsolete)))
-            print(f"  eliminados {len(obsolete)} fragmentos obsoletos")
+            print(f"  removed {len(obsolete)} obsolete chunks")
 
-        print("Ingesta completa.")
+        print("Ingestion complete.")
         return 0
     finally:
         await engine.dispose()
@@ -109,11 +109,11 @@ async def ingest(kb_dir: Path, *, dry_run: bool, use_fake: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kb-dir", type=Path, default=Path(__file__).parents[2] / "kb")
-    parser.add_argument("--dry-run", action="store_true", help="solo reporta, no escribe")
+    parser.add_argument("--dry-run", action="store_true", help="only reports, doesn't write")
     parser.add_argument(
         "--fake-embeddings",
         action="store_true",
-        help="usa el embedder determinista (sin red), para pruebas locales",
+        help="use the deterministic embedder (no network), for local testing",
     )
     args = parser.parse_args()
 

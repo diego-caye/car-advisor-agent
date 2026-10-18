@@ -1,39 +1,41 @@
-# 07 · Guardrails y fallbacks
+# 07 · Guardrails and fallbacks
 
-## 1. Capas
+## 1. Layers
 
-| Capa | Dónde | Qué hace | Falla como |
+| Layer | Where | What it does | Fails as |
 |---|---|---|---|
-| **L1 determinista** | Plugin ADK, antes del modelo | Longitud máxima del mensaje, normalización Unicode, caracteres invisibles/de control, patrones de inyección ES/EN (p. ej. "ignora tus instrucciones", "revela tu prompt", "a partir de ahora eres", etiquetas de rol tipo `system:`/`assistant:`, bloques base64/hex sospechosos) | Match → respuesta canned de jailbreak **sin llamar al LLM**; SSE `guardrail.triggered {layer: L1, category}` |
-| **L2 clasificador** | **No implementado (P1)** — ver abajo | Diseño previsto: `GUARDRAIL_MODEL` con salida estructurada `{label: in_scope \| off_topic \| injection \| abuse, confidence}` | Timeout corto (`GUARDRAIL_L2_TIMEOUT_MS`) → **fail-open** (deja pasar) con log de warning — L4 sigue activo como red de seguridad de salida |
-| **L3 tools** | Antes de ejecutar cada tool | Validación Pydantic, ids desde `ToolContext`, `MAX_TOOL_CALLS_PER_TURN`, PII enmascarada en spans (detalle en spec 03 §5) | Rechazo → envelope `status: error` que la tool devuelve al agente |
-| **L4 salida** | Después del modelo, antes de enviar al usuario | Fuga del canary token → respuesta canned; menciones de precio/cotización/stock/descuento → mensaje seguro + oferta de derivación | Reemplaza el mensaje; SSE `guardrail.triggered {layer: L4, category}` |
+| **L1 deterministic** | ADK plugin, before the model | Max message length, Unicode normalization, invisible/control characters, ES/EN injection patterns (e.g. "ignore your instructions," "reveal your prompt," "from now on you are," role tags like `system:`/`assistant:`, suspicious base64/hex blocks) | Match → canned jailbreak response **without calling the LLM**; SSE `guardrail.triggered {layer: L1, category}` |
+| **L2 classifier** | **Not implemented (P1)** — see below | Planned design: `GUARDRAIL_MODEL` with structured output `{label: in_scope \| off_topic \| injection \| abuse, confidence}` | Short timeout (`GUARDRAIL_L2_TIMEOUT_MS`) → **fail-open** (lets it through) with a warning log — L4 still acts as an output-side safety net |
+| **L3 tools** | Before running each tool | Pydantic validation, ids from `ToolContext`, `MAX_TOOL_CALLS_PER_TURN`, PII masked in spans (detail in spec 03 §5) | Rejection → `status: error` envelope returned by the tool to the agent |
+| **L4 output** | After the model, before it reaches the user | Canary token leak → canned response; mentions of price/quote/stock/discount → safe message + handoff offer | Replaces the message; SSE `guardrail.triggered {layer: L4, category}` |
 
-L1 corre sobre el mensaje entrante del usuario (L2 correría ahí también, cuando exista); L3 sobre cada tool call; L4 sobre el mensaje saliente del modelo, antes de transmitirlo por SSE (se aplica al buffer completo, no a cada delta, para no filtrar antes de detectar la fuga).
+L1 runs on the incoming user message (L2 would run there too, once it exists); L3 runs on every tool call; L4 runs on the model's outgoing message, before it's streamed over SSE (applied to the full buffer, not to each delta, so nothing leaks before the leak is detected).
 
-**Estado real (verificado contra el código, F9):** solo están implementadas L1, L3 y L4 — coincide con `PROGRESS.md` F6 ("L2 clasificador (P1) — no implementado; L1 + L4 cubren los AT del reto"), no es una desviación nueva. `agent/guardrails/plugin.py` lo documenta en su propio docstring.
+**Bilingual by design [NEW]:** since the agent now replies in whichever language the user writes in (spec 05 §"LANGUAGE"), L1's injection patterns and L4's pricing patterns each have both a Spanish and an English regex (e.g. `cuesta`/`costs`, `precio de lista`/`list price`), and the canned safe-reply substituted on a block (L1's jailbreak reply, L4's pricing/canary reply) is picked in the matching language via a small heuristic detector, `agent/language.py` — it looks at the blocked text itself (the user's message for L1, the model's flagged reply for L4), not at any stored per-session state.
 
-## 2. Categorías de `guardrail.triggered`
+**Actual status (verified against the code, F9):** only L1, L3, and L4 are implemented — matching `PROGRESS.md` F6 ("L2 classifier (P1) — not implemented; L1 + L4 cover the challenge's ATs"), not a new deviation. `agent/guardrails/plugin.py` documents this in its own docstring.
 
-**Emitidas hoy** (verificado contra el código): `injection`/`too_long` desde L1 (`agent/guardrails/l1.py`), `pricing_leak`/`canary_leak`/`pseudo_tool_call` desde L4 (`agent/guardrails/l4.py`). `off_topic` y `abuse` son del diseño de L2 y no se emiten todavía — dependen de que se implemente el clasificador. Cada una mapea a una de las frases canned del baseline (jailbreak/off-topic) o a un mensaje L4 nuevo para `pricing_leak`/`canary_leak` (spec 05 §1, con oferta de derivación).
+## 2. `guardrail.triggered` categories
 
-## 3. Fallbacks de infraestructura
+**Emitted today** (verified against the code): `injection`/`too_long` from L1 (`agent/guardrails/l1.py`), `pricing_leak`/`canary_leak`/`pseudo_tool_call` from L4 (`agent/guardrails/l4.py`). `off_topic` and `abuse` belong to L2's design and aren't emitted yet — they depend on the classifier being implemented. Each maps to one of the baseline's canned phrases (jailbreak/off-topic) or to a new L4 message for `pricing_leak`/`canary_leak` (spec 05 §1, with a handoff offer).
 
-| Falla | Camino |
+## 3. Infrastructure fallbacks
+
+| Failure | Path |
 |---|---|
-| Excepción en una tool | Envelope `status: error`; el agente lo explica sin tecnicismos al usuario (nunca expone stack traces) |
-| Modelo: 429 / 5xx / timeout | Backoff exponencial, 3 intentos (replica `retryOnFail`/`maxTries: 3` del baseline) → si se agotan, reintenta una vez con `FALLBACK_MODEL` → si también falla, mensaje amable + SSE `error {code, message, retryable: true}` |
-| RAG caído (Postgres/pgvector no responde) | Mismo camino que `search_knowledge_base` → `no_results`: frase honesta del baseline, no se rompe el turno |
-| DB caída (sesión/lead) | 503 con `{code: UPSTREAM_UNAVAILABLE, retryable: true}` y mensaje claro en la UI; `/readyz` ya lo reporta antes de que el usuario intente chatear |
+| Exception in a tool | `status: error` envelope; the agent explains it to the user without jargon (never exposes stack traces) |
+| Model: 429 / 5xx / timeout | Exponential backoff, 3 attempts (replicates the baseline's `retryOnFail`/`maxTries: 3`) → if exhausted, retries once with `FALLBACK_MODEL` → if that also fails, a friendly message + SSE `error {code, message, retryable: true}` |
+| RAG down (Postgres/pgvector not responding) | Same path as `search_knowledge_base` → `no_results`: the baseline's honest phrase, the turn doesn't break |
+| DB down (session/lead) | 503 with `{code: UPSTREAM_UNAVAILABLE, retryable: true}` and a clear UI message; `/readyz` already reports it before the user even tries to chat |
 
 ## 4. Fault injection (demo)
 
-Con `ENABLE_FAULT_INJECTION=true` (solo si `APP_ENV=dev`), el header `X-Debug-Fault: tool_error | model_429 | model_timeout | rag_down` en `POST /chat/stream` fuerza el fallo correspondiente **después** de pasar guardrails de entrada, para poder demostrar cada camino de fallback sin depender de que ocurra orgánicamente. Selector en el panel dev del frontend (spec `docs/ui.md`). Ignorado si `APP_ENV != dev`.
+With `ENABLE_FAULT_INJECTION=true` (only if `APP_ENV=dev`), the `X-Debug-Fault: tool_error | model_429 | model_timeout | rag_down` header on `POST /chat/stream` forces the corresponding failure **after** input guardrails run, so every fallback path can be demonstrated without depending on it happening organically. Selector in the frontend's dev panel (spec `docs/ui.md`). Ignored if `APP_ENV != dev`.
 
-## 5. Variables de entorno
+## 5. Environment variables
 
-`GUARDRAIL_MODEL` (reservado para L2 cuando se implemente; mientras tanto, reutilizado como modelo liviano por `TitleService` y el resumidor de `EventsCompactionConfig` — spec 06 §2, spec 08 §5 — nada que ver con guardrails hoy), `GUARDRAIL_L2_TIMEOUT_MS`, `GUARDRAIL_CANARY_TOKEN`, `MAX_TOOL_CALLS_PER_TURN`, `FALLBACK_MODEL`, `ENABLE_FAULT_INJECTION`, `RAG_MIN_SCORE` (spec 06).
+`GUARDRAIL_MODEL` (reserved for L2 once it's implemented; in the meantime, reused as the lightweight model by `TitleService` and the `EventsCompactionConfig` summarizer — spec 06 §2, spec 08 §5 — nothing to do with guardrails today), `GUARDRAIL_L2_TIMEOUT_MS`, `GUARDRAIL_CANARY_TOKEN`, `MAX_TOOL_CALLS_PER_TURN`, `FALLBACK_MODEL`, `ENABLE_FAULT_INJECTION`, `RAG_MIN_SCORE` (spec 06).
 
-## 6. Principio de fail-safe
+## 6. Fail-safe principle
 
-L1 y L3 son deterministas y **fail-closed** (si algo no se puede validar, se rechaza). L2 es probabilístico y **fail-open** (un LLM caído no debe tumbar el chat) — la razón por la que L4 existe como segunda red sobre la salida, no solo L2 sobre la entrada.
+L1 and L3 are deterministic and **fail-closed** (if something can't be validated, it's rejected). L2 is probabilistic and **fail-open** (an LLM outage shouldn't take down the chat) — which is why L4 exists as a second net over the output, not just L2 on the input.

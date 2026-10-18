@@ -29,11 +29,11 @@ class LeadService:
         if update.is_empty():
             raise EmptyUpdateError
 
-        if update.carries_contact_data() and not update.consentimiento_contacto:
+        if update.carries_contact_data() and not update.contact_consent:
             raise ConsentRequiredError
 
-        if update.telefono is not None:
-            update = replace(update, telefono=normalize_phone(update.telefono))
+        if update.phone is not None:
+            update = replace(update, phone=normalize_phone(update.phone))
 
         lead = await self._repository.upsert(user_id, update)
         return LeadSnapshot(lead=lead, stage=next_stage(current_stage, lead))

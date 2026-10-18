@@ -1,6 +1,6 @@
 ---
 title: "Qué es una SUV y para quién tiene sentido"
-categoria: CARROCERIAS
+categoria: BODY_TYPES
 ---
 
 ## Qué define a una SUV

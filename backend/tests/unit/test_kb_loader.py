@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from asesor.domain.enums import CategoriaKb
+from asesor.domain.enums import KbCategory
 from asesor.infrastructure.kb_loader import (
     KbFormatError,
     load_chunks,
@@ -23,13 +23,13 @@ def test_parsea_frontmatter(tmp_path: Path) -> None:
     path = write(
         tmp_path,
         "doc.md",
-        '---\ntitle: "Un título"\ncategoria: CONSUMO\n---\n\n## Sección\n\nTexto.\n',
+        '---\ntitle: "Un título"\ncategoria: FUEL_ECONOMY\n---\n\n## Sección\n\nTexto.\n',
     )
 
     document = parse_document(path)
 
     assert document.title == "Un título"
-    assert document.categoria is CategoriaKb.CONSUMO
+    assert document.category is KbCategory.FUEL_ECONOMY
     assert document.source == "doc.md"
     assert document.body.startswith("## Sección")
 

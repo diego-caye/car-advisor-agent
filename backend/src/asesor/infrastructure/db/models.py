@@ -28,15 +28,15 @@ class LeadRow(Base):
     __tablename__ = "leads"
 
     user_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
-    nombre: Mapped[str | None] = mapped_column(String(80), default=None)
-    telefono: Mapped[str | None] = mapped_column(String(20), default=None)
+    name: Mapped[str | None] = mapped_column(String(80), default=None)
+    phone: Mapped[str | None] = mapped_column(String(20), default=None)
     email: Mapped[str | None] = mapped_column(String(254), default=None)
-    canal_preferido: Mapped[str | None] = mapped_column(String(16), default=None)
-    consentimiento_contacto: Mapped[bool] = mapped_column(Boolean, default=False)
-    uso_principal: Mapped[str | None] = mapped_column(String(16), default=None)
-    tipo_vehiculo_interes: Mapped[str | None] = mapped_column(String(16), default=None)
-    motorizacion_interes: Mapped[str | None] = mapped_column(String(16), default=None)
-    nivel_interes: Mapped[str | None] = mapped_column(String(8), default=None)
+    preferred_channel: Mapped[str | None] = mapped_column(String(16), default=None)
+    contact_consent: Mapped[bool] = mapped_column(Boolean, default=False)
+    primary_use: Mapped[str | None] = mapped_column(String(16), default=None)
+    vehicle_type_interest: Mapped[str | None] = mapped_column(String(16), default=None)
+    powertrain_interest: Mapped[str | None] = mapped_column(String(16), default=None)
+    interest_level: Mapped[str | None] = mapped_column(String(8), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -49,10 +49,10 @@ class HandoffRow(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     session_id: Mapped[str] = mapped_column(String(64), index=True)
     user_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), index=True)
-    motivo: Mapped[str] = mapped_column(String(24))
-    resumen_requerimiento: Mapped[str] = mapped_column(Text)
-    canal_preferido: Mapped[str | None] = mapped_column(String(16), default=None)
-    urgencia: Mapped[str | None] = mapped_column(String(8), default=None)
+    reason: Mapped[str] = mapped_column(String(24))
+    requirement_summary: Mapped[str] = mapped_column(Text)
+    preferred_channel: Mapped[str | None] = mapped_column(String(16), default=None)
+    urgency: Mapped[str | None] = mapped_column(String(8), default=None)
     status: Mapped[str] = mapped_column(String(16), default="OPEN", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -60,7 +60,7 @@ class HandoffRow(Base):
     )
 
     __table_args__ = (
-        # Idempotencia de spec 03: como maximo un handoff OPEN por sesion.
+        # Idempotency from spec 03: at most one OPEN handoff per session.
         Index(
             "ux_handoffs_one_open_per_session",
             "session_id",
@@ -71,14 +71,14 @@ class HandoffRow(Base):
 
 
 class SessionTitleRow(Base):
-    """El título de una conversación, fuera de la sesión de ADK a propósito.
+    """A conversation's title, kept outside the ADK session on purpose.
 
-    Guardarlo como estado de sesión (un append_event con state_delta) competía
-    por el mismo lock optimista que el turno de chat: si el título se escribía
-    mientras un turno siguiente en la misma sesión seguía en vuelo, el append
-    del propio turno salía rechazado con StaleSessionError — un adorno de la
-    barra lateral tumbando la respuesta real. Una tabla aparte no comparte ese
-    candado con nada.
+    Storing it as session state (an append_event with state_delta) competed
+    for the same optimistic lock as the chat turn: if the title was being
+    written while a following turn in the same session was still in flight,
+    that turn's own append would come back rejected with StaleSessionError —
+    a sidebar decoration taking down the actual response. A separate table
+    doesn't share that lock with anything.
     """
 
     __tablename__ = "session_titles"
@@ -90,11 +90,11 @@ class SessionTitleRow(Base):
 
 
 class FeedbackRow(Base):
-    """Feedback 👍/👎 del usuario sobre un turno (spec 02, spec 08 S4).
+    """User's 👍/👎 feedback on a turn (spec 02, spec 08 S4).
 
-    Solo se escribe, nada dentro de la app lo vuelve a leer: vive aquí para
-    tener un respaldo propio incluso sin Langfuse configurado (el score
-    `user-feedback` se manda ahí también, pero eso es best-effort).
+    Write-only, nothing inside the app reads it back: it lives here to have
+    its own backup even without Langfuse configured (the `user-feedback`
+    score is also sent there, but that's best-effort).
     """
 
     __tablename__ = "feedback"
@@ -110,11 +110,11 @@ class FeedbackRow(Base):
 
 
 class EvaluationRow(Base):
-    """Un criterio evaluado de un turno (spec 08 S5), una fila por criterio.
+    """An evaluated criterion of a turn (spec 08 S5), one row per criterion.
 
-    Igual que feedback: solo se escribe desde EvaluationService, nada dentro
-    de la app la vuelve a leer. El score tambien se manda a Langfuse
-    (best-effort); esta tabla es el respaldo propio que sobrevive sin eso.
+    Same as feedback: only written from EvaluationService, nothing inside
+    the app reads it back. The score is also sent to Langfuse (best-effort);
+    this table is the own backup that survives without that.
     """
 
     __tablename__ = "evaluations"
@@ -133,7 +133,7 @@ class KbChunkRow(Base):
 
     chunk_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     title: Mapped[str] = mapped_column(String(160))
-    categoria: Mapped[str] = mapped_column(String(16), index=True)
+    category: Mapped[str] = mapped_column(String(16), index=True)
     source: Mapped[str] = mapped_column(String(160))
     content: Mapped[str] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(64))

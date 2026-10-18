@@ -61,14 +61,14 @@ class Container:
 def build_catalog(
     settings: Settings, discovered_ollama: Sequence[OllamaModelInfo]
 ) -> list[ModelChoice]:
-    """El catálogo real del selector: lo declarado a mano (típicamente Gemini,
-    la API sí necesita una key y no hay forma de "descubrirla" localmente) más
-    lo que Ollama reporta tener instalado ahora mismo.
+    """The selector's actual catalog: what's declared by hand (typically Gemini,
+    since the API does need a key and there's no way to "discover" it
+    locally) plus whatever Ollama reports having installed right now.
 
-    Los modelos de Ollama no se declaran en MODEL_CHOICES: se descubren en el
-    arranque (discover_ollama_models), así la lista nunca queda
-    desincronizada de lo que de verdad hay *pulled* — ni incluye modelos de
-    solo-embeddings, que ya vienen filtrados.
+    Ollama models aren't declared in MODEL_CHOICES: they're discovered at
+    startup (discover_ollama_models), so the list never gets out of sync
+    with what's actually *pulled* — nor does it include embeddings-only
+    models, which come pre-filtered.
     """
     static = [
         choice for choice in settings.model_choices if choice.provider is not LlmProviderName.OLLAMA
@@ -100,11 +100,11 @@ def build_catalog(
 
 
 def _default_choice_id(catalog: Sequence[ModelChoice], settings: Settings) -> str:
-    """El modelo configurado en AGENT_MODEL, si aparece en el catálogo.
+    """The model configured in AGENT_MODEL, if it appears in the catalog.
 
-    No es simplemente "la primera opción": con el catálogo de Ollama armado
-    por descubrimiento, el orden depende de lo que el servidor haya listado,
-    no de una intención declarada. Lo único estable es AGENT_MODEL.
+    It's not simply "the first option": with the Ollama catalog built by
+    discovery, the order depends on whatever the server listed, not on any
+    declared intent. The only stable thing is AGENT_MODEL.
     """
     agent_model = settings.agent_model.removeprefix("ollama_chat/")
     for option in catalog:
@@ -114,11 +114,12 @@ def _default_choice_id(catalog: Sequence[ModelChoice], settings: Settings) -> st
 
 
 class RunnerRegistry:
-    """Un Runner por modelo del catálogo, creado la primera vez que se pide.
+    """One Runner per catalog model, created the first time it's requested.
 
-    Los servicios de aplicación y el servicio de sesiones se comparten: lo único
-    que cambia entre runners es el modelo que usa el agente, así que una
-    conversación puede alternar de modelo sin perder su historial ni su ficha.
+    The application services and the session service are shared: the only
+    thing that changes between runners is the model the agent uses, so a
+    conversation can switch models without losing its history or its lead
+    record.
     """
 
     def __init__(
@@ -147,7 +148,7 @@ class RunnerRegistry:
     def get(self, model_id: str | None) -> Runner:
         option = self.choice(model_id)
         if option.id not in self._runners:
-            logger.info("creando runner para el modelo %s (%s)", option.id, option.model)
+            logger.info("creating runner for model %s (%s)", option.id, option.model)
             self._runners[option.id] = self._build(option)
         return self._runners[option.id]
 
@@ -166,19 +167,19 @@ def build_embeddings(settings: Settings) -> EmbeddingsPort:
         )
 
     if settings.ollama_api_base is None:
-        raise ValueError("EMBEDDINGS_PROVIDER=ollama requiere OLLAMA_API_BASE")
+        raise ValueError("EMBEDDINGS_PROVIDER=ollama requires OLLAMA_API_BASE")
 
     return OllamaEmbeddings(model=settings.embeddings_model, api_base=settings.ollama_api_base)
 
 
 def _ollama_kwargs(settings: Settings, *, think: bool) -> dict[str, object]:
-    # num_ctx siempre: sin él Ollama recorta el contexto en silencio.
+    # num_ctx always: without it Ollama silently truncates the context.
     kwargs: dict[str, object] = {
         "api_base": settings.ollama_api_base,
         "num_ctx": settings.ollama_context_length,
     }
-    # think solo donde corresponde: mandárselo a un modelo sin esa capacidad
-    # devuelve 400 "does not support thinking" (ADR-003).
+    # think only where it applies: sending it to a model without that
+    # capability returns 400 "does not support thinking" (ADR-003).
     if think and settings.ollama_think is not None:
         kwargs["think"] = settings.ollama_think
     return kwargs
@@ -186,11 +187,11 @@ def _ollama_kwargs(settings: Settings, *, think: bool) -> dict[str, object]:
 
 def build_base_model(settings: Settings, choice: ModelChoice) -> BaseLlm:
     if choice.provider is LlmProviderName.OLLAMA:
-        # El prefijo ollama_chat/ lo valida Settings para AGENT_MODEL y lo
-        # arma build_catalog para el resto de opciones. think solo si la
-        # propia opción soporta pensar (supports_thinking, descubierto en
-        # vivo): mandárselo a un modelo sin esa capacidad devuelve 400 "does
-        # not support thinking" (ADR-003) — antes se enviaba siempre.
+        # The ollama_chat/ prefix is validated by Settings for AGENT_MODEL and
+        # built by build_catalog for the rest of the options. think only if
+        # the option itself supports thinking (supports_thinking, discovered
+        # live): sending it to a model without that capability returns 400
+        # "does not support thinking" (ADR-003) — it used to always be sent.
         return LiteLlm(
             model=choice.model, **_ollama_kwargs(settings, think=choice.supports_thinking)
         )
@@ -202,14 +203,15 @@ def build_fallback_model(settings: Settings, choice: ModelChoice) -> BaseLlm | N
     if settings.fallback_model == choice.model:
         return None
 
-    # El proveedor del respaldo lo dice el propio FALLBACK_MODEL (su prefijo
-    # ollama_chat/), no el proveedor del modelo principal de este choice: son
-    # independientes -- el catálogo mezcla opciones de Gemini y de Ollama
-    # (spec 11), y FALLBACK_MODEL es uno solo, global, usado como respaldo
-    # para cualquiera de ellas. Ramificar por choice.provider construía un
-    # Gemini(model="ollama_chat/...") cuando el principal elegido era Gemini
-    # y el respaldo configurado era de Ollama -- 404 real contra la API de
-    # Gemini, visto en vivo al seleccionar Gemini desde el selector.
+    # The fallback's provider is dictated by FALLBACK_MODEL itself (its
+    # ollama_chat/ prefix), not by the provider of this choice's primary
+    # model: they're independent -- the catalog mixes Gemini and Ollama
+    # options (spec 11), and FALLBACK_MODEL is a single, global one, used as
+    # the fallback for any of them. Branching on choice.provider used to
+    # build a Gemini(model="ollama_chat/...") when the chosen primary was
+    # Gemini and the configured fallback was an Ollama one -- a real 404
+    # against the Gemini API, seen live when selecting Gemini from the
+    # selector.
     if settings.fallback_model.startswith("ollama_chat/"):
         return LiteLlm(model=settings.fallback_model, **_ollama_kwargs(settings, think=False))
 
@@ -217,10 +219,10 @@ def build_fallback_model(settings: Settings, choice: ModelChoice) -> BaseLlm | N
 
 
 def build_title_model(settings: Settings, model: str | BaseLlm | None = None) -> BaseLlm:
-    """Modelo para titular conversaciones: el ligero, no el del agente.
+    """Model for titling conversations: the lightweight one, not the agent's.
 
-    Es una tarea trivial y en segundo plano; gastar el modelo grande solo
-    añadiría latencia y carga de GPU sin mejorar el resultado.
+    It's a trivial, background task; spending the big model on it would only
+    add latency and GPU load without improving the result.
     """
     if isinstance(model, BaseLlm):
         return model
@@ -232,8 +234,8 @@ def build_title_model(settings: Settings, model: str | BaseLlm | None = None) ->
 
 
 def build_eval_model(settings: Settings, model: str | BaseLlm | None = None) -> BaseLlm:
-    """Juez de la evaluación post-turno en background (spec 08 S5): EVAL_MODEL,
-    no el del agente -- es una tarea de clasificación, no de conversación.
+    """Judge for the post-turn background evaluation (spec 08 S5): EVAL_MODEL,
+    not the agent's -- it's a classification task, not a conversation.
     """
     if isinstance(model, BaseLlm):
         return model
@@ -245,14 +247,14 @@ def build_eval_model(settings: Settings, model: str | BaseLlm | None = None) -> 
 
 
 def build_llm(settings: Settings, model: str | BaseLlm | None, choice: ModelChoice) -> BaseLlm:
-    """Envuelve el modelo con reintentos y respaldo (spec 07 §3).
+    """Wraps the model with retries and fallback (spec 07 §3).
 
-    Los tests inyectan su propio BaseLlm y también quedan envueltos, así el
-    camino de reintento y fallback es el mismo que corre en producción.
+    Tests inject their own BaseLlm and also get wrapped, so the retry and
+    fallback path is the same one that runs in production.
     """
     if isinstance(model, BaseLlm):
-        # En tests el respaldo es el mismo doble, para ejercitar el camino de
-        # fallback sin necesitar un segundo modelo.
+        # In tests the fallback is the same test double, to exercise the
+        # fallback path without needing a second model.
         return ResilientLlm(model=model.model, primary=model, fallback=model)
 
     primary = build_base_model(settings, choice)
@@ -282,9 +284,9 @@ async def build_container(
 
     sessions = session_service or DatabaseSessionService(db_url=settings.database_url)
     session_titles = SqlSessionTitleRepository(session_factory)
-    # Un solo modelo ligero para las dos tareas de utilidad que no son la
-    # conversación en sí (titular, resumir para compactar): construirlo dos
-    # veces sería dos instancias de LiteLlm/Gemini idénticas sin motivo.
+    # A single lightweight model for the two utility tasks that aren't the
+    # conversation itself (titling, summarizing to compact): building it
+    # twice would be two identical LiteLlm/Gemini instances for no reason.
     utility_model = build_title_model(settings, title_model)
     title_service = TitleService(utility_model, session_titles)
     feedback = SqlFeedbackRepository(session_factory)
@@ -292,10 +294,10 @@ async def build_container(
         build_eval_model(settings, eval_model), SqlEvaluationRepository(session_factory), settings
     )
 
-    # Async y solo si hay OLLAMA_API_BASE: en los tests no se configura (usan
-    # Gemini + un BaseLlm falso), así que esto no les pega a la red. Si Ollama
-    # está apagado o tardando en arrancar, discover_ollama_models ya devuelve
-    # [] en vez de tumbar el arranque del backend.
+    # Async and only if OLLAMA_API_BASE is set: it's not configured in tests
+    # (they use Gemini + a fake BaseLlm), so this doesn't hit the network for
+    # them. If Ollama is down or slow to start, discover_ollama_models
+    # already returns [] instead of taking down the backend's startup.
     discovered = (
         await discover_ollama_models(settings.ollama_api_base) if settings.ollama_api_base else []
     )

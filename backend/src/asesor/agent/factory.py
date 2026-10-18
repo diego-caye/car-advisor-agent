@@ -13,9 +13,9 @@ from asesor.agent.guardrails.faults import FaultInjectionPlugin
 from asesor.agent.guardrails.plugin import GuardrailPlugin
 from asesor.agent.instruction import render_instruction
 from asesor.agent.state import read_dialog_state
-from asesor.agent.tools.handoff_tools import make_solicitar_contacto_humano
+from asesor.agent.tools.handoff_tools import make_request_human_handoff
 from asesor.agent.tools.knowledge_tools import make_search_knowledge_base
-from asesor.agent.tools.lead_tools import make_guardar_lead
+from asesor.agent.tools.lead_tools import make_save_lead
 from asesor.application.handoff_service import HandoffService
 from asesor.application.knowledge_service import KnowledgeService
 from asesor.application.lead_service import LeadService
@@ -43,8 +43,8 @@ def create_agent(
         description="Asesor automotriz virtual que orienta sin presionar.",
         instruction=instruction_provider,
         tools=[
-            make_guardar_lead(lead_service),
-            make_solicitar_contacto_humano(handoff_service),
+            make_save_lead(lead_service),
+            make_request_human_handoff(handoff_service),
             make_search_knowledge_base(knowledge_service),
         ],
     )
@@ -65,20 +65,21 @@ def create_adk_app(settings: Settings, agent: Agent, summarizer_model: BaseLlm) 
         root_agent=agent,
         plugins=create_plugins(settings),
         events_compaction_config=EventsCompactionConfig(
-            # Sin `summarizer`, ADK usa por defecto el modelo del propio agente
-            # (agent.canonical_model) para resumir -- el modelo grande, en la
-            # misma llamada síncrona que cierra el turno (compaction.py,
-            # verificado leyendo la fuente). Se pasa aquí el modelo ligero
-            # (el mismo que titula conversaciones) a propósito: resumir no es
-            # tarea para el modelo principal, y con un modelo local ya al
-            # límite de tokens en turnos pesados (ADR-003 hallazgo #9), sumarle
-            # otra llamada al modelo grande justo cuando la conversación ya es
-            # larga sería el peor momento para hacerlo más lento.
+            # Without `summarizer`, ADK defaults to the agent's own model
+            # (agent.canonical_model) for summarizing -- the big model, in
+            # the same synchronous call that closes the turn (compaction.py,
+            # verified by reading the source). The lightweight model (the
+            # same one that titles conversations) is passed here on purpose:
+            # summarizing isn't a task for the main model, and with a local
+            # model already at its token limit in heavy turns (ADR-003
+            # finding #9), adding another call to the big model right when
+            # the conversation is already long would be the worst possible
+            # moment to slow it down.
             summarizer=LlmEventSummarizer(llm=summarizer_model),
             token_threshold=settings.memory_compaction_token_threshold,
             event_retention_size=settings.memory_compaction_keep_recent,
         ),
-        # Necesario para que la confirmacion de tools pueda pausar y reanudar
-        # el turno (spike de F3, ADR-002).
+        # Necessary so that tool confirmation can pause and resume the turn
+        # (F3 spike, ADR-002).
         resumability_config=ResumabilityConfig(is_resumable=True),
     )

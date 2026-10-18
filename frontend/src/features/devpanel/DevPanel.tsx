@@ -19,27 +19,27 @@ import { Separator } from '@/components/ui/separator'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 
 import type { FeedbackDto, LeadDto, TurnMetrics } from '../../api/types'
-import { ETAPA_LABEL, LEAD_FIELDS } from '../chat/labels'
+import { LEAD_FIELDS, STAGE_LABEL } from '../chat/labels'
 
 type Props = {
   lead: LeadDto | null
-  etapa: string
+  stage: string
   metrics: TurnMetrics | null
   onClose: () => void
   onOpenSession: (sessionId: string) => void
-  // Se incrementa cada vez que se manda feedback con éxito, en cualquier
-  // parte de la app: dispara la recarga de la lista sin que haga falta F5.
+  // Incremented every time feedback is sent successfully, from anywhere in
+  // the app: triggers the list reload without needing an F5.
   feedbackVersion: number
 }
 
 const LANGFUSE_PROJECT = import.meta.env['VITE_LANGFUSE_PROJECT_ID'] as string | undefined
-// Sin esto, un plan que no vive en el cloud.langfuse.com por defecto (p. ej.
-// una region HIPAA con host propio) arma el link contra el host equivocado y
-// se queda "Loading..." para siempre (visto en vivo).
+// Without this, a plan that doesn't live on the default cloud.langfuse.com
+// (e.g. a HIPAA region with its own host) builds the link against the wrong
+// host and gets stuck on "Loading..." forever (seen live).
 const LANGFUSE_HOST =
   (import.meta.env['VITE_LANGFUSE_HOST'] as string | undefined) || 'https://cloud.langfuse.com'
 
-export function DevPanel({ lead, etapa, metrics, onClose, onOpenSession, feedbackVersion }: Props) {
+export function DevPanel({ lead, stage, metrics, onClose, onOpenSession, feedbackVersion }: Props) {
   const record = (lead ?? {}) as Record<string, unknown>
 
   return (
@@ -64,7 +64,7 @@ export function DevPanel({ lead, etapa, metrics, onClose, onOpenSession, feedbac
         <section>
           <Label>Etapa</Label>
           <Badge variant="secondary" className="mt-1.5">
-            {ETAPA_LABEL[etapa] ?? etapa}
+            {STAGE_LABEL[stage] ?? stage}
           </Badge>
         </section>
 
@@ -136,10 +136,9 @@ function Row({ label, value }: { label: string; value: string }) {
   )
 }
 
-// Sin token ni login: el proyecto no tiene un modelo de auth de verdad en
-// ningún otro lado (X-User-Id es un UUID que pone el propio cliente), así
-// que gatear solo esto no daba seguridad real, solo fricción para quien
-// evalúa el reto.
+// No token or login: the project has no real auth model anywhere else
+// (X-User-Id is a UUID the client itself sets), so gating just this
+// wouldn't add real security, only friction for whoever evaluates the challenge.
 function FeedbackSection({
   onOpenSession,
   refreshKey,
@@ -154,9 +153,9 @@ function FeedbackSection({
 
   useEffect(() => {
     void load()
-    // Al montar (abrir el panel) y cada vez que refreshKey cambia (se mandó
-    // feedback con éxito) -- antes solo se veía la fila nueva recargando la
-    // pestaña entera.
+    // On mount (opening the panel) and every time refreshKey changes
+    // (feedback was sent successfully) -- previously the new row only showed
+    // up by reloading the whole tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey])
 

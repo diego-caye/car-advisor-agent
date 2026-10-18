@@ -33,13 +33,13 @@ class EmbeddingsProviderName(StrEnum):
 
 
 class ModelChoice(BaseModel):
-    """Una opción del selector de modelos de la interfaz.
+    """An option in the UI's model selector.
 
-    supports_tools/supports_thinking son True por defecto (para las entradas
-    declaradas a mano, típicamente Gemini): se asume que el modelo configurado
-    las tiene, salvo que se diga lo contrario. Las entradas de Ollama no se
-    declaran a mano — infrastructure.container las descubre en vivo contra
-    /api/show y pone aquí el valor real (spec 11 §Modelos locales).
+    supports_tools/supports_thinking default to True (for hand-declared
+    entries, typically Gemini): the configured model is assumed to have them
+    unless stated otherwise. Ollama entries aren't declared by hand —
+    infrastructure.container discovers them live against /api/show and puts
+    the real value here (spec 11 §Local models).
     """
 
     id: str
@@ -69,25 +69,25 @@ class Settings(BaseSettings):
     google_api_key: str | None = None
     google_genai_use_vertexai: bool = False
     ollama_api_base: str | None = None
-    # Ollama recorta el contexto en silencio si no se le dice cuánto usar. Con
-    # 16 GB de VRAM, 16384 es holgado para un modelo de ~10 GB.
+    # Ollama silently truncates the context if it isn't told how much to use.
+    # With 16 GB of VRAM, 16384 is comfortable for a ~10 GB model.
     ollama_context_length: int = Field(default=16384, gt=0)
-    # Acepta un nivel ("low", "medium", "high") o un booleano. Sin valor no se
-    # manda el parámetro: Ollama responde 400 "does not support thinking" si se
-    # le envía a un modelo que no lo tiene.
-    # Los modelos pequeños con esta capacidad SOLO llaman tools con el thinking
-    # activo, así que no es opcional con ellos; "low" da el mismo tool-calling
-    # que true a menos de la mitad de latencia (spec 05 §3, ADR-003).
+    # Accepts a level ("low", "medium", "high") or a boolean. With no value
+    # the parameter isn't sent: Ollama responds with 400 "does not support
+    # thinking" if it's sent to a model that doesn't have it.
+    # Small models with this capability ONLY call tools with thinking turned
+    # on, so it isn't optional for them; "low" gives the same tool-calling as
+    # true at less than half the latency (spec 05 §3, ADR-003).
     ollama_think: bool | str | None = None
 
     @field_validator("ollama_think", mode="before")
     @classmethod
     def _normalize_think(cls, value: object) -> object:
-        """Ollama acepta el booleano o un nivel, pero no la cadena "true".
+        """Ollama accepts the boolean or a level, but not the string "true".
 
-        Sin esto, OLLAMA_THINK=true llega como el string "true" y la API
-        responde: invalid think value (must be high, medium, low, max, true,
-        or false).
+        Without this, OLLAMA_THINK=true arrives as the string "true" and the
+        API responds: invalid think value (must be high, medium, low, max,
+        true, or false).
         """
         if not isinstance(value, str):
             return value
@@ -101,8 +101,8 @@ class Settings(BaseSettings):
             return lowered
 
         raise ValueError(
-            f"OLLAMA_THINK debe ser true, false o un nivel "
-            f"({', '.join(sorted(OLLAMA_THINK_LEVELS))}); recibido: {value!r}"
+            f"OLLAMA_THINK must be true, false, or a level "
+            f"({', '.join(sorted(OLLAMA_THINK_LEVELS))}); received: {value!r}"
         )
 
     agent_model: str
@@ -110,8 +110,8 @@ class Settings(BaseSettings):
     eval_model: str
     fallback_model: str
 
-    # Catálogo del selector de modelos (JSON). Vacío = una sola opción, la de
-    # AGENT_MODEL, y el selector no se muestra.
+    # Model selector catalog (JSON). Empty = a single option, AGENT_MODEL's,
+    # and the selector isn't shown.
     model_choices: list[ModelChoice] = Field(default_factory=list)
 
     embeddings_provider: EmbeddingsProviderName = EmbeddingsProviderName.GEMINI
@@ -148,14 +148,14 @@ class Settings(BaseSettings):
     def gemini_usable(self) -> bool:
         return bool(self.google_api_key or self.google_genai_use_vertexai)
 
-    # El catálogo (qué opciones hay, cuál es la de por defecto, resolver un
-    # id a una opción) vive en infrastructure.container.RunnerRegistry, no
-    # aquí: incluye lo que Ollama reporta tener instalado en vivo, y eso es
-    # estado descubierto en el arranque, no configuración estática. Settings
-    # se queda con lo que sí es puramente declarativo.
+    # The catalog (what options exist, which is the default, resolving an id
+    # to an option) lives in infrastructure.container.RunnerRegistry, not
+    # here: it includes what Ollama reports having installed live, and
+    # that's state discovered at startup, not static configuration. Settings
+    # keeps only what's purely declarative.
 
     def is_usable(self, option: ModelChoice) -> bool:
-        """Gemini necesita credenciales; los locales solo que Ollama responda."""
+        """Gemini needs credentials; local ones just need Ollama to respond."""
         if option.provider is LlmProviderName.GEMINI:
             return self.gemini_usable
         return bool(self.ollama_api_base)
@@ -180,17 +180,17 @@ class Settings(BaseSettings):
         elif self.llm_provider is LlmProviderName.OLLAMA:
             if not self.ollama_api_base:
                 raise ValueError("LLM_PROVIDER=ollama requires OLLAMA_API_BASE")
-            # El prefijo ollama/ puede provocar loops de tool-calling e ignorar
-            # contexto; LiteLLM solo trata ollama_chat/ como modelo conversacional.
+            # The ollama/ prefix can cause tool-calling loops and ignore
+            # context; LiteLLM only treats ollama_chat/ as a conversational model.
             if self.agent_model.startswith("ollama/"):
                 raise ValueError(
-                    "AGENT_MODEL debe usar el prefijo 'ollama_chat/', no 'ollama/' "
-                    f"(recibido: {self.agent_model})"
+                    "AGENT_MODEL must use the 'ollama_chat/' prefix, not 'ollama/' "
+                    f"(received: {self.agent_model})"
                 )
             if not self.agent_model.startswith("ollama_chat/"):
                 raise ValueError(
-                    "Con LLM_PROVIDER=ollama, AGENT_MODEL debe empezar con 'ollama_chat/' "
-                    f"(recibido: {self.agent_model})"
+                    "With LLM_PROVIDER=ollama, AGENT_MODEL must start with 'ollama_chat/' "
+                    f"(received: {self.agent_model})"
                 )
 
         if self.embeddings_provider is EmbeddingsProviderName.OLLAMA and not self.ollama_api_base:

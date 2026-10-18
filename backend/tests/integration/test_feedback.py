@@ -187,7 +187,7 @@ async def test_listar_feedback_devuelve_lo_mas_reciente_primero_con_mensaje(
         headers={"X-User-Id": str(user_id)},
     )
 
-    # Sin ningún header especial: listar feedback no requiere token (spec 02).
+    # No special header: listing feedback doesn't require a token (spec 02).
     response = await client.get("/api/v1/feedback")
 
     assert response.status_code == 200
